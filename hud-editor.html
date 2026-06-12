@@ -33,16 +33,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 /* ── PREVIEW ── */
 .prev-wrap{display:flex;justify-content:center;padding:14px 12px 4px}
-/* 640×480 escalado → cabe em tela estreita: scale = min(screenW-24, 320) / 640 */
+/* 480×640 portrait escalado → cabe em tela estreita: scale baseado na largura 480 */
 .prev-outer{position:relative}
 .prev-label{text-align:center;font-size:10px;color:var(--muted);margin-bottom:6px;display:flex;align-items:center;justify-content:center;gap:6px}
 .prev-label span{background:rgba(0,255,136,0.1);color:var(--g);border:1px solid rgba(0,255,136,0.15);border-radius:8px;padding:1px 7px;font-size:10px}
 /* Container visível no viewport */
 .prev-box{position:relative;overflow:hidden;border:2px solid rgba(0,255,136,0.3);border-radius:6px;background:#000;cursor:crosshair}
-/* Canvas real 640×480, transform-origin top-left */
-.hud-canvas{position:absolute;top:0;left:0;width:640px;height:480px;transform-origin:top left}
+/* Canvas real 480×640 portrait, transform-origin top-left */
+.hud-canvas{position:absolute;top:0;left:0;width:480px;height:640px;transform-origin:top left}
 /* Grid overlay */
-.grid-overlay{position:absolute;top:0;left:0;width:640px;height:480px;pointer-events:none;display:none}
+.grid-overlay{position:absolute;top:0;left:0;width:480px;height:640px;pointer-events:none;display:none}
 .grid-overlay.show{display:block}
 
 /* ── WIDGETS ── */
@@ -159,7 +159,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <!-- PREVIEW -->
 <div class="prev-wrap">
   <div>
-    <div class="prev-label">Waveguide Rokid · 640×480 <span id="scaleLabel">×0.5</span> <span id="bgOpLabel" style="color:var(--muted)">BG 0%</span></div>
+    <div class="prev-label">Waveguide Rokid · 480×640 portrait <span id="scaleLabel">×0.5</span>
+      <span id="bgOpLabel">BG 0%</span>
+      <button onclick="toggleSimBG()" id="btnSimBG" style="background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.25);border-radius:8px;padding:1px 7px;font-size:10px;color:var(--g);cursor:pointer">🌍 Simular</button>
+    </div>
     <div class="prev-outer">
       <div class="prev-box" id="prevBox">
         <div class="hud-canvas" id="hudCanvas"></div>
@@ -168,7 +171,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     </div>
   </div>
 </div>
-<div style="text-align:center;font-size:10px;color:var(--muted);padding:4px 0 10px">⚫ preto = transparente nos óculos · 🟢 verde = visível</div>
+<div style="text-align:center;font-size:10px;color:var(--muted);padding:4px 0 2px">
+  ⚫ pixels pretos = sem emissão = <b style="color:rgba(255,255,255,0.5)">totalmente transparentes</b> no prisma
+</div>
+<div style="text-align:center;font-size:10px;color:#f59e0b;padding:0 0 10px">
+  ⚠ Display é <b>verde monocromático</b> — vermelho e azul não aparecem nos óculos
+</div>
 
 <!-- ADD WIDGETS TOOLBAR -->
 <div class="toolbar">
@@ -226,10 +234,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       <div></div>
     </div>
 
-    <div class="pr"><span class="pl">X</span><input type="number" id="pX" min="0" max="640" oninput="applyProp('x',+this.value)"><span style="font-size:11px;color:var(--muted)">px</span></div>
-    <div class="pr"><span class="pl">Y</span><input type="number" id="pY" min="0" max="480" oninput="applyProp('y',+this.value)"><span style="font-size:11px;color:var(--muted)">px</span></div>
-    <div class="pr"><span class="pl">Largura</span><input type="number" id="pW" min="20" max="640" oninput="applyProp('width',+this.value)"><span style="font-size:11px;color:var(--muted)">px</span></div>
-    <div class="pr"><span class="pl">Altura</span><input type="number" id="pH" min="4" max="480" oninput="applyProp('height',+this.value)"><span style="font-size:11px;color:var(--muted)">px</span></div>
+    <div class="pr"><span class="pl">X</span><input type="number" id="pX" min="0" max="480" oninput="applyProp('x',+this.value)"><span style="font-size:11px;color:var(--muted)">px</span></div>
+    <div class="pr"><span class="pl">Y</span><input type="number" id="pY" min="0" max="640" oninput="applyProp('y',+this.value)"><span style="font-size:11px;color:var(--muted)">px</span></div>
+    <div class="pr"><span class="pl">Largura</span><input type="number" id="pW" min="20" max="480" oninput="applyProp('width',+this.value)"><span style="font-size:11px;color:var(--muted)">px</span></div>
+    <div class="pr"><span class="pl">Altura</span><input type="number" id="pH" min="4" max="640" oninput="applyProp('height',+this.value)"><span style="font-size:11px;color:var(--muted)">px</span></div>
     <div class="pr">
       <span class="pl">Fonte</span>
       <input type="range" id="pFs" min="8" max="72" value="18" oninput="applyProp('font_size',+this.value);document.getElementById('pFsN').value=this.value">
@@ -278,16 +286,16 @@ var SAMPLE={name:"João Silva",company:"Ironhack",role:"UX Designer",relation:"C
   last_seen_date:new Date().toISOString(),tags:["design","UX"]};
 
 var DEFS={
-  name:    {icon:"👤",label:"Nome",     dW:560,dH:40,dFs:28,prev:()=>SAMPLE.name},
-  company: {icon:"🏢",label:"Empresa",  dW:440,dH:28,dFs:18,prev:()=>SAMPLE.company},
-  role:    {icon:"💼",label:"Cargo",    dW:400,dH:24,dFs:16,prev:()=>SAMPLE.role},
-  relation:{icon:"🤝",label:"Relação",  dW:320,dH:24,dFs:15,prev:()=>SAMPLE.relation},
-  notes:   {icon:"📝",label:"Notas",    dW:560,dH:72,dFs:13,prev:()=>SAMPLE.notes},
-  lastSeen:{icon:"📅",label:"Visto",    dW:400,dH:22,dFs:13,prev:()=>"Visto: "+fmtD(SAMPLE.last_seen_date)},
-  tags:    {icon:"🏷",label:"Tags",     dW:560,dH:22,dFs:13,prev:()=>(SAMPLE.tags||[]).join("  ·  ")},
-  photo:   {icon:"🖼",label:"Foto",     dW:80, dH:80,dFs:0, prev:()=>"👤"},
-  text:    {icon:"✏",label:"Texto",     dW:300,dH:30,dFs:18,prev:()=>"Texto livre"},
-  separator:{icon:"─",label:"Linha",   dW:560,dH:3, dFs:0, prev:()=>""},
+  name:    {icon:"👤",label:"Nome",     dW:440,dH:40,dFs:28,prev:()=>SAMPLE.name},
+  company: {icon:"🏢",label:"Empresa",  dW:340,dH:26,dFs:17,prev:()=>SAMPLE.company},
+  role:    {icon:"💼",label:"Cargo",    dW:300,dH:22,dFs:14,prev:()=>SAMPLE.role},
+  relation:{icon:"🤝",label:"Relação",  dW:260,dH:22,dFs:14,prev:()=>SAMPLE.relation},
+  notes:   {icon:"📝",label:"Notas",    dW:440,dH:72,dFs:12,prev:()=>SAMPLE.notes},
+  lastSeen:{icon:"📅",label:"Visto",    dW:440,dH:20,dFs:12,prev:()=>"Visto: "+fmtD(SAMPLE.last_seen_date)},
+  tags:    {icon:"🏷",label:"Tags",     dW:440,dH:20,dFs:12,prev:()=>(SAMPLE.tags||[]).join("  ·  ")},
+  photo:   {icon:"🖼",label:"Foto",     dW:72, dH:72,dFs:0, prev:()=>"👤"},
+  text:    {icon:"✏",label:"Texto",     dW:240,dH:28,dFs:16,prev:()=>"Texto livre"},
+  separator:{icon:"─",label:"Linha",   dW:440,dH:3, dFs:0, prev:()=>""},
 };
 
 function fmtD(d){try{return new Date(d).toLocaleDateString("pt-BR",{day:"2-digit",month:"short"})}catch{return"—"}}
@@ -308,10 +316,10 @@ function setStatus(ok,msg){
 // ── Scale ──────────────────────────────────────────────────────
 function calcScale(){
   var avail=Math.min(window.innerWidth-24,400);
-  SCALE=avail/640;
+  SCALE=avail/480;
   var box=document.getElementById("prevBox");
-  box.style.width=Math.round(640*SCALE)+"px";
-  box.style.height=Math.round(480*SCALE)+"px";
+  box.style.width=Math.round(480*SCALE)+"px";
+  box.style.height=Math.round(640*SCALE)+"px";
   document.getElementById("hudCanvas").style.transform="scale("+SCALE+")";
   var gc=document.getElementById("gridCanvas");
   gc.style.transform="scale("+SCALE+")";
@@ -329,20 +337,20 @@ function toggleGrid(){
 }
 function drawGrid(){
   var gc=document.getElementById("gridCanvas");
-  gc.width=640;gc.height=480;
+  gc.width=480;gc.height=640;
   if(!showGrid)return;
   var ctx=gc.getContext("2d");
-  ctx.clearRect(0,0,640,480);
+  ctx.clearRect(0,0,480,640);
   ctx.strokeStyle="rgba(0,255,136,0.12)";
   ctx.lineWidth=1;
   var step=20;
-  for(var x=0;x<=640;x+=step){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,480);ctx.stroke();}
-  for(var y=0;y<=480;y+=step){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(640,y);ctx.stroke();}
+  for(var x=0;x<=480;x+=step){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,640);ctx.stroke();}
+  for(var y=0;y<=640;y+=step){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(480,y);ctx.stroke();}
   // Major lines every 80px
   ctx.strokeStyle="rgba(0,255,136,0.22)";
   ctx.lineWidth=1;
-  for(var x=0;x<=640;x+=80){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,480);ctx.stroke();}
-  for(var y=0;y<=480;y+=80){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(640,y);ctx.stroke();}
+  for(var x=0;x<=480;x+=80){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,640);ctx.stroke();}
+  for(var y=0;y<=640;y+=80){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(480,y);ctx.stroke();}
 }
 
 // ── Undo / Redo ───────────────────────────────────────────────
@@ -427,12 +435,13 @@ function newLayout(){
   document.getElementById("isDefault").checked=false;
   updateBG(0);
   widgets=[
-    {id:uid(),type:"name",     x:20,y:16,  width:580,height:44,font_size:30,color:"#00ff88",bold:true, visible:true},
-    {id:uid(),type:"company",  x:20,y:66,  width:440,height:26,font_size:18,color:"#00cc66",bold:false,visible:true},
-    {id:uid(),type:"role",     x:20,y:96,  width:400,height:22,font_size:15,color:"#009944",bold:false,visible:true},
-    {id:uid(),type:"separator",x:20,y:124, width:560,height:3, font_size:0, color:"#004422",bold:false,visible:true},
-    {id:uid(),type:"relation", x:20,y:132, width:340,height:24,font_size:15,color:"#00ff88",bold:false,visible:true},
-    {id:uid(),type:"notes",    x:20,y:162, width:560,height:72,font_size:13,color:"#00aa55",bold:false,visible:true},
+    {id:uid(),type:"name",     x:16,y:20,  width:440,height:44,font_size:28,color:"#00ff88",bold:true, visible:true},
+    {id:uid(),type:"company",  x:16,y:70,  width:340,height:26,font_size:17,color:"#00cc66",bold:false,visible:true},
+    {id:uid(),type:"role",     x:16,y:100, width:300,height:22,font_size:14,color:"#009944",bold:false,visible:true},
+    {id:uid(),type:"separator",x:16,y:128, width:440,height:3, font_size:0, color:"#004422",bold:false,visible:true},
+    {id:uid(),type:"relation", x:16,y:136, width:260,height:24,font_size:14,color:"#00ff88",bold:false,visible:true},
+    {id:uid(),type:"notes",    x:16,y:166, width:440,height:72,font_size:12,color:"#00aa55",bold:false,visible:true},
+    {id:uid(),type:"lastSeen", x:16,y:600, width:440,height:22,font_size:12,color:"#006633",bold:false,visible:true},
   ];
   undoStack=[];redoStack=[];selectedId=null;
   renderCanvas();renderList();hideProps();renderLayoutBar();updateUndoButtons();
@@ -552,11 +561,11 @@ function nudge(dx,dy){
   var step=+document.getElementById("nudgeStep").value;
   snapshot();
   if(dx!==0){
-    w.x=Math.max(0,Math.min(640-w.width,w.x+dx*step));
+    w.x=Math.max(0,Math.min(480-w.width,w.x+dx*step));
     document.getElementById("pX").value=w.x;
   }
   if(dy!==0){
-    w.y=Math.max(0,Math.min(480-w.height,w.y+dy*step));
+    w.y=Math.max(0,Math.min(640-w.height,w.y+dy*step));
     document.getElementById("pY").value=w.y;
   }
   // Snap to grid if grid is on
@@ -572,7 +581,7 @@ function nudge(dx,dy){
 function centerWidget(){
   var w=widgets.find(x=>x.id===selectedId);if(!w)return;
   snapshot();
-  w.x=Math.round((640-w.width)/2);
+  w.x=Math.round((480-w.width)/2);
   document.getElementById("pX").value=w.x;
   renderCanvas();renderList();markDirty();
 }
@@ -639,8 +648,8 @@ function deleteSelected(){
     var nx=Math.round(src.clientX/SCALE-ds.ox);
     var ny=Math.round(src.clientY/SCALE-ds.oy);
     var gs=showGrid?20:1;
-    w.x=Math.max(0,Math.min(640-w.width,Math.round(nx/gs)*gs));
-    w.y=Math.max(0,Math.min(480-w.height,Math.round(ny/gs)*gs));
+    w.x=Math.max(0,Math.min(480-w.width,Math.round(nx/gs)*gs));
+    w.y=Math.max(0,Math.min(640-w.height,Math.round(ny/gs)*gs));
     document.getElementById("pX").value=w.x;
     document.getElementById("pY").value=w.y;
     renderCanvas();
@@ -728,6 +737,20 @@ document.addEventListener("keydown",e=>{
 
 // ── Warn before leave ─────────────────────────────────────────
 window.addEventListener("beforeunload",e=>{if(dirty){e.preventDefault();e.returnValue="";}});
+
+// ── Simulate real-world BG ─────────────────────────────────────
+var simBG = false;
+function toggleSimBG(){
+  simBG=!simBG;
+  var btn=document.getElementById("btnSimBG");
+  var wrap=document.getElementById("prevBox");
+  btn.style.background=simBG?"rgba(0,255,136,0.25)":"rgba(0,255,136,0.1)";
+  // Fundo simulando "mundo real" — pessoas numa sala
+  wrap.style.backgroundImage=simBG
+    ? "url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22480%22 height=%22640%22><rect width=%22480%22 height=%22640%22 fill=%22%23334155%22/><rect x=%220%22 y=%22400%22 width=%22480%22 height=%22240%22 fill=%22%231e293b%22/><circle cx=%22240%22 cy=%22280%22 r=%22120%22 fill=%22%2264748b%22 opacity=%220.4%22/><text x=%22120%22 y=%22620%22 fill=%22%2394a3b8%22 font-size=%2214%22>mundo real simulado</text></svg>')"
+    : "none";
+  wrap.style.backgroundSize="cover";
+}
 
 // ── Init ──────────────────────────────────────────────────────
 calcScale();
