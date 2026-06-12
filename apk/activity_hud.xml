@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Rokid waveguide canvas: 480 x 640 px portrait
+  #000000 background = fully transparent on the physical prism
+  All UI elements rendered in green (#00FF88 and variants)
+  NO touch listeners — interaction is 100% via physical temple buttons
+-->
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root_layout"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#000000"
+    android:focusable="true"
+    android:focusableInTouchMode="false">
+
+    <!-- ── PROFILE HUD OVERLAY ─────────────────────────────── -->
+    <LinearLayout
+        android:id="@+id/hud_profile"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp"
+        android:visibility="gone">
+
+        <!-- Name — bright green, bold -->
+        <TextView
+            android:id="@+id/hud_name"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#00FF88"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:text="Nome" />
+
+        <!-- Role -->
+        <TextView
+            android:id="@+id/hud_role"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#00CC6E"
+            android:textSize="13sp"
+            android:layout_marginTop="4dp"
+            android:text="Cargo" />
+
+        <!-- Company -->
+        <TextView
+            android:id="@+id/hud_company"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#00AA5A"
+            android:textSize="13sp"
+            android:layout_marginTop="2dp"
+            android:text="Empresa" />
+
+        <!-- Relation context -->
+        <TextView
+            android:id="@+id/hud_context"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#008844"
+            android:textSize="11sp"
+            android:layout_marginTop="6dp"
+            android:text="Contexto da relação" />
+
+    </LinearLayout>
+
+    <!-- ── STATUS BAR (bottom) ─────────────────────────────── -->
+    <LinearLayout
+        android:id="@+id/hud_statusbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="12dp"
+        android:layout_gravity="bottom">
+
+        <!-- Last seen -->
+        <TextView
+            android:id="@+id/hud_last_seen"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#00CC6E"
+            android:textSize="11sp"
+            android:text="" />
+
+        <!-- Contacts shortcut -->
+        <TextView
+            android:id="@+id/hud_contacts"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="#00FF88"
+            android:textSize="11sp"
+            android:layout_marginTop="2dp"
+            android:text="" />
+
+    </LinearLayout>
+
+    <!-- ── CAPTURE MODE INDICATOR (top right) ──────────────── -->
+    <TextView
+        android:id="@+id/hud_capture_indicator"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|end"
+        android:layout_margin="12dp"
+        android:textColor="#00FF88"
+        android:textSize="10sp"
+        android:text="● CAP"
+        android:visibility="gone" />
+
+    <!-- ── KEY HINT BAR (bottom right, shown on menu press) ── -->
+    <LinearLayout
+        android:id="@+id/hud_keyhints"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:orientation="vertical"
+        android:padding="10dp"
+        android:visibility="gone">
+
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textColor="#007733" android:textSize="9sp" android:text="▲ Próximo" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textColor="#007733" android:textSize="9sp" android:text="▼ Anterior" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textColor="#007733" android:textSize="9sp" android:text="⏻ Capturar" />
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:textColor="#007733" android:textSize="9sp" android:text="← Sair" />
+
+    </LinearLayout>
+
+</FrameLayout>
