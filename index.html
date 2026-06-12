@@ -175,8 +175,8 @@ video{width:100%;display:block;min-height:80px}
 <script>
 // ─── CONFIG ────────────────────────────────────────────────
 var APP_ID = "6a11083db49430b410a8c066";
-var API    = "https://api.base44.com/api/apps/" + APP_ID + "/entities/FaceContextPerson";
-var UPLOAD = "https://api.base44.com/api/apps/" + APP_ID + "/storage/upload";
+var API    = "https://base44.app/api/apps/6a11083db49430b410a8c066/functions/fcProxy";
+
 
 // ─── STATE ────────────────────────────────────────────────
 var stream = null, snapDataUrl = null, faceT = null;
@@ -186,7 +186,7 @@ var isOnline = false;
 // ─── API ──────────────────────────────────────────────────
 function apiFetch(url, opts) {
   return fetch(url, Object.assign({
-    credentials: "include",
+    
     headers: Object.assign({"Content-Type":"application/json"}, (opts||{}).headers||{})
   }, opts||{}));
 }
@@ -211,22 +211,8 @@ async function loadProfiles() {
 }
 
 async function uploadPhoto(dataUrl) {
-  // converte dataUrl em Blob
-  var arr = dataUrl.split(","), mime = arr[0].match(/:(.*?);/)[1];
-  var bstr = atob(arr[1]), n = bstr.length, u8 = new Uint8Array(n);
-  for (var i = 0; i < n; i++) u8[i] = bstr.charCodeAt(i);
-  var blob = new Blob([u8], {type: mime});
-  var fd = new FormData();
-  fd.append("file", blob, "capture_" + Date.now() + ".jpg");
-  try {
-    var r = await fetch(UPLOAD, { method:"POST", credentials:"include", body: fd });
-    if (!r.ok) throw new Error("upload HTTP " + r.status);
-    var j = await r.json();
-    return j.url || j.file_url || j.public_url || null;
-  } catch(e) {
-    lg("⚠ foto não enviada: " + e.message, false);
-    return null;
-  }
+  // Upload via proxy não implementado — salva base64 localmente
+  return null;
 }
 
 async function saveToAPI(payload) {
@@ -315,13 +301,7 @@ async function saveProfile() {
   var tags = [];
   document.querySelectorAll(".tag.on").forEach(function(t){ tags.push(t.textContent); });
 
-  // tenta fazer upload da foto
-  var photoUrl = null;
-  if (snapDataUrl && isOnline) {
-    lg("Enviando foto...", false);
-    photoUrl = await uploadPhoto(snapDataUrl);
-    if (photoUrl) lg("Foto enviada ✓", true);
-  }
+  var photoUrl = null;  // foto salva localmente
 
   var payload = {
     name:             nm,
