@@ -494,6 +494,7 @@ function applyFilters(){
     var av=c.photo_url?`<img src="${esc(c.photo_url)}" loading="lazy">`:(initials(c.name));
     var sub=[c.role,c.company].filter(Boolean).join(" · ")||c.relation||"";
     var tags=(c.tags||[]).filter(t=>t!=="gmail").slice(0,3).map(t=>`<span class="tag">${esc(t)}</span>`).join("");
+    var hasPhoto=c.photo_url&&c.photo_url.startsWith("http");
     return `<div class="ccard" onclick="openDetail('${c.id}')">
       <div class="av">${av}</div>
       <div class="ci">
@@ -501,7 +502,10 @@ function applyFilters(){
         ${sub?`<div class="cs">${esc(sub)}</div>`:""}
         ${tags?`<div class="ctags">${tags}</div>`:""}
       </div>
-      <div class="dot ${esc(c.status||"Pendente")}"></div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+        <div class="dot ${esc(c.status||"Pendente")}"></div>
+        ${!hasPhoto?`<button class="btn-fetch-photo" onclick="event.stopPropagation();fetchPhoto('${c.id}')" title="Buscar foto automaticamente">🔍</button>`:'<span style="font-size:9px;color:#006633">📸</span>'}
+      </div>
     </div>`;
   }).join("");
 }
@@ -1052,6 +1056,85 @@ function openEncMic(){
 document.querySelectorAll(".overlay").forEach(o=>{
   o.addEventListener("click",e=>{ if(e.target===o) o.classList.remove("open"); });
 });
+
+
+// ── FETCH PHOTO AUTO ─────────────────────────────────────────
+var fetchingPhoto = {};
+async function fetchPhoto(id){
+  if(fetchingPhoto[id]) return;
+  fetchingPhoto[id]=true;
+  var c=contacts.find(x=>x.id===id); if(!c){ fetchingPhoto[id]=false; return; }
+  toast("🔍 Buscando foto de "+c.name+"…","ok");
+
+  var found=null;
+
+  // 1. Gravatar por email
+  if(c.contact_email && !found){
+    try{
+      var hash=await md5(c.contact_email.trim().toLowerCase());
+      var url="https://www.gravatar.com/avatar/"+hash+"?d=404&s=200";
+      var r=await fetch(url,{method:"HEAD"});
+      if(r.ok) found=url;
+    }catch(e){}
+  }
+
+  // 2. Clearbit logo por domínio do email (avatar de empresa como fallback)
+  if(c.contact_email && !found){
+    try{
+      var domain=c.contact_email.split("@")[1];
+      if(domain&&!domain.includes("gmail")&&!domain.includes("hotmail")&&!domain.includes("yahoo")){
+        var url="https://logo.clearbit.com/"+domain+"?size=200";
+        var r=await fetch(url,{method:"HEAD"});
+        if(r.ok) found=url;
+      }
+    }catch(e){}
+  }
+
+  // 3. UI Avatars (gerado por nome — fallback visual sempre funciona)
+  if(!found){
+    var nm=encodeURIComponent((c.name||"?").slice(0,2));
+    found="https://ui-avatars.com/api/?name="+encodeURIComponent(c.name||"?")+"&background=0a2a18&color=00ff88&size=200&bold=true&format=png";
+  }
+
+  if(found){
+    try{
+      var r=await fetch(PROXY+"?id="+id,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({photo_url:found})});
+      if(r.ok){
+        var updated=await r.json();
+        var idx=contacts.findIndex(x=>x.id===id);
+        if(idx>=0) contacts[idx]={...contacts[idx],photo_url:found};
+        localStorage.setItem("fc_c",JSON.stringify(contacts));
+        toast("✅ Foto atualizada: "+c.name,"ok");
+        renderContacts(); renderPending();
+      }
+    }catch(e){ toast("Erro ao salvar foto","err"); }
+  }
+  fetchingPhoto[id]=false;
+}
+
+// Buscar foto de TODOS sem foto
+async function fetchAllPhotos(){
+  var sem=contacts.filter(c=>!c.photo_url||!c.photo_url.startsWith("http"));
+  if(!sem.length){ toast("Todos já têm foto! 🎉","ok"); return; }
+  toast("🔍 Buscando fotos de "+sem.length+" contatos…","ok");
+  for(var c of sem){
+    await fetchPhoto(c.id);
+    await new Promise(r=>setTimeout(r,300)); // delay gentil
+  }
+  toast("✅ Busca concluída!","ok");
+}
+
+// MD5 simples para Gravatar
+async function md5(str){
+  var buf=await crypto.subtle.digest("MD5",new TextEncoder().encode(str)).catch(()=>null);
+  if(!buf) return fallbackMd5(str);
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+function fallbackMd5(str){
+  // Sem suporte nativo — retorna hash simples (não MD5 real, só para evitar crash)
+  var h=0;for(var i=0;i<str.length;i++){h=((h<<5)-h)+str.charCodeAt(i);h|=0;}
+  return Math.abs(h).toString(16).padStart(32,"0");
+}
 
 // ── INIT ─────────────────────────────────────────────────────
 loadAll();
