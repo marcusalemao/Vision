@@ -3,287 +3,336 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
-<title>FaceContext — Óculos AR</title>
+<title>FaceContext — AR Emulator</title>
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{background:#111;color:#00ff88;font-family:monospace;min-height:100vh;display:flex;flex-direction:column;align-items:center;gap:10px;padding-bottom:20px}
+html,body{
+  background:#0a0a0a;color:#00ff88;font-family:monospace;
+  min-height:100vh;display:flex;flex-direction:column;
+  align-items:center;gap:10px;padding:10px 0 20px;
+}
 
 /* ── badges topo ── */
-.topbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;padding:10px 14px 0}
+.topbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;padding:4px 10px 0}
 .badge{font-size:9px;padding:3px 9px;border-radius:20px;border:1px solid #0a2a18;color:#004422;background:#080f09}
 .badge.ok{color:#00ff88;border-color:#00aa55}
 .badge.err{color:#aa4400;border-color:#441a00}
 .badge.loading{color:#aaaa00;border-color:#444400}
 .badge.ai-ready{color:#00bbff;border-color:#005577}
 .badge.ai-scan{color:#ffaa00;border-color:#554400;animation:pulse .7s infinite}
-.badge.ai-match{color:#00ff88;border-color:#00aa55;animation:pulse .4s infinite}
+.badge.ai-match{color:#00ff88;border-color:#00aa55;animation:glow .4s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+@keyframes glow{0%,100%{opacity:1}50%{opacity:.6}}
 
-/* ══════════════════════════════════════════
-   VISOR PRINCIPAL — câmera + HUD sobrepostos
-   480×640 ratio (portrait, igual ao waveguide)
-   ══════════════════════════════════════════ */
+/* ══════════════════════════════════════
+   VISOR — proporção 4:3 landscape (640×480)
+   ══════════════════════════════════════ */
 .visor{
   position:relative;
-  width:min(300px,90vw);
-  aspect-ratio:3/4;
+  /* em telas estreitas, ocupa quase toda a largura; em telas largas, limita */
+  width:min(640px, 97vw);
+  aspect-ratio:4/3;
   background:#000;
-  border-radius:16px;
+  border-radius:10px;
   overflow:hidden;
   border:2px solid #0a2a18;
-  box-shadow:0 0 30px #00ff8818;
+  box-shadow:0 0 40px #00ff8810;
+}
+.visor.active{
+  border-color:#00ff8840;
+  box-shadow:0 0 50px #00ff8820, inset 0 0 25px #00ff8806;
 }
 
-/* Câmera ocupa 100% do visor — é o "mundo real" */
+/* câmera — fundo do visor */
 .visor video{
-  position:absolute;
-  inset:0;
-  width:100%;
-  height:100%;
+  position:absolute;inset:0;
+  width:100%;height:100%;
   object-fit:cover;
 }
 
-/* Canvas de detecção (bounding boxes) */
+/* canvas bounding boxes */
 .visor canvas.det{
-  position:absolute;
-  inset:0;
-  width:100%;
-  height:100%;
+  position:absolute;inset:0;
+  width:100%;height:100%;
   pointer-events:none;
 }
 
-/* Flash de captura */
-.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .06s;z-index:5}
-.flash.on{opacity:.35}
+/* flash de captura */
+.flash{
+  position:absolute;inset:0;background:#fff;
+  opacity:0;pointer-events:none;
+  transition:opacity .06s;z-index:5;
+}
+.flash.on{opacity:.4}
 
-/* Tela "câmera inativa" */
-.visor .idle-screen{
+/* tela idle */
+.idle-screen{
   position:absolute;inset:0;
   display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:10px;background:#000;z-index:1;
+  gap:8px;background:#000;z-index:1;
 }
-.idle-screen .idle-icon{font-size:36px;opacity:.2}
-.idle-screen .idle-txt{font-size:10px;color:#003320;letter-spacing:2px}
+.idle-screen .idle-icon{font-size:40px;opacity:.15}
+.idle-screen .idle-txt{font-size:11px;color:#002a18;letter-spacing:3px}
+.idle-screen .idle-hint{font-size:8px;color:#001a10;margin-top:2px}
 
-/* ── HUD overlay — cobre o visor, fundo transparente ── */
+/* ════════════════════════════
+   HUD — overlay transparente
+   Simula o waveguide: somente
+   pixels não-pretos aparecem
+   ════════════════════════════ */
 .hud{
   position:absolute;inset:0;
-  pointer-events:none;
-  z-index:10;
-  padding:12px;
-  display:flex;
-  flex-direction:column;
+  pointer-events:none;z-index:10;
 }
 
-/* Indicador de gravação piscando — canto sup esq */
+/* scanlines — efeito display AR */
+.hud::before{
+  content:"";position:absolute;inset:0;
+  background:repeating-linear-gradient(
+    0deg,transparent,transparent 3px,
+    rgba(0,255,136,.008) 3px,rgba(0,255,136,.008) 4px
+  );
+  pointer-events:none;
+}
+
+/* Dot de gravação — topo esquerdo */
 .rec-dot{
-  position:absolute;top:10px;left:10px;
-  width:7px;height:7px;border-radius:50%;background:#00ff88;
-  display:none;
-  animation:blink .8s infinite;
+  position:absolute;top:9px;left:10px;
+  width:6px;height:6px;border-radius:50%;
+  background:#00ff88;display:none;
+  animation:blink .9s infinite;
+  box-shadow:0 0 6px #00ff88;
 }
 .rec-dot.on{display:block}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 
-/* Confiança — canto sup dir */
+/* Confiança — topo direito */
 .hud-conf{
-  position:absolute;top:10px;right:10px;
+  position:absolute;top:9px;right:10px;
   font-size:10px;color:#00ff88;
-  text-shadow:0 0 6px #00ff8888;
+  text-shadow:0 0 8px #00ff8899;
+  letter-spacing:1px;
 }
 
-/* Nome — destaque principal */
+/* Hora — topo centro */
+.hud-clock{
+  position:absolute;top:9px;left:0;right:0;
+  text-align:center;font-size:9px;
+  color:#003a20;letter-spacing:2px;
+}
+
+/* ── painel de identidade — canto inf esquerdo ── */
+.hud-id{
+  position:absolute;
+  bottom:10px;left:10px;right:40%;
+}
 .hud-name{
-  position:absolute;bottom:52px;left:12px;right:12px;
-  font-size:18px;font-weight:bold;color:#00ff88;
-  text-shadow:0 0 12px #00ff88aa, 0 0 24px #00ff8844;
-  line-height:1.1;
+  font-size:clamp(14px,2.4vw,20px);
+  font-weight:bold;color:#00ff88;
+  text-shadow:0 0 14px #00ff88aa, 0 0 28px #00ff8833;
+  line-height:1.15;margin-bottom:2px;
 }
-
-/* Cargo e empresa */
 .hud-role{
-  position:absolute;bottom:34px;left:12px;right:12px;
-  font-size:10px;color:#00dd77;
-  text-shadow:0 0 8px #00ff8855;
+  font-size:clamp(9px,1.4vw,11px);
+  color:#00dd77;text-shadow:0 0 8px #00ff8855;
+  margin-bottom:1px;
 }
 .hud-co{
-  position:absolute;bottom:20px;left:12px;right:12px;
-  font-size:9px;color:#009944;
-  text-shadow:0 0 6px #00ff8833;
+  font-size:clamp(8px,1.2vw,10px);
+  color:#009944;text-shadow:0 0 6px #00ff8833;
+  margin-bottom:1px;
 }
+.hud-rel{font-size:8px;color:#005530;}
 
-/* Relação / contexto */
-.hud-rel{
-  position:absolute;bottom:8px;left:12px;
-  font-size:8px;color:#006633;
-}
-
-/* Hora — canto inf dir */
-.hud-time{
-  position:absolute;bottom:8px;right:10px;
-  font-size:8px;color:#004422;
-}
-
-/* ── Painel DESCONHECIDO ── */
+/* ── painel DESCONHECIDO — centro ── */
 .hud-unknown{
   position:absolute;inset:0;
-  display:flex;flex-direction:column;align-items:center;justify-content:center;
-  gap:6px;pointer-events:none;display:none;
-}
-.hud-unknown .uq{font-size:28px;color:#ffaa00;text-shadow:0 0 16px #ffaa0066}
-.hud-unknown .ul{font-size:11px;color:#ffaa00;text-shadow:0 0 8px #ffaa0044}
-.hud-unknown .uh{font-size:8px;color:#664400;text-align:center;line-height:1.5}
-
-/* ── scanline sutil (efeito AR) ── */
-.hud::after{
-  content:"";position:absolute;inset:0;
-  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,255,136,.012) 3px,rgba(0,255,136,.012) 4px);
+  display:none;flex-direction:column;
+  align-items:center;justify-content:center;gap:5px;
   pointer-events:none;
 }
+.hud-unknown.show{display:flex}
+.uq{font-size:clamp(24px,5vw,36px);color:#ffaa00;text-shadow:0 0 20px #ffaa0066}
+.ul{font-size:clamp(9px,1.5vw,11px);color:#ffaa00;text-shadow:0 0 8px #ffaa0044;letter-spacing:2px}
+.uh{font-size:8px;color:#664400;text-align:center;line-height:1.6}
 
-/* ── borda HUD ativa (glow verde) ── */
-.visor.active{border-color:#00ff8844;box-shadow:0 0 40px #00ff8822,inset 0 0 20px #00ff8808}
+/* ── mini mapa de status — canto inf dir ── */
+.hud-status{
+  position:absolute;bottom:10px;right:10px;
+  text-align:right;font-size:8px;color:#003320;
+  line-height:1.8;
+}
 
-/* ══ BOTÕES ══ */
-.brow{
-  display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;
-  width:min(300px,90vw);
+/* ══ CONTROLES ══ */
+.controls{
+  display:flex;gap:8px;flex-wrap:wrap;justify-content:center;
+  width:min(640px,97vw);
 }
 .btn{
-  padding:12px 4px 10px;background:#0d1f11;border:1.5px solid #152a18;
-  border-radius:12px;color:#009944;font-family:monospace;font-size:10px;
+  flex:1;min-width:60px;max-width:110px;
+  padding:11px 6px 9px;
+  background:#0c1a10;border:1.5px solid #142010;
+  border-radius:10px;color:#009944;
+  font-family:monospace;font-size:10px;
   text-align:center;cursor:pointer;
-  display:flex;flex-direction:column;align-items:center;gap:4px;
+  display:flex;flex-direction:column;align-items:center;gap:3px;
   touch-action:manipulation;-webkit-user-select:none;user-select:none;
-  -webkit-tap-highlight-color:rgba(0,255,136,.2);
+  -webkit-tap-highlight-color:rgba(0,255,136,.15);
 }
 .btn:active,.btn.on{background:#0a2a18;border-color:#00ff88;color:#00ff88}
-.btn.dim{opacity:.3;pointer-events:none}
-.btn.red{border-color:#2a1000;color:#663300}
-.bicon{font-size:19px;line-height:1}
+.btn.dim{opacity:.25;pointer-events:none}
+.btn.warn{border-color:#2a1000;color:#663300}
+.btn:active.warn{background:#1a0800;border-color:#ff6600;color:#ff6600}
+.bicon{font-size:18px;line-height:1}
 
 /* ══ LOG ══ */
-.logwrap{width:min(300px,90vw)}
-.slbl{font-size:8px;color:#002a14;letter-spacing:2px;margin-bottom:5px}
-.logbox{background:#040d07;border:1px solid #081a0e;border-radius:8px;padding:7px;height:80px;overflow-y:auto;font-size:9px}
-.ll{color:#002a14;margin-bottom:2px}.ll.hi{color:#00aa55}.ll.warn{color:#aa6600}
+.logwrap{width:min(640px,97vw)}
+.slbl{font-size:7px;color:#002014;letter-spacing:3px;margin-bottom:4px;padding-left:2px}
+.logbox{
+  background:#050c07;border:1px solid #081608;
+  border-radius:8px;padding:7px 9px;
+  height:72px;overflow-y:auto;font-size:8.5px;
+}
+.ll{color:#002810;margin-bottom:2px}
+.ll.hi{color:#00aa55}
+.ll.warn{color:#aa6600}
 
 /* ══ HELP OVERLAY ══ */
-#help{position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:100;display:none;align-items:center;justify-content:center}
+#help{
+  position:fixed;inset:0;background:rgba(0,0,0,.94);
+  z-index:200;display:none;align-items:center;justify-content:center;
+}
 #help.show{display:flex}
-.hcard{background:#060e08;border:1px solid #0a2a18;border-radius:16px;padding:20px;width:min(320px,92vw);max-height:82vh;overflow-y:auto}
-.hhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:11px;letter-spacing:2px;color:#006633}
-.hxbtn{background:none;border:1px solid #0a2a18;color:#006633;border-radius:6px;padding:3px 8px;cursor:pointer;font-family:monospace}
-.hsec{font-size:8px;letter-spacing:2px;color:#003320;margin:10px 0 5px}
+.hcard{
+  background:#060e08;border:1px solid #0a2a18;
+  border-radius:14px;padding:18px;
+  width:min(380px,94vw);max-height:85vh;overflow-y:auto;
+}
+.hhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:10px;letter-spacing:2px;color:#006633}
+.hxbtn{background:none;border:1px solid #0a2a18;color:#006633;border-radius:6px;padding:3px 8px;cursor:pointer;font-family:monospace;font-size:10px}
+.hsec{font-size:7px;letter-spacing:3px;color:#003320;margin:10px 0 5px;border-top:1px solid #081208;padding-top:8px}
 .hrow{display:flex;justify-content:space-between;margin-bottom:4px;font-size:9px}
 .hkey{color:#009944}.hdesc{color:#005533;text-align:right}
-.hnote{font-size:8px;color:#004422;margin-top:10px;line-height:1.6;background:#040d07;padding:8px;border-radius:6px}
+.hnote{font-size:8px;color:#004422;margin-top:8px;line-height:1.7;background:#040d07;padding:8px 10px;border-radius:6px;border-left:2px solid #0a3a18}
 </style>
 </head>
 <body>
 
-<!-- badges de estado -->
 <div class="topbar">
   <div class="badge loading" id="syncbadge">⟳ conectando...</div>
-  <div class="badge" id="aibadge">⬡ IA não carregada</div>
+  <div class="badge" id="aibadge">⬡ IA</div>
 </div>
 
-<!-- ═══════ VISOR ÚNICO ═══════ -->
+<!-- ═══════════════════════════════
+     VISOR LANDSCAPE 4:3 (640×480)
+     Câmera ao fundo + HUD sobreposto
+     ═══════════════════════════════ -->
 <div class="visor" id="visor">
 
-  <!-- mundo real (câmera) -->
+  <!-- 1. câmera — mundo real -->
   <video id="vid" autoplay playsinline muted></video>
 
-  <!-- bounding boxes de detecção -->
+  <!-- 2. bounding boxes -->
   <canvas id="detCanvas" class="det"></canvas>
 
-  <!-- flash de captura -->
+  <!-- 3. flash -->
   <div class="flash" id="flash"></div>
 
-  <!-- tela idle (câmera off) -->
+  <!-- 4. tela idle -->
   <div class="idle-screen" id="idleScreen">
-    <div class="idle-icon">◎</div>
-    <div class="idle-txt">VISOR INATIVO</div>
-    <div style="font-size:8px;color:#002015;margin-top:4px">toque ⏻ para ligar</div>
+    <div class="idle-icon">▭</div>
+    <div class="idle-txt">WAVEGUIDE INATIVO</div>
+    <div class="idle-hint">toque ⏻ para ligar</div>
   </div>
 
-  <!-- HUD sobreposto ao vivo -->
+  <!-- 5. HUD AR sobreposto -->
   <div class="hud" id="hud">
     <div class="rec-dot" id="recDot"></div>
     <div class="hud-conf" id="hudConf"></div>
+    <div class="hud-clock" id="hudClock"></div>
 
-    <!-- painel conhecido -->
-    <div class="hud-name" id="hudName"></div>
-    <div class="hud-role" id="hudRole"></div>
-    <div class="hud-co"   id="hudCo"></div>
-    <div class="hud-rel"  id="hudRel"></div>
-    <div class="hud-time" id="hudTime"></div>
+    <!-- identidade reconhecida -->
+    <div class="hud-id" id="hudId" style="display:none">
+      <div class="hud-name" id="hudName"></div>
+      <div class="hud-role" id="hudRole"></div>
+      <div class="hud-co"   id="hudCo"></div>
+      <div class="hud-rel"  id="hudRel"></div>
+    </div>
 
-    <!-- painel desconhecido -->
+    <!-- desconhecido -->
     <div class="hud-unknown" id="hudUnknown">
       <div class="uq">?</div>
       <div class="ul">ROSTO DESCONHECIDO</div>
-      <div class="uh">Capturado para identificação<br>Abra o gestor para identificar</div>
+      <div class="uh">Capturado para identificação<br>Abra o gestor para vincular</div>
     </div>
+
+    <!-- status inf dir -->
+    <div class="hud-status" id="hudStatus"></div>
   </div>
 </div>
 
-<!-- botões de controle -->
-<div class="brow">
+<!-- controles -->
+<div class="controls">
   <div class="btn" id="bcam"><span class="bicon">⏻</span><span>Câmera</span></div>
   <div class="btn dim" id="bsnap"><span class="bicon">⊙</span><span>Capturar</span></div>
-  <div class="btn dim red" id="bstop"><span class="bicon">■</span><span>Parar</span></div>
+  <div class="btn dim warn" id="bstop"><span class="bicon">■</span><span>Parar</span></div>
   <div class="btn" id="bhelp"><span class="bicon">?</span><span>Ajuda</span></div>
 </div>
 
 <!-- log -->
 <div class="logwrap">
-  <div class="slbl">LOG</div>
+  <div class="slbl">LOG DO SISTEMA</div>
   <div class="logbox" id="logbox"></div>
 </div>
 
-<!-- help modal -->
+<!-- help -->
 <div id="help">
   <div class="hcard">
-    <div class="hhead"><span>FACECONTEXT v12</span><button class="hxbtn" id="helpx">✕</button></div>
-    <div class="hsec">VISOR AR</div>
+    <div class="hhead"><span>FACECONTEXT v13 · EMULADOR AR</span><button class="hxbtn" id="helpx">✕</button></div>
     <div class="hnote">
-      A câmera mostra o mundo real ao fundo.<br>
-      O HUD verde é sobreposto — simula o waveguide dos óculos Rokid.<br><br>
-      🟢 Rosto identificado → nome/cargo aparecem sobre a pessoa<br>
-      🟡 Rosto desconhecido → capturado automaticamente<br>
-      🔵 Box verde = match confirmado · laranja = desconhecido
+      Simula o waveguide dos óculos Rokid em proporção real <strong>4:3 landscape (640×480)</strong>.<br>
+      A câmera do dispositivo é o "mundo real". O HUD verde é sobreposto em transparência — exatamente como os óculos projetam.
     </div>
-    <div class="hsec">BOTÕES</div>
-    <div class="hrow"><span class="hkey">⏻ Câmera</span><span class="hdesc">Liga/desliga</span></div>
-    <div class="hrow"><span class="hkey">⊙ Capturar</span><span class="hdesc">Força captura manual</span></div>
-    <div class="hrow"><span class="hkey">■ Parar</span><span class="hdesc">Para câmera e IA</span></div>
-    <div class="hsec">TECLADO</div>
-    <div class="hrow"><span class="hkey">Espaço</span><span class="hdesc">Liga/desliga câmera</span></div>
-    <div class="hrow"><span class="hkey">↑</span><span class="hdesc">Captura manual</span></div>
+    <div class="hsec">COMO FUNCIONA</div>
+    <div class="hrow"><span class="hkey">🟢 Box verde</span><span class="hdesc">Rosto reconhecido</span></div>
+    <div class="hrow"><span class="hkey">🟠 Box laranja</span><span class="hdesc">Rosto desconhecido</span></div>
+    <div class="hrow"><span class="hkey">Nome/cargo</span><span class="hdesc">Aparece sobre o rosto no visor</span></div>
+    <div class="hsec">BOTÕES / TECLADO</div>
+    <div class="hrow"><span class="hkey">⏻ / Espaço</span><span class="hdesc">Liga câmera</span></div>
+    <div class="hrow"><span class="hkey">⊙ / ↑</span><span class="hdesc">Captura manual</span></div>
+    <div class="hrow"><span class="hkey">■</span><span class="hdesc">Para câmera</span></div>
     <div class="hrow"><span class="hkey">Esc</span><span class="hdesc">Fechar ajuda</span></div>
     <div class="hnote">
-      Para reconhecimento funcionar, o perfil precisa ter<br>
-      uma <strong>foto real com rosto</strong> cadastrada no gestor.
+      Para reconhecimento funcionar: perfil precisa ter <strong>foto real com rosto</strong> cadastrada em fc.alema.io/webapp.html
     </div>
   </div>
 </div>
 
 <script>
-// ─── CONFIG ────────────────────────────────────────────────
-var APP_ID  = "6a11083db49430b410a8c066";
-var API     = "https://base44.app/api/apps/"+APP_ID+"/functions/fcProxy";
-var MODELS  = "https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights";
-var THRESH  = 0.45;
+var APP_ID = "6a11083db49430b410a8c066";
+var API    = "https://base44.app/api/apps/"+APP_ID+"/functions/fcProxy";
+var MODELS = "https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights";
+var THRESH = 0.45;
 
-// ─── STATE ─────────────────────────────────────────────────
-var stream=null, detLoop=null, profiles=[], embeddings=[];
-var isOnline=false, aiReady=false, lastMatchId=null, unknownCooldown=false;
+var stream=null, detLoop=null, clockLoop=null;
+var profiles=[], embeddings=[];
+var isOnline=false, aiReady=false, lastMatchId=null, unknownCD=false;
 
-// ─── FACE-API ──────────────────────────────────────────────
+// ── relógio HUD ──
+function startClock(){
+  clockLoop=setInterval(function(){
+    document.getElementById("hudClock").textContent=
+      new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+  },10000);
+  document.getElementById("hudClock").textContent=
+    new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+}
+startClock();
+
+// ── face-api ──
 async function loadModels(){
-  setAI("⟳ carregando IA..","loading");
+  setAI("⟳ carregando IA","loading");
   try{
     await Promise.all([
       faceapi.nets.tinyFaceDetector.loadFromUri(MODELS),
@@ -291,15 +340,15 @@ async function loadModels(){
       faceapi.nets.faceRecognitionNet.loadFromUri(MODELS)
     ]);
     aiReady=true; setAI("⬡ IA pronta","ai-ready");
-    lg("✓ Modelos carregados",true);
+    lg("✓ IA pronta",true);
     await buildEmbeddings();
-  }catch(e){ setAI("✕ IA erro",""); lg("Erro IA: "+e.message,false); }
+  }catch(e){ setAI("✕ IA erro",""); lg("IA erro: "+e.message,false); }
 }
 
 async function buildEmbeddings(){
   embeddings=[];
-  var com=profiles.filter(function(p){ return p.photo_url&&p.photo_url.startsWith("http"); });
-  lg("Gerando embeddings de "+com.length+" perfis...",false);
+  var com=profiles.filter(function(p){return p.photo_url&&p.photo_url.startsWith("http");});
+  lg("Gerando embeddings: "+com.length+" perfis...",false);
   var ok=0;
   for(var i=0;i<com.length;i++){
     var p=com[i];
@@ -307,44 +356,52 @@ async function buildEmbeddings(){
       var img=await loadImg(p.photo_url);
       var det=await faceapi.detectSingleFace(img,new faceapi.TinyFaceDetectorOptions())
                            .withFaceLandmarks().withFaceDescriptor();
-      if(det){ embeddings.push({id:p.id,name:p.name,role:p.role||"",company:p.company||"",relation:p.relation||"",descriptor:det.descriptor}); ok++; }
+      if(det){embeddings.push({id:p.id,name:p.name,role:p.role||"",company:p.company||"",relation:p.relation||"",descriptor:det.descriptor});ok++;}
     }catch(e){}
   }
+  setAI("⬡ "+ok+" rostos","ai-ready");
   lg("✓ "+ok+" rostos reconhecíveis",true);
-  setAI("⬡ IA · "+ok+" rostos","ai-ready");
+  document.getElementById("hudStatus").textContent=ok+" perfis · "+profiles.length+" total";
 }
 
 function loadImg(url){
   return new Promise(function(res,rej){
     var img=new Image(); img.crossOrigin="anonymous";
-    img.onload=function(){res(img);};
-    img.onerror=function(){rej(new Error("img"));};
+    img.onload=function(){res(img);}; img.onerror=function(){rej(new Error("img"));};
     img.src=url;
   });
 }
 
-// ─── DETECT LOOP ──────────────────────────────────────────
+// ── loop de detecção ──
 async function startDetect(){
   var vid=document.getElementById("vid");
   var canvas=document.getElementById("detCanvas");
-  function resize(){ faceapi.matchDimensions(canvas,{width:vid.clientWidth,height:vid.clientHeight}); }
-  resize();
-  window.addEventListener("resize",resize);
+  function syncSize(){
+    canvas.width=vid.clientWidth; canvas.height=vid.clientHeight;
+  }
+  syncSize();
+  window.addEventListener("resize",syncSize);
 
   detLoop=setInterval(async function(){
     if(!stream||!aiReady) return;
-    var dets=await faceapi.detectAllFaces(vid,new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:.4}))
-                          .withFaceLandmarks().withFaceDescriptors();
-    var displaySize={width:vid.clientWidth,height:vid.clientHeight};
-    var resized=faceapi.resizeResults(dets,displaySize);
+    var opts=new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:.38});
+    var dets=await faceapi.detectAllFaces(vid,opts).withFaceLandmarks().withFaceDescriptors();
     var ctx=canvas.getContext("2d");
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    if(!dets.length){ lastMatchId=null; setAI("⬡ IA · buscando..","ai-ready"); clearHUD(); return; }
+    if(!dets.length){
+      lastMatchId=null; clearHUD();
+      setAI("⬡ buscando..","ai-ready"); return;
+    }
     setAI("⬡ escaneando..","ai-scan");
+    var dispSize={width:vid.clientWidth,height:vid.clientHeight};
+    var resized=faceapi.resizeResults(dets,dispSize);
 
-    var main=dets.reduce(function(a,b){ return a.detection.box.area>b.detection.box.area?a:b; });
-    var mainR=faceapi.resizeResults([main],displaySize)[0];
+    // maior rosto = pessoa mais próxima
+    var mi=0;
+    dets.forEach(function(d,i){if(d.detection.box.area>dets[mi].detection.box.area)mi=i;});
+    var main=dets[mi], mainR=resized[mi];
+    var box=mainR.detection.box;
 
     if(embeddings.length>0){
       var best=null,bestD=999;
@@ -354,126 +411,130 @@ async function startDetect(){
       });
 
       if(bestD<THRESH){
-        // MATCH
         var conf=Math.round((1-bestD)*100);
-        // Box verde sobre o rosto
-        var box=mainR.detection.box;
-        ctx.strokeStyle="#00ff88"; ctx.lineWidth=2;
+        // box verde
+        ctx.strokeStyle="#00ff88"; ctx.lineWidth=2.5;
+        ctx.shadowColor="#00ff88"; ctx.shadowBlur=8;
         ctx.strokeRect(box.x,box.y,box.width,box.height);
-        ctx.fillStyle="rgba(0,255,136,0.08)";
+        ctx.shadowBlur=0;
+        ctx.fillStyle="rgba(0,255,136,0.06)";
         ctx.fillRect(box.x,box.y,box.width,box.height);
-        // Label nome sobre o box
-        ctx.fillStyle="#00ff88"; ctx.font="bold 11px monospace";
-        ctx.fillText(best.name,box.x+3,box.y-4);
+        // nome acima do box
+        ctx.font="bold "+Math.max(10,Math.round(box.width*.13))+"px monospace";
+        ctx.fillStyle="#00ff88";
+        ctx.shadowColor="#00ff88"; ctx.shadowBlur=6;
+        ctx.fillText(best.name,box.x+2,Math.max(12,box.y-4));
+        ctx.shadowBlur=0;
 
         if(lastMatchId!==best.id){
           lastMatchId=best.id;
           setAI("⬡ MATCH · "+conf+"%","ai-match");
-          lg("✓ "+best.name+" ("+conf+"%)",true);
+          lg("✓ "+best.name+" "+conf+"%",true);
           showKnownHUD(best,conf);
         }
       } else {
-        // DESCONHECIDO — box laranja
-        var box2=mainR.detection.box;
+        // box laranja — desconhecido
         ctx.strokeStyle="#ffaa00"; ctx.lineWidth=2;
-        ctx.strokeRect(box2.x,box2.y,box2.width,box2.height);
-        ctx.fillStyle="rgba(255,170,0,0.06)";
-        ctx.fillRect(box2.x,box2.y,box2.width,box2.height);
-        ctx.fillStyle="#ffaa00"; ctx.font="10px monospace";
-        ctx.fillText("?",box2.x+3,box2.y-4);
+        ctx.shadowColor="#ffaa00"; ctx.shadowBlur=6;
+        ctx.strokeRect(box.x,box.y,box.width,box.height);
+        ctx.shadowBlur=0;
+        ctx.fillStyle="rgba(255,170,0,0.05)";
+        ctx.fillRect(box.x,box.y,box.width,box.height);
+        ctx.font="11px monospace"; ctx.fillStyle="#ffaa00";
+        ctx.fillText("?",box.x+3,Math.max(12,box.y-3));
 
-        if(lastMatchId!=="unknown"){
-          lastMatchId="unknown";
+        if(lastMatchId!=="?"){
+          lastMatchId="?";
           setAI("⬡ desconhecido","");
-          lg("? Rosto desconhecido (d="+bestD.toFixed(2)+")",false);
+          lg("? desconhecido (d="+bestD.toFixed(2)+")",false);
           showUnknownHUD();
           autoCapture();
         }
       }
     } else {
-      // Sem embeddings — só detecta
+      // sem embeddings — só desenha box
       resized.forEach(function(d){
         var b=d.detection.box;
-        ctx.strokeStyle="#00cc66"; ctx.lineWidth=1.5;
+        ctx.strokeStyle="#00aa55"; ctx.lineWidth=1.5;
         ctx.strokeRect(b.x,b.y,b.width,b.height);
       });
-      setAI("⬡ IA · sem rostos cadastrados","ai-ready");
     }
-  }, 800);
+  },800);
 }
 
 function stopDetect(){
   if(detLoop){clearInterval(detLoop);detLoop=null;}
   var c=document.getElementById("detCanvas");
-  c.getContext("2d").clearRect(0,0,c.width,c.height);
+  if(c) c.getContext("2d").clearRect(0,0,c.width,c.height);
   lastMatchId=null;
 }
 
-// ─── HUD ──────────────────────────────────────────────────
+// ── HUD ──
 function clearHUD(){
-  document.getElementById("hudName").textContent="";
-  document.getElementById("hudRole").textContent="";
-  document.getElementById("hudCo").textContent="";
-  document.getElementById("hudRel").textContent="";
+  document.getElementById("hudId").style.display="none";
+  document.getElementById("hudUnknown").classList.remove("show");
   document.getElementById("hudConf").textContent="";
-  document.getElementById("hudTime").textContent="";
-  document.getElementById("hudUnknown").style.display="none";
 }
 function showKnownHUD(p,conf){
-  document.getElementById("hudUnknown").style.display="none";
+  document.getElementById("hudUnknown").classList.remove("show");
   document.getElementById("hudConf").textContent=conf+"%";
   document.getElementById("hudName").textContent=p.name;
   document.getElementById("hudRole").textContent=p.role||"";
   document.getElementById("hudCo").textContent=p.company||"";
   document.getElementById("hudRel").textContent=p.relation||"";
-  document.getElementById("hudTime").textContent=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
+  document.getElementById("hudId").style.display="block";
 }
 function showUnknownHUD(){
   clearHUD();
-  document.getElementById("hudUnknown").style.display="flex";
+  document.getElementById("hudUnknown").classList.add("show");
 }
 
-// ─── AUTO CAPTURA ─────────────────────────────────────────
+// ── auto-captura ──
 async function autoCapture(){
-  if(unknownCooldown) return;
-  unknownCooldown=true; setTimeout(function(){unknownCooldown=false;},15000);
-  var v=document.getElementById("vid"),c=document.getElementById("cnv");
+  if(unknownCD) return;
+  unknownCD=true; setTimeout(function(){unknownCD=false;},15000);
+  var v=document.getElementById("vid");
+  var c=document.createElement("canvas");
   c.width=v.videoWidth||640; c.height=v.videoHeight||480;
-  c.getContext("2d").drawImage(v,0,0,c.width,c.height);
-  document.getElementById("flash").classList.add("on");
-  setTimeout(function(){document.getElementById("flash").classList.remove("on");},120);
+  c.getContext("2d").drawImage(v,0,0);
+  triggerFlash();
   if(isOnline){
     try{
-      var payload={name:"Desconhecido_"+Date.now(),status:"Pendente",
-        last_seen_date:new Date().toISOString(),last_seen_context:"Detectado via emulador",
-        photo_url:"",tags:["pendente"]};
-      fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+      fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({name:"Desconhecido_"+Date.now(),status:"Pendente",
+          last_seen_date:new Date().toISOString(),
+          last_seen_context:"Emulador AR",tags:["pendente"]})});
     }catch(e){}
   }
-  lg("? Capturado para identificação",false);
+  lg("📸 capturado para identificação",false);
 }
 
-// ─── CÂMERA ───────────────────────────────────────────────
+function triggerFlash(){
+  var f=document.getElementById("flash");
+  f.classList.add("on");
+  setTimeout(function(){f.classList.remove("on");},120);
+}
+
+// ── câmera ──
 function startCam(){
   if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
-    lg("ERRO: getUserMedia indisponível — precisa HTTPS",false); return;
+    lg("ERRO: getUserMedia indisponível (precisa HTTPS)",false); return;
   }
   lg("Solicitando câmera...",false);
-  navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false})
-    .then(gotStream)
-    .catch(function(e1){
-      navigator.mediaDevices.getUserMedia({video:true,audio:false})
-        .then(gotStream)
-        .catch(function(e2){lg("ERRO cam: "+e2.name,false);});
-    });
+  // tenta câmera traseira primeiro (landscape natural), cai pra frontal
+  navigator.mediaDevices.getUserMedia({
+    video:{facingMode:{ideal:"environment"},width:{ideal:640},height:{ideal:480}},
+    audio:false
+  }).then(gotStream).catch(function(){
+    navigator.mediaDevices.getUserMedia({video:true,audio:false})
+      .then(gotStream).catch(function(e){lg("ERRO: "+e.name,false);});
+  });
 }
 function gotStream(s){
   stream=s;
   var vid=document.getElementById("vid");
   vid.srcObject=s;
-  vid.onloadedmetadata=function(){
-    if(aiReady) startDetect();
-  };
+  vid.onloadedmetadata=function(){if(aiReady) startDetect();};
   document.getElementById("idleScreen").style.display="none";
   document.getElementById("visor").classList.add("active");
   document.getElementById("recDot").classList.add("on");
@@ -481,7 +542,7 @@ function gotStream(s){
   document.querySelector("#bcam .bicon").textContent="⏸";
   document.getElementById("bsnap").classList.remove("dim");
   document.getElementById("bstop").classList.remove("dim");
-  lg("● Câmera ativa — IA escaneando",true);
+  lg("● câmera ativa",true);
 }
 function stopCam(){
   stopDetect();
@@ -495,57 +556,53 @@ function stopCam(){
   document.getElementById("bsnap").classList.add("dim");
   document.getElementById("bstop").classList.add("dim");
   clearHUD();
-  setAI("⬡ IA parada","");
-  lg("Câmera parada",false);
+  setAI("⬡ IA pausada","");
+  lg("■ câmera parada",false);
 }
 function doSnap(){
   if(!stream) return;
-  var v=document.getElementById("vid"),c=document.getElementById("cnv");
-  c.width=v.videoWidth||640; c.height=v.videoHeight||480;
-  c.getContext("2d").drawImage(v,0,0,c.width,c.height);
-  document.getElementById("flash").classList.add("on");
-  setTimeout(function(){document.getElementById("flash").classList.remove("on");},120);
-  lg("📸 Captura manual",true);
+  triggerFlash();
+  lg("📸 captura manual",true);
 }
 
-// ─── API ──────────────────────────────────────────────────
+// ── API ──
 async function loadProfiles(){
   setSyncBadge("loading","⟳ conectando...");
   try{
-    var r=await fetch(API+"?_limit=200&_sort=-created_date");
+    var r=await fetch(API+"?_limit=200");
     if(!r.ok) throw new Error("HTTP "+r.status);
     var data=await r.json();
     profiles=Array.isArray(data)?data:(data.data||data.items||[]);
-    isOnline=true; setSyncBadge("ok","☁ banco conectado");
-    lg("☁ "+profiles.length+" perfis",true);
+    isOnline=true; setSyncBadge("ok","☁ "+profiles.length+" perfis");
+    localStorage.setItem("fc_p",JSON.stringify(profiles));
+    lg("☁ "+profiles.length+" perfis sincronizados",true);
   }catch(e){
     isOnline=false; setSyncBadge("err","⚠ offline");
     try{profiles=JSON.parse(localStorage.getItem("fc_p")||"[]");}catch(ex){}
-    lg("Offline: "+e.message,false);
+    lg("Offline · "+profiles.length+" perfis em cache",false);
   }
   loadModels();
 }
 
-// ─── UTILS ────────────────────────────────────────────────
+// ── utils ──
 function lg(m,hi){
   var el=document.getElementById("logbox");
   var d=document.createElement("div"); d.className="ll"+(hi?" hi":"");
-  d.textContent=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"})+"  "+m;
+  var t=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
+  d.textContent=t+"  "+m;
   el.appendChild(d); el.scrollTop=el.scrollHeight;
 }
-function setSyncBadge(cls,txt){
-  var b=document.getElementById("syncbadge"); b.className="badge "+cls; b.textContent=txt;
-}
-function setAI(txt,cls){
-  var b=document.getElementById("aibadge"); b.textContent=txt;
-  b.className="badge"+(cls?" "+cls:"");
-}
+function setSyncBadge(cls,txt){var b=document.getElementById("syncbadge");b.className="badge "+cls;b.textContent=txt;}
+function setAI(txt,cls){var b=document.getElementById("aibadge");b.textContent=txt;b.className="badge"+(cls?" "+cls:"");}
 
-// ─── WIRE ─────────────────────────────────────────────────
+// ── bind botões ──
 function wire(id,fn){
   var el=document.getElementById(id); if(!el) return;
-  el.addEventListener("click",fn);
-  el.addEventListener("touchend",function(e){e.preventDefault();fn();},{passive:false});
+  var touched=false;
+  el.addEventListener("touchstart",function(e){e.preventDefault();touched=true;},{passive:false});
+  el.addEventListener("touchend",function(e){e.preventDefault();if(touched){touched=false;fn();}},{passive:false});
+  el.addEventListener("touchcancel",function(){touched=false;});
+  el.addEventListener("click",function(){if(!touched)fn();});
 }
 wire("bcam",  function(){if(stream)stopCam();else startCam();});
 wire("bsnap", doSnap);
@@ -559,10 +616,8 @@ document.addEventListener("keydown",function(e){
   else if(e.key==="Escape"){document.getElementById("help").classList.remove("show");}
 });
 
-// ─── INIT ─────────────────────────────────────────────────
-// canvas oculto para snapshots
-var cnv=document.createElement("canvas"); cnv.id="cnv"; cnv.style.display="none"; document.body.appendChild(cnv);
-lg("v12 · câmera + HUD sobrepostos",false);
+// ── init ──
+lg("v13 · waveguide landscape 4:3 (640×480)",false);
 loadProfiles();
 </script>
 </body>
