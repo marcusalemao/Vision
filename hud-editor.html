@@ -6,201 +6,256 @@
 <title>FaceContext — HUD Editor</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-:root{--green:#00ff88;--bg:#0a0e1a;--card:#111827;--border:rgba(255,255,255,0.08);--text:rgba(255,255,255,0.85);--muted:rgba(255,255,255,0.4)}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+:root{--g:#00ff88;--bg:#0a0e1a;--card:#111827;--border:rgba(255,255,255,0.08);--text:rgba(255,255,255,0.85);--muted:rgba(255,255,255,0.38)}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overscroll-behavior:none}
 
-/* TOP BAR */
-.topbar{padding:12px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;background:var(--bg)}
-.topbar h2{font-size:17px;font-weight:700;flex:1}
-.btn-sm{padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,0.05);color:var(--text);font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.btn-sm:active{background:rgba(255,255,255,0.1)}
-.btn-primary{background:var(--green);color:#0a0e1a;border-color:var(--green);font-weight:700}
+/* ── TOP BAR ── */
+.topbar{padding:10px 12px;display:flex;align-items:center;gap:6px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;background:var(--bg)}
+.topbar h2{font-size:15px;font-weight:700;flex:1;white-space:nowrap}
+.btn-icon{width:38px;height:38px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,0.05);color:var(--text);font-size:17px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;flex-shrink:0}
+.btn-icon:active{background:rgba(255,255,255,0.12)}
+.btn-icon:disabled{opacity:.25;pointer-events:none}
+.btn-icon.on{border-color:var(--g);color:var(--g);background:rgba(0,255,136,0.08)}
+.btn-save{padding:8px 14px;border-radius:10px;background:var(--g);color:#0a0e1a;border:none;font-size:13px;font-weight:700;cursor:pointer;-webkit-tap-highlight-color:transparent;white-space:nowrap}
 
-/* STATUS BAR */
-.sbar{padding:5px 16px;font-size:11px;display:flex;align-items:center;gap:5px;border-bottom:1px solid var(--border)}
-.sbar.ok{color:var(--green);background:rgba(0,255,136,0.04);border-color:rgba(0,255,136,0.15)}
-.sbar.off{color:#f59e0b;background:rgba(245,158,11,0.04);border-color:rgba(245,158,11,0.15)}
+/* ── STATUS BAR ── */
+.sbar{padding:4px 14px;font-size:11px;display:flex;align-items:center;gap:5px}
+.sbar.ok{color:var(--g);background:rgba(0,255,136,0.04);border-bottom:1px solid rgba(0,255,136,0.12)}
+.sbar.off{color:#f59e0b;background:rgba(245,158,11,0.04);border-bottom:1px solid rgba(245,158,11,0.12)}
 .sdot{width:5px;height:5px;border-radius:50%;background:currentColor}
 
-/* LAYOUT SELECTOR */
-.layout-bar{display:flex;gap:8px;padding:12px 16px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--border)}
-.layout-bar::-webkit-scrollbar{display:none}
-.layout-chip{flex-shrink:0;padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;white-space:nowrap}
-.layout-chip.active{background:var(--green);color:#0a0e1a;border-color:var(--green);font-weight:700}
-.layout-chip.new{border-color:rgba(0,255,136,0.3);color:var(--green)}
+/* ── LAYOUT BAR ── */
+.lbar{display:flex;gap:6px;padding:10px 12px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--border)}
+.lbar::-webkit-scrollbar{display:none}
+.lchip{flex-shrink:0;padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;white-space:nowrap}
+.lchip.active{background:var(--g);color:#0a0e1a;border-color:var(--g);font-weight:700}
+.lchip.new{border-color:rgba(0,255,136,0.3);color:var(--g)}
 
-/* MAIN SPLIT */
-.editor-wrap{display:flex;flex-direction:column;padding:16px}
+/* ── PREVIEW ── */
+.prev-wrap{display:flex;justify-content:center;padding:14px 12px 4px}
+/* 640×480 escalado → cabe em tela estreita: scale = min(screenW-24, 320) / 640 */
+.prev-outer{position:relative}
+.prev-label{text-align:center;font-size:10px;color:var(--muted);margin-bottom:6px;display:flex;align-items:center;justify-content:center;gap:6px}
+.prev-label span{background:rgba(0,255,136,0.1);color:var(--g);border:1px solid rgba(0,255,136,0.15);border-radius:8px;padding:1px 7px;font-size:10px}
+/* Container visível no viewport */
+.prev-box{position:relative;overflow:hidden;border:2px solid rgba(0,255,136,0.3);border-radius:6px;background:#000;cursor:crosshair}
+/* Canvas real 640×480, transform-origin top-left */
+.hud-canvas{position:absolute;top:0;left:0;width:640px;height:480px;transform-origin:top left}
+/* Grid overlay */
+.grid-overlay{position:absolute;top:0;left:0;width:640px;height:480px;pointer-events:none;display:none}
+.grid-overlay.show{display:block}
 
-/* PREVIEW — exatamente 480x640 escalado */
-.preview-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px;display:flex;align-items:center;gap:8px}
-.preview-label span{background:rgba(0,255,136,0.1);color:var(--green);border:1px solid rgba(0,255,136,0.2);border-radius:10px;padding:1px 8px;font-size:10px}
-.preview-outer{display:flex;justify-content:center;margin-bottom:16px}
-.preview-wrap{position:relative;width:240px;height:320px;background:#000;border:2px solid rgba(0,255,136,0.3);border-radius:8px;overflow:hidden;flex-shrink:0}
-/* Scale 480x640 → 240x320 (0.5x) */
-.hud-canvas{position:absolute;top:0;left:0;width:480px;height:640px;transform:scale(0.5);transform-origin:top left;pointer-events:none}
-.hud-canvas.editable{pointer-events:all}
-.widget{position:absolute;cursor:move;user-select:none;-webkit-user-select:none}
-.widget .wlabel{font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-.widget.selected .wlabel{outline:1px dashed rgba(255,255,255,0.5)}
-.widget .whandle{position:absolute;bottom:-4px;right:-4px;width:12px;height:12px;background:rgba(0,255,136,0.8);border-radius:2px;cursor:se-resize}
-.preview-note{text-align:center;font-size:10px;color:var(--muted);margin-bottom:12px}
+/* ── WIDGETS ── */
+.widget{position:absolute;cursor:default}
+.widget.sel .wlabel{outline:1px dashed rgba(255,255,255,0.6);outline-offset:1px}
+.widget .wlabel{font-family:monospace;white-space:nowrap;overflow:hidden;max-width:100%;display:block}
+.widget .sep-line{width:100%}
+.sel-handles{display:none}
+.widget.sel .sel-handles{display:block}
+.sh{position:absolute;width:10px;height:10px;background:var(--g);border-radius:2px;cursor:pointer}
+.sh.br{bottom:-5px;right:-5px}
+.sh.bl{bottom:-5px;left:-5px}
+.sh.tr{top:-5px;right:-5px}
+.sh.tl{top:-5px;left:-5px}
 
-/* TOOLBAR */
-.toolbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding:10px;background:rgba(255,255,255,0.03);border-radius:10px;border:1px solid var(--border)}
-.tool-btn{padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,0.04);color:var(--text);font-size:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;gap:4px}
-.tool-btn:active{background:rgba(255,255,255,0.1)}
-.tool-sep{width:1px;background:var(--border);margin:0 2px}
+/* ── TOOLBAR ── */
+.toolbar{display:flex;gap:5px;flex-wrap:wrap;padding:10px 12px;border-bottom:1px solid var(--border)}
+.tbtn{padding:5px 9px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,0.04);color:var(--text);font-size:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;white-space:nowrap}
+.tbtn:active{background:rgba(255,255,255,0.1)}
 
-/* WIDGET LIST */
-.widget-list{margin-bottom:14px}
-.witem{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:7px;display:flex;align-items:center;gap:10px;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.witem.active{border-color:var(--green);background:rgba(0,255,136,0.05)}
-.witem:active{background:rgba(255,255,255,0.05)}
-.wicon{font-size:18px;width:28px;text-align:center;flex-shrink:0}
-.winfo{flex:1}
-.wname{font-size:14px;font-weight:600}
-.wdesc{font-size:11px;color:var(--muted)}
-.wvis{font-size:16px;cursor:pointer;padding:4px}
+/* ── MAIN PANEL ── */
+.panel{padding:12px}
 
-/* SELECTED WIDGET PROPS */
-.props-panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px}
-.props-title{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
-.prop-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-.prop-label{font-size:12px;color:var(--muted);width:60px;flex-shrink:0}
-.prop-row input[type=range]{flex:1;accent-color:var(--green)}
-.prop-row input[type=number]{width:60px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:13px;outline:none;text-align:center}
-.prop-row input[type=color]{width:44px;height:32px;border-radius:6px;border:1px solid var(--border);background:none;cursor:pointer}
-.prop-row select{flex:1;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-size:13px;outline:none}
-.prop-row select option{background:#141824}
-.prop-row .chk-lbl{font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer}
+/* ── GENERAL SETTINGS ── */
+.section{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:12px}
+.sec-title{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px}
+.pr{display:flex;align-items:center;gap:8px;margin-bottom:9px}
+.pr:last-child{margin-bottom:0}
+.pl{font-size:12px;color:var(--muted);width:64px;flex-shrink:0}
+.pr input[type=range]{flex:1;accent-color:var(--g);height:4px}
+.pr input[type=number]{width:52px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:6px;padding:5px 7px;color:var(--text);font-size:13px;outline:none;text-align:center}
+.pr input[type=number]:focus{border-color:var(--g)}
+.pr input[type=color]{width:42px;height:30px;border-radius:6px;border:1px solid var(--border);background:none;cursor:pointer}
+.pr select{flex:1;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:8px;padding:6px 9px;color:var(--text);font-size:13px;outline:none}
+.pr select option{background:#141824}
+.pr .chk{font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer}
+.pr input[type=text]{flex:1;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:8px;padding:7px 10px;color:var(--text);font-size:13px;outline:none}
+.pr input[type=text]:focus{border-color:var(--g)}
 
-/* GENERAL SETTINGS */
-.gen-panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px}
-.gen-title{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+/* ── WIDGET LIST ── */
+.witem{background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;padding:10px 11px;margin-bottom:7px;display:flex;align-items:center;gap:9px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.witem.active{border-color:var(--g);background:rgba(0,255,136,0.06)}
+.witem:active,.witem:not(.active):hover{background:rgba(255,255,255,0.05)}
+.wicon{font-size:17px;width:26px;text-align:center;flex-shrink:0}
+.wi{flex:1;min-width:0}
+.wn{font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ws{font-size:10px;color:var(--muted);margin-top:1px}
+.wact{display:flex;gap:4px}
+.wact button{width:28px;height:28px;border-radius:7px;border:1px solid var(--border);background:rgba(255,255,255,0.04);color:var(--text);font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center}
+.wact button:active{background:rgba(255,255,255,0.1)}
 
-/* MODALS */
+/* ── NUDGE PAD ── */
+.nudge-pad{display:grid;grid-template-columns:repeat(3,38px);grid-template-rows:repeat(3,38px);gap:4px;justify-content:center;margin:10px 0}
+.nudge-pad button{width:38px;height:38px;border-radius:9px;border:1px solid var(--border);background:rgba(255,255,255,0.05);color:var(--text);font-size:16px;cursor:pointer;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;justify-content:center}
+.nudge-pad button:active{background:rgba(0,255,136,0.15);border-color:var(--g);color:var(--g)}
+.nudge-pad .center{background:rgba(0,255,136,0.05);border-color:rgba(0,255,136,0.2);color:var(--g);font-size:11px}
+.nudge-step{display:flex;align-items:center;gap:6px;justify-content:center;margin-bottom:6px;font-size:12px;color:var(--muted)}
+.nudge-step select{background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:6px;padding:3px 8px;color:var(--text);font-size:12px;outline:none}
+
+/* ── DELETE ── */
+.btn-del{width:100%;padding:9px;border-radius:8px;border:1px solid rgba(255,80,80,0.3);background:transparent;color:#ff6b6b;font-size:13px;cursor:pointer;margin-top:4px;-webkit-tap-highlight-color:transparent}
+.btn-del:active{background:rgba(255,80,80,0.08)}
+
+/* ── MODAL ── */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
 .overlay.open{opacity:1;pointer-events:all}
-.modal{background:#141824;border-radius:20px 20px 0 0;width:100%;max-width:600px;max-height:85vh;overflow-y:auto;padding-bottom:36px;transform:translateY(100%);transition:transform .3s ease}
+.modal{background:#141824;border-radius:20px 20px 0 0;width:100%;max-width:600px;max-height:88vh;overflow-y:auto;padding-bottom:36px;transform:translateY(100%);transition:transform .3s ease}
 .overlay.open .modal{transform:translateY(0)}
 .mhandle{width:36px;height:4px;background:rgba(255,255,255,0.15);border-radius:2px;margin:12px auto 0}
-.mhead{display:flex;align-items:center;justify-content:space-between;padding:14px 20px 10px}
-.mtitle{font-size:17px;font-weight:700}
-.btn-x{background:rgba(255,255,255,0.08);border:none;color:var(--text);width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
-.mbody{padding:0 20px}
-.field{margin-bottom:12px}
-.field label{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
-.field input,.field select{width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;padding:10px 13px;color:var(--text);font-size:15px;outline:none;font-family:inherit}
-.field input:focus,.field select:focus{border-color:var(--green)}
-.btn-save{width:100%;padding:13px;background:var(--green);color:#0a0e1a;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;margin-top:8px}
+.mhead{display:flex;align-items:center;justify-content:space-between;padding:13px 18px 10px}
+.mtitle{font-size:16px;font-weight:700}
+.btn-x{background:rgba(255,255,255,0.08);border:none;color:var(--text);width:30px;height:30px;border-radius:50%;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.mbody{padding:0 18px}
+.field{margin-bottom:11px}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px}
+.field input,.field select{width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:9px;padding:9px 12px;color:var(--text);font-size:14px;outline:none;font-family:inherit}
+.field input:focus{border-color:var(--g)}
+.btn-prim{width:100%;padding:12px;background:var(--g);color:#0a0e1a;border:none;border-radius:11px;font-size:15px;font-weight:700;cursor:pointer;margin-top:6px}
 
-/* TOAST */
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(60px);background:#1e293b;color:var(--text);border:1px solid var(--border);border-radius:12px;padding:10px 20px;font-size:14px;z-index:999;transition:transform .3s;white-space:nowrap;pointer-events:none}
+/* ── LAYOUT CARDS ── */
+.lcard{background:var(--card);border:1px solid var(--border);border-radius:11px;padding:11px;display:flex;align-items:center;gap:10px;cursor:pointer;margin-bottom:7px;-webkit-tap-highlight-color:transparent}
+.lcard:active{background:rgba(255,255,255,0.05)}
+.lcard.active{border-color:var(--g);background:rgba(0,255,136,0.05)}
+.lci{flex:1}.lcn{font-size:14px;font-weight:600}.lcs{font-size:11px;color:var(--muted);margin-top:2px}
+.btn-ldel{padding:5px 9px;border-radius:7px;border:1px solid rgba(255,80,80,0.3);background:transparent;color:#ff6b6b;font-size:11px;cursor:pointer}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(60px);background:#1e293b;color:var(--text);border:1px solid var(--border);border-radius:11px;padding:9px 18px;font-size:14px;z-index:999;transition:transform .3s;pointer-events:none;white-space:nowrap}
 .toast.show{transform:translateX(-50%) translateY(0)}
-.toast.ok{border-color:rgba(0,255,136,0.4);color:var(--green)}
+.toast.ok{border-color:rgba(0,255,136,0.4);color:var(--g)}
 .toast.err{border-color:rgba(255,80,80,0.4);color:#ff6b6b}
-
-/* LAYOUT CARDS */
-.lcards{display:flex;flex-direction:column;gap:8px}
-.lcard{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.lcard:active{background:rgba(255,255,255,0.06)}
-.lcard.active{border-color:var(--green);background:rgba(0,255,136,0.05)}
-.lcard-info{flex:1}
-.lcard-name{font-size:15px;font-weight:600}
-.lcard-sub{font-size:12px;color:var(--muted);margin-top:2px}
-.lcard-del{padding:5px 10px;border-radius:8px;border:1px solid rgba(255,80,80,0.3);background:transparent;color:#ff6b6b;font-size:12px;cursor:pointer}
 </style>
 </head>
 <body>
 
+<!-- TOP BAR -->
 <div class="topbar">
-  <button class="btn-sm" onclick="window.location.href='webapp.html'">← Voltar</button>
+  <button class="btn-icon" onclick="window.location.href='webapp.html'" title="Voltar">←</button>
   <h2>🥽 HUD Editor</h2>
-  <button class="btn-sm" onclick="openLayouts()">📋</button>
-  <button class="btn-sm btn-primary" onclick="saveLayout()">💾 Salvar</button>
+  <button class="btn-icon" id="btnUndo" onclick="undo()" title="Desfazer" disabled>↩</button>
+  <button class="btn-icon" id="btnRedo" onclick="redo()" title="Refazer" disabled>↪</button>
+  <button class="btn-icon" id="btnGrid" onclick="toggleGrid()" title="Grid">⊞</button>
+  <button class="btn-icon" onclick="openLayouts()" title="Layouts">📋</button>
+  <button class="btn-save" onclick="saveLayout()">💾</button>
 </div>
+
 <div id="sbar" class="sbar off"><div class="sdot"></div><span id="smsg">Conectando…</span></div>
 
 <!-- LAYOUT CHIPS -->
-<div class="layout-bar" id="layoutBar">
-  <button class="layout-chip new" onclick="newLayout()">+ Novo Layout</button>
+<div class="lbar" id="layoutBar">
+  <button class="lchip new" onclick="newLayout()">+ Novo</button>
 </div>
 
-<div class="editor-wrap">
-
-  <!-- PREVIEW -->
-  <div class="preview-label">Preview Waveguide Rokid <span>480×640 · 0.5×</span></div>
-  <div class="preview-outer">
-    <div class="preview-wrap" id="previewWrap">
-      <div class="hud-canvas editable" id="hudCanvas"></div>
+<!-- PREVIEW -->
+<div class="prev-wrap">
+  <div>
+    <div class="prev-label">Waveguide Rokid · 640×480 <span id="scaleLabel">×0.5</span> <span id="bgOpLabel" style="color:var(--muted)">BG 0%</span></div>
+    <div class="prev-outer">
+      <div class="prev-box" id="prevBox">
+        <div class="hud-canvas" id="hudCanvas"></div>
+        <canvas class="grid-overlay" id="gridCanvas"></canvas>
+      </div>
     </div>
   </div>
-  <div class="preview-note">⚫ Fundo preto = transparente nos óculos • 🟢 Verde = visível no prisma</div>
+</div>
+<div style="text-align:center;font-size:10px;color:var(--muted);padding:4px 0 10px">⚫ preto = transparente nos óculos · 🟢 verde = visível</div>
 
-  <!-- TOOLBAR -->
-  <div class="toolbar">
-    <button class="tool-btn" onclick="addWidget('text')">＋ Texto</button>
-    <button class="tool-btn" onclick="addWidget('name')">👤 Nome</button>
-    <button class="tool-btn" onclick="addWidget('company')">🏢 Empresa</button>
-    <button class="tool-btn" onclick="addWidget('role')">💼 Cargo</button>
-    <div class="tool-sep"></div>
-    <button class="tool-btn" onclick="addWidget('relation')">🤝 Relação</button>
-    <button class="tool-btn" onclick="addWidget('notes')">📝 Notas</button>
-    <button class="tool-btn" onclick="addWidget('lastSeen')">📅 Último visto</button>
-    <button class="tool-btn" onclick="addWidget('tags')">🏷 Tags</button>
-    <div class="tool-sep"></div>
-    <button class="tool-btn" onclick="addWidget('photo')">🖼 Foto</button>
-    <button class="tool-btn" onclick="addWidget('separator')">─ Linha</button>
-  </div>
+<!-- ADD WIDGETS TOOLBAR -->
+<div class="toolbar">
+  <button class="tbtn" onclick="addWidget('name')">👤 Nome</button>
+  <button class="tbtn" onclick="addWidget('company')">🏢 Empresa</button>
+  <button class="tbtn" onclick="addWidget('role')">💼 Cargo</button>
+  <button class="tbtn" onclick="addWidget('relation')">🤝 Relação</button>
+  <button class="tbtn" onclick="addWidget('notes')">📝 Notas</button>
+  <button class="tbtn" onclick="addWidget('lastSeen')">📅 Visto</button>
+  <button class="tbtn" onclick="addWidget('tags')">🏷 Tags</button>
+  <button class="tbtn" onclick="addWidget('photo')">🖼 Foto</button>
+  <button class="tbtn" onclick="addWidget('separator')">─ Linha</button>
+  <button class="tbtn" onclick="addWidget('text')">✏ Texto</button>
+</div>
+
+<div class="panel">
 
   <!-- GENERAL SETTINGS -->
-  <div class="gen-panel">
-    <div class="gen-title">Configurações gerais</div>
-    <div class="prop-row">
-      <span class="prop-label">Nome</span>
-      <input type="text" id="layoutName" placeholder="Nome do layout" style="flex:1;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:14px;outline:none">
-    </div>
-    <div class="prop-row">
-      <span class="prop-label">Padrão</span>
-      <label class="chk-lbl"><input type="checkbox" id="isDefault"> Usar como layout padrão nos óculos</label>
-    </div>
-    <div class="prop-row">
-      <span class="prop-label">Opacidade</span>
-      <input type="range" id="bgOpacity" min="0" max="100" value="0" oninput="updateBgOpacity(this.value)">
-      <input type="number" id="bgOpacityNum" min="0" max="100" value="0" style="width:50px" oninput="document.getElementById('bgOpacity').value=this.value;updateBgOpacity(this.value)">
+  <div class="section">
+    <div class="sec-title">Configurações do Layout</div>
+    <div class="pr"><span class="pl">Nome</span><input type="text" id="layoutName" placeholder="Nome do layout" oninput="markDirty()"></div>
+    <div class="pr"><span class="pl">Padrão</span><label class="chk"><input type="checkbox" id="isDefault"> Layout padrão nos óculos</label></div>
+    <div class="pr">
+      <span class="pl">Opacidade BG</span>
+      <input type="range" id="bgOp" min="0" max="100" value="0" oninput="updateBG(this.value)">
+      <input type="number" id="bgOpN" min="0" max="100" value="0" style="width:44px" oninput="updateBG(this.value);document.getElementById('bgOp').value=this.value">
       <span style="font-size:11px;color:var(--muted)">%</span>
     </div>
   </div>
 
-  <!-- WIDGETS LIST -->
-  <div class="props-title" style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Widgets</div>
-  <div class="widget-list" id="widgetList"></div>
-
   <!-- SELECTED WIDGET PROPS -->
-  <div class="props-panel" id="propsPanel" style="display:none">
-    <div class="props-title">⚙ Propriedades do widget</div>
-    <div class="prop-row"><span class="prop-label">X</span><input type="number" id="pX" min="0" max="480" oninput="updateSelectedProp('x',+this.value)"><span style="font-size:11px;color:var(--muted)">px</span></div>
-    <div class="prop-row"><span class="prop-label">Y</span><input type="number" id="pY" min="0" max="640" oninput="updateSelectedProp('y',+this.value)"><span style="font-size:11px;color:var(--muted)">px</span></div>
-    <div class="prop-row"><span class="prop-label">Largura</span><input type="number" id="pW" min="40" max="480" oninput="updateSelectedProp('width',+this.value)"><span style="font-size:11px;color:var(--muted)">px</span></div>
-    <div class="prop-row"><span class="prop-label">Altura</span><input type="number" id="pH" min="16" max="640" oninput="updateSelectedProp('height',+this.value)"><span style="font-size:11px;color:var(--muted)">px</span></div>
-    <div class="prop-row"><span class="prop-label">Fonte</span><input type="range" id="pFs" min="10" max="60" oninput="updateSelectedProp('font_size',+this.value);document.getElementById('pFsNum').value=this.value"><input type="number" id="pFsNum" min="10" max="60" style="width:50px" oninput="document.getElementById('pFs').value=this.value;updateSelectedProp('font_size',+this.value)"><span style="font-size:11px;color:var(--muted)">px</span></div>
-    <div class="prop-row"><span class="prop-label">Cor</span><input type="color" id="pColor" value="#00ff88" oninput="updateSelectedProp('color',this.value)"></div>
-    <div class="prop-row"><span class="prop-label">Negrito</span><label class="chk-lbl"><input type="checkbox" id="pBold" onchange="updateSelectedProp('bold',this.checked)"> Bold</label></div>
-    <div class="prop-row"><span class="prop-label">Texto</span><input type="text" id="pCustomText" placeholder="(usa campo automático)" oninput="updateSelectedProp('custom_text',this.value)" style="flex:1;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-size:13px;outline:none"></div>
-    <button style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(255,80,80,0.3);background:transparent;color:#ff6b6b;font-size:13px;cursor:pointer;margin-top:4px" onclick="deleteSelected()">🗑 Remover widget</button>
+  <div class="section" id="propsSection" style="display:none">
+    <div class="sec-title" id="propsTitle">⚙ Widget</div>
+
+    <!-- NUDGE PAD -->
+    <div class="nudge-step">
+      Passo:
+      <select id="nudgeStep">
+        <option value="1">1 px</option>
+        <option value="5">5 px</option>
+        <option value="10" selected>10 px</option>
+        <option value="20">20 px</option>
+        <option value="40">40 px</option>
+      </select>
+    </div>
+    <div class="nudge-pad">
+      <div></div>
+      <button onclick="nudge(0,-1)">▲</button>
+      <div></div>
+      <button onclick="nudge(-1,0)">◀</button>
+      <button class="center" onclick="centerWidget()">⊙</button>
+      <button onclick="nudge(1,0)">▶</button>
+      <div></div>
+      <button onclick="nudge(0,1)">▼</button>
+      <div></div>
+    </div>
+
+    <div class="pr"><span class="pl">X</span><input type="number" id="pX" min="0" max="640" oninput="applyProp('x',+this.value)"><span style="font-size:11px;color:var(--muted)">px</span></div>
+    <div class="pr"><span class="pl">Y</span><input type="number" id="pY" min="0" max="480" oninput="applyProp('y',+this.value)"><span style="font-size:11px;color:var(--muted)">px</span></div>
+    <div class="pr"><span class="pl">Largura</span><input type="number" id="pW" min="20" max="640" oninput="applyProp('width',+this.value)"><span style="font-size:11px;color:var(--muted)">px</span></div>
+    <div class="pr"><span class="pl">Altura</span><input type="number" id="pH" min="4" max="480" oninput="applyProp('height',+this.value)"><span style="font-size:11px;color:var(--muted)">px</span></div>
+    <div class="pr">
+      <span class="pl">Fonte</span>
+      <input type="range" id="pFs" min="8" max="72" value="18" oninput="applyProp('font_size',+this.value);document.getElementById('pFsN').value=this.value">
+      <input type="number" id="pFsN" min="8" max="72" value="18" style="width:44px" oninput="applyProp('font_size',+this.value);document.getElementById('pFs').value=this.value">
+    </div>
+    <div class="pr"><span class="pl">Cor</span><input type="color" id="pColor" value="#00ff88" oninput="applyProp('color',this.value)"></div>
+    <div class="pr"><span class="pl">Negrito</span><label class="chk"><input type="checkbox" id="pBold" onchange="applyProp('bold',this.checked)"> Bold</label></div>
+    <div class="pr"><span class="pl">Texto</span><input type="text" id="pText" placeholder="(campo automático)" oninput="applyProp('custom_text',this.value)"></div>
+    <div class="pr"><span class="pl">Visível</span><label class="chk"><input type="checkbox" id="pVis" checked onchange="applyProp('visible',this.checked)"> Mostrar</label></div>
+    <button class="btn-del" onclick="deleteSelected()">🗑 Remover widget</button>
   </div>
+
+  <!-- WIDGET LIST -->
+  <div class="sec-title" style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Widgets (toque para selecionar)</div>
+  <div id="widgetList"></div>
 
 </div>
 
 <!-- MODAL: LAYOUTS -->
-<div class="overlay" id="layoutsOverlay">
+<div class="overlay" id="layoutsOv">
   <div class="modal">
     <div class="mhandle"></div>
-    <div class="mhead"><span class="mtitle">📋 Layouts salvos</span><button class="btn-x" onclick="closeModal('layoutsOverlay')">✕</button></div>
+    <div class="mhead"><span class="mtitle">📋 Layouts</span><button class="btn-x" onclick="closeOv('layoutsOv')">✕</button></div>
     <div class="mbody">
-      <div class="lcards" id="layoutCards"></div>
-      <button class="btn-save" style="margin-top:14px" onclick="newLayout();closeModal('layoutsOverlay')">+ Criar novo layout</button>
+      <div id="lcards"></div>
+      <button class="btn-prim" style="margin-top:10px" onclick="newLayout();closeOv('layoutsOv')">+ Novo layout</button>
     </div>
   </div>
 </div>
@@ -210,383 +265,472 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <script>
 const PROXY = "https://facecontext-10a8c066.base44.app/functions/fcProxy";
 
-var layouts = [];
-var currentLayoutId = null;
-var widgets = [];
-var selectedId = null;
-var dragState = null;
-var bgOpacityVal = 0;
+// ── State ──────────────────────────────────────────────────────
+var layouts=[], currentId=null, widgets=[], selectedId=null;
+var bgOpacity=0, showGrid=false, dirty=false;
+var undoStack=[], redoStack=[], MAX_HISTORY=50;
+var SCALE=0.5; // será recalculado
+var dragState=null;
 
-// ── SAMPLE DATA (preview dos óculos) ────────────────────────────
-var sampleProfile = {
-  name: "João Silva",
-  nickname: "João",
-  company: "Ironhack",
-  role: "UX Designer",
-  relation: "Colega de trabalho",
-  notes: "Conhecemos no bootcamp 2024. Trabalha com design systems.",
-  last_seen_date: new Date().toISOString(),
-  last_seen_context: "Evento de tecnologia, SP",
-  tags: ["design","UX","bootcamp"],
-  photo_url: null,
+// ── Sample data para preview ──────────────────────────────────
+var SAMPLE={name:"João Silva",company:"Ironhack",role:"UX Designer",relation:"Colega de trabalho",
+  notes:"Bootcamp 2024. Especialista em design systems.",
+  last_seen_date:new Date().toISOString(),tags:["design","UX"]};
+
+var DEFS={
+  name:    {icon:"👤",label:"Nome",     dW:560,dH:40,dFs:28,prev:()=>SAMPLE.name},
+  company: {icon:"🏢",label:"Empresa",  dW:440,dH:28,dFs:18,prev:()=>SAMPLE.company},
+  role:    {icon:"💼",label:"Cargo",    dW:400,dH:24,dFs:16,prev:()=>SAMPLE.role},
+  relation:{icon:"🤝",label:"Relação",  dW:320,dH:24,dFs:15,prev:()=>SAMPLE.relation},
+  notes:   {icon:"📝",label:"Notas",    dW:560,dH:72,dFs:13,prev:()=>SAMPLE.notes},
+  lastSeen:{icon:"📅",label:"Visto",    dW:400,dH:22,dFs:13,prev:()=>"Visto: "+fmtD(SAMPLE.last_seen_date)},
+  tags:    {icon:"🏷",label:"Tags",     dW:560,dH:22,dFs:13,prev:()=>(SAMPLE.tags||[]).join("  ·  ")},
+  photo:   {icon:"🖼",label:"Foto",     dW:80, dH:80,dFs:0, prev:()=>"👤"},
+  text:    {icon:"✏",label:"Texto",     dW:300,dH:30,dFs:18,prev:()=>"Texto livre"},
+  separator:{icon:"─",label:"Linha",   dW:560,dH:3, dFs:0, prev:()=>""},
 };
 
-// ── WIDGET DEFINITIONS ──────────────────────────────────────────
-var WIDGET_DEFS = {
-  name:     {icon:"👤",label:"Nome",       defaultH:40, defaultW:440, defaultFs:28, preview:()=>sampleProfile.name},
-  nickname: {icon:"😊",label:"Apelido",    defaultH:30, defaultW:300, defaultFs:20, preview:()=>sampleProfile.nickname},
-  company:  {icon:"🏢",label:"Empresa",    defaultH:30, defaultW:360, defaultFs:18, preview:()=>sampleProfile.company},
-  role:     {icon:"💼",label:"Cargo",      defaultH:26, defaultW:360, defaultFs:16, preview:()=>sampleProfile.role},
-  relation: {icon:"🤝",label:"Relação",    defaultH:26, defaultW:300, defaultFs:16, preview:()=>sampleProfile.relation},
-  notes:    {icon:"📝",label:"Notas",      defaultH:80, defaultW:440, defaultFs:14, preview:()=>sampleProfile.notes},
-  lastSeen: {icon:"📅",label:"Último visto",defaultH:26,defaultW:360, defaultFs:14, preview:()=>"Visto: "+fmtDate(sampleProfile.last_seen_date)},
-  tags:     {icon:"🏷",label:"Tags",       defaultH:26, defaultW:440, defaultFs:13, preview:()=>(sampleProfile.tags||[]).join("  ·  ")},
-  photo:    {icon:"🖼",label:"Foto",       defaultH:80, defaultW:80,  defaultFs:0,  preview:()=>"[foto]"},
-  text:     {icon:"✏️",label:"Texto livre", defaultH:30, defaultW:300, defaultFs:18, preview:()=>"Texto personalizado"},
-  separator:{icon:"─",label:"Linha",      defaultH:4,  defaultW:440, defaultFs:0,  preview:()=>""},
-};
-
-function fmtDate(d){if(!d)return "—";try{return new Date(d).toLocaleDateString("pt-BR",{day:"2-digit",month:"short"})}catch{return d}}
-function uid(){return "w"+Math.random().toString(36).slice(2,9)}
+function fmtD(d){try{return new Date(d).toLocaleDateString("pt-BR",{day:"2-digit",month:"short"})}catch{return"—"}}
+function uid(){return"w"+Math.random().toString(36).slice(2,9)}
 function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
 
-// ── TOAST ───────────────────────────────────────────────────────
+// ── Toast ──────────────────────────────────────────────────────
 function toast(msg,type){
   var el=document.getElementById("toast");
-  el.textContent=msg; el.className="toast "+(type||"");
-  el.classList.add("show"); setTimeout(()=>el.classList.remove("show"),3000);
+  el.textContent=msg;el.className="toast "+(type||"");
+  el.classList.add("show");setTimeout(()=>el.classList.remove("show"),3000);
 }
-
-// ── STATUS ──────────────────────────────────────────────────────
 function setStatus(ok,msg){
-  var b=document.getElementById("sbar"),s=document.getElementById("smsg");
-  b.className="sbar "+(ok?"ok":"off"); s.textContent=msg;
+  var b=document.getElementById("sbar");b.className="sbar "+(ok?"ok":"off");
+  document.getElementById("smsg").textContent=msg;
 }
 
-// ── LOAD LAYOUTS ────────────────────────────────────────────────
+// ── Scale ──────────────────────────────────────────────────────
+function calcScale(){
+  var avail=Math.min(window.innerWidth-24,400);
+  SCALE=avail/640;
+  var box=document.getElementById("prevBox");
+  box.style.width=Math.round(640*SCALE)+"px";
+  box.style.height=Math.round(480*SCALE)+"px";
+  document.getElementById("hudCanvas").style.transform="scale("+SCALE+")";
+  var gc=document.getElementById("gridCanvas");
+  gc.style.transform="scale("+SCALE+")";
+  document.getElementById("scaleLabel").textContent="×"+SCALE.toFixed(2);
+  drawGrid();
+}
+window.addEventListener("resize",calcScale);
+
+// ── Grid ──────────────────────────────────────────────────────
+function toggleGrid(){
+  showGrid=!showGrid;
+  document.getElementById("btnGrid").classList.toggle("on",showGrid);
+  document.getElementById("gridCanvas").classList.toggle("show",showGrid);
+  drawGrid();
+}
+function drawGrid(){
+  var gc=document.getElementById("gridCanvas");
+  gc.width=640;gc.height=480;
+  if(!showGrid)return;
+  var ctx=gc.getContext("2d");
+  ctx.clearRect(0,0,640,480);
+  ctx.strokeStyle="rgba(0,255,136,0.12)";
+  ctx.lineWidth=1;
+  var step=20;
+  for(var x=0;x<=640;x+=step){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,480);ctx.stroke();}
+  for(var y=0;y<=480;y+=step){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(640,y);ctx.stroke();}
+  // Major lines every 80px
+  ctx.strokeStyle="rgba(0,255,136,0.22)";
+  ctx.lineWidth=1;
+  for(var x=0;x<=640;x+=80){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,480);ctx.stroke();}
+  for(var y=0;y<=480;y+=80){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(640,y);ctx.stroke();}
+}
+
+// ── Undo / Redo ───────────────────────────────────────────────
+function snapshot(){
+  undoStack.push(JSON.stringify(widgets));
+  if(undoStack.length>MAX_HISTORY) undoStack.shift();
+  redoStack=[];
+  updateUndoButtons();
+}
+function undo(){
+  if(!undoStack.length)return;
+  redoStack.push(JSON.stringify(widgets));
+  widgets=JSON.parse(undoStack.pop());
+  selectedId=null;
+  renderCanvas();renderList();hideProps();updateUndoButtons();
+}
+function redo(){
+  if(!redoStack.length)return;
+  undoStack.push(JSON.stringify(widgets));
+  widgets=JSON.parse(redoStack.pop());
+  selectedId=null;
+  renderCanvas();renderList();hideProps();updateUndoButtons();
+}
+function updateUndoButtons(){
+  document.getElementById("btnUndo").disabled=!undoStack.length;
+  document.getElementById("btnRedo").disabled=!redoStack.length;
+}
+function markDirty(){dirty=true;}
+
+// ── BG Opacity ────────────────────────────────────────────────
+function updateBG(v){
+  bgOpacity=+v;
+  var a=Math.round(v*2.55).toString(16).padStart(2,"0");
+  document.getElementById("hudCanvas").style.background="#000000"+a;
+  document.getElementById("bgOpLabel").textContent="BG "+v+"%";
+  document.getElementById("bgOp").value=v;
+  document.getElementById("bgOpN").value=v;
+  markDirty();
+}
+
+// ── Load layouts ──────────────────────────────────────────────
 async function loadLayouts(){
   try{
     var r=await fetch(PROXY+"?entity=FaceContextHUDLayout");
-    if(r.ok){ layouts=await r.json(); setStatus(true,"☁ "+layouts.length+" layouts"); }
-    else throw new Error();
-    localStorage.setItem("fc_layouts",JSON.stringify(layouts));
+    if(!r.ok)throw new Error();
+    layouts=await r.json();
+    setStatus(true,"☁ "+layouts.length+" layouts");
+    localStorage.setItem("fc_hl",JSON.stringify(layouts));
   }catch{
-    var c=localStorage.getItem("fc_layouts");
+    var c=localStorage.getItem("fc_hl");
     layouts=c?JSON.parse(c):[];
     setStatus(false,"⚠ Offline");
   }
   renderLayoutBar();
-  if(layouts.length){
-    var def=layouts.find(l=>l.is_default)||layouts[0];
-    loadLayoutData(def);
-  } else {
-    newLayout();
-  }
+  if(layouts.length){var def=layouts.find(l=>l.is_default)||layouts[0];loadLayout(def);}
+  else newLayout();
 }
-
 function renderLayoutBar(){
   var bar=document.getElementById("layoutBar");
-  bar.innerHTML='<button class="layout-chip new" onclick="newLayout()">+ Novo</button>';
+  bar.innerHTML='<button class="lchip new" onclick="newLayout()">+ Novo</button>';
   layouts.forEach(l=>{
-    var chip=document.createElement("button");
-    chip.className="layout-chip"+(currentLayoutId===l.id?" active":"");
-    chip.textContent=(l.is_default?"★ ":"")+l.name;
-    chip.onclick=()=>{ loadLayoutData(l); };
-    bar.appendChild(chip);
+    var c=document.createElement("button");
+    c.className="lchip"+(currentId===l.id?" active":"");
+    c.textContent=(l.is_default?"★ ":"")+l.name;
+    c.onclick=()=>loadLayout(l);
+    bar.appendChild(c);
   });
 }
-
-function loadLayoutData(l){
-  currentLayoutId=l.id;
+function loadLayout(l){
+  currentId=l.id;
   document.getElementById("layoutName").value=l.name||"";
   document.getElementById("isDefault").checked=!!l.is_default;
-  bgOpacityVal=l.background_opacity||0;
-  document.getElementById("bgOpacity").value=bgOpacityVal;
-  document.getElementById("bgOpacityNum").value=bgOpacityVal;
-  updateBgOpacity(bgOpacityVal);
+  updateBG(l.background_opacity||0);
   widgets=(l.widgets||[]).map(w=>({...w,id:w.id||uid()}));
-  selectedId=null;
-  renderCanvas(); renderWidgetList(); hideProps();
-  renderLayoutBar();
+  undoStack=[];redoStack=[];selectedId=null;
+  renderCanvas();renderList();hideProps();renderLayoutBar();updateUndoButtons();
+  dirty=false;
 }
-
 function newLayout(){
-  currentLayoutId=null;
+  currentId=null;
   document.getElementById("layoutName").value="Novo Layout";
   document.getElementById("isDefault").checked=false;
-  bgOpacityVal=0;
-  document.getElementById("bgOpacity").value=0;
-  document.getElementById("bgOpacityNum").value=0;
-  updateBgOpacity(0);
-  // Default widgets
+  updateBG(0);
   widgets=[
-    {id:uid(),type:"name",    x:20, y:20, width:440,height:40, font_size:28,color:"#00ff88",bold:true, visible:true},
-    {id:uid(),type:"company", x:20, y:68, width:360,height:26, font_size:18,color:"#00cc66",bold:false,visible:true},
-    {id:uid(),type:"role",    x:20, y:98, width:360,height:22, font_size:15,color:"#009944",bold:false,visible:true},
-    {id:uid(),type:"separator",x:20,y:126,width:440,height:3,  font_size:0, color:"#004422",bold:false,visible:true},
-    {id:uid(),type:"relation",x:20, y:134,width:300,height:24, font_size:15,color:"#00ff88",bold:false,visible:true},
-    {id:uid(),type:"notes",   x:20, y:164,width:440,height:80, font_size:13,color:"#00aa55",bold:false,visible:true},
+    {id:uid(),type:"name",     x:20,y:16,  width:580,height:44,font_size:30,color:"#00ff88",bold:true, visible:true},
+    {id:uid(),type:"company",  x:20,y:66,  width:440,height:26,font_size:18,color:"#00cc66",bold:false,visible:true},
+    {id:uid(),type:"role",     x:20,y:96,  width:400,height:22,font_size:15,color:"#009944",bold:false,visible:true},
+    {id:uid(),type:"separator",x:20,y:124, width:560,height:3, font_size:0, color:"#004422",bold:false,visible:true},
+    {id:uid(),type:"relation", x:20,y:132, width:340,height:24,font_size:15,color:"#00ff88",bold:false,visible:true},
+    {id:uid(),type:"notes",    x:20,y:162, width:560,height:72,font_size:13,color:"#00aa55",bold:false,visible:true},
   ];
-  selectedId=null;
-  renderCanvas(); renderWidgetList(); hideProps();
+  undoStack=[];redoStack=[];selectedId=null;
+  renderCanvas();renderList();hideProps();renderLayoutBar();updateUndoButtons();
+  dirty=false;
 }
 
-// ── CANVAS ──────────────────────────────────────────────────────
-function updateBgOpacity(v){
-  bgOpacityVal=+v;
-  var alpha=Math.round(v*2.55).toString(16).padStart(2,"0");
-  document.getElementById("hudCanvas").style.background="#000000"+alpha;
-}
-
+// ── Render Canvas ─────────────────────────────────────────────
 function renderCanvas(){
   var canvas=document.getElementById("hudCanvas");
   canvas.innerHTML="";
   widgets.forEach(w=>{
-    if(!w.visible) return;
     var el=document.createElement("div");
-    el.className="widget"+(selectedId===w.id?" selected":"");
+    el.className="widget"+(selectedId===w.id?" sel":"");
     el.dataset.id=w.id;
-    el.style.cssText=`left:${w.x}px;top:${w.y}px;width:${w.width}px;height:${w.height}px`;
+    el.style.cssText=`left:${w.x}px;top:${w.y}px;width:${w.width}px;height:${w.height}px;opacity:${w.visible===false?.3:1}`;
 
     if(w.type==="separator"){
       var line=document.createElement("div");
-      line.style.cssText=`width:100%;height:${w.height||3}px;background:${w.color||"#004422"}`;
+      line.className="sep-line";
+      line.style.cssText=`height:${w.height||3}px;background:${w.color||"#004422"}`;
       el.appendChild(line);
     } else if(w.type==="photo"){
-      var photo=document.createElement("div");
+      var ph=document.createElement("div");
       var dim=Math.min(w.width,w.height);
-      photo.style.cssText=`width:${dim}px;height:${dim}px;border-radius:50%;background:rgba(0,255,136,0.15);border:2px solid ${w.color||"#00ff88"};display:flex;align-items:center;justify-content:center;font-size:24px;color:${w.color||"#00ff88"}`;
-      photo.textContent="👤";
-      el.appendChild(photo);
+      ph.style.cssText=`width:${dim}px;height:${dim}px;border-radius:50%;border:2px solid ${w.color||"#00ff88"};display:flex;align-items:center;justify-content:center;font-size:${dim*0.4}px;background:rgba(0,255,136,0.1)`;
+      ph.textContent="👤";
+      el.appendChild(ph);
     } else {
-      var def=WIDGET_DEFS[w.type]||WIDGET_DEFS.text;
-      var text=w.custom_text||def.preview();
-      var lbl=document.createElement("div");
+      var def=DEFS[w.type]||DEFS.text;
+      var lbl=document.createElement("span");
       lbl.className="wlabel";
-      lbl.style.cssText=`font-size:${w.font_size||16}px;color:${w.color||"#00ff88"};font-weight:${w.bold?"700":"400"};font-family:${w.type==="notes"?"monospace":"sans-serif"};line-height:1.3;width:${w.width}px`;
-      lbl.textContent=text;
+      lbl.style.cssText=`font-size:${w.font_size||16}px;color:${w.color||"#00ff88"};font-weight:${w.bold?"700":"400"};font-family:monospace;line-height:1.3;width:${w.width}px;display:block`;
+      lbl.textContent=w.custom_text||def.prev();
       el.appendChild(lbl);
     }
 
-    // Resize handle
-    if(w.type!=="separator"){
-      var handle=document.createElement("div");
-      handle.className="whandle";
-      handle.addEventListener("touchstart",e=>startResize(e,w.id),{passive:false});
-      handle.addEventListener("mousedown",e=>startResize(e,w.id));
-      el.appendChild(handle);
-    }
+    // Selection handles (corner dots)
+    var handles=document.createElement("div");
+    handles.className="sel-handles";
+    ["tl","tr","bl","br"].forEach(pos=>{
+      var sh=document.createElement("div");
+      sh.className="sh "+pos;
+      handles.appendChild(sh);
+    });
+    el.appendChild(handles);
 
-    el.addEventListener("touchstart",e=>startDrag(e,w.id),{passive:false});
-    el.addEventListener("mousedown",e=>startDrag(e,w.id));
+    // TAP to select (mobile-friendly, no drag needed)
+    el.addEventListener("click",e=>{e.stopPropagation();selectWidget(w.id);});
+    el.addEventListener("touchend",e=>{e.stopPropagation();selectWidget(w.id);},{passive:true});
+
     canvas.appendChild(el);
   });
+
+  // Click outside to deselect
+  canvas.onclick=()=>{selectedId=null;renderCanvas();renderList();hideProps();};
 }
 
-function renderWidgetList(){
+// ── Widget List ───────────────────────────────────────────────
+function renderList(){
   var list=document.getElementById("widgetList");
-  if(!widgets.length){ list.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Nenhum widget. Use a toolbar acima para adicionar.</div>'; return; }
+  if(!widgets.length){
+    list.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Nenhum widget. Use os botões acima para adicionar.</div>';
+    return;
+  }
   list.innerHTML=widgets.map((w,i)=>{
-    var def=WIDGET_DEFS[w.type]||WIDGET_DEFS.text;
+    var def=DEFS[w.type]||DEFS.text;
     return `<div class="witem${selectedId===w.id?" active":""}" onclick="selectWidget('${w.id}')">
       <span class="wicon">${def.icon}</span>
-      <div class="winfo">
-        <div class="wname">${def.label}${w.custom_text?' · "'+esc(w.custom_text.slice(0,20))+'"':""}</div>
-        <div class="wdesc">${w.x}x${w.y} · ${w.width}×${w.height}px · ${w.font_size||0}px</div>
+      <div class="wi">
+        <div class="wn">${def.label}${w.custom_text?' "'+esc(w.custom_text.slice(0,18))+'"':""}</div>
+        <div class="ws">${w.x}×${w.y} · ${w.width}×${w.height}px${w.visible===false?" · 🚫":""}</div>
       </div>
-      <span class="wvis" onclick="event.stopPropagation();toggleVis('${w.id}')">${w.visible?"👁":"🚫"}</span>
-      <span style="cursor:pointer;padding:4px" onclick="event.stopPropagation();moveWidget('${w.id}',-1)"title="Mover cima">▲</span>
-      <span style="cursor:pointer;padding:4px" onclick="event.stopPropagation();moveWidget('${w.id}',1)"title="Mover baixo">▼</span>
+      <div class="wact">
+        <button onclick="event.stopPropagation();toggleVis('${w.id}')" title="${w.visible!==false?"Ocultar":"Mostrar"}">${w.visible!==false?"👁":"🚫"}</button>
+        <button onclick="event.stopPropagation();moveW('${w.id}',-1)" title="Subir">▲</button>
+        <button onclick="event.stopPropagation();moveW('${w.id}',1)" title="Descer">▼</button>
+        <button onclick="event.stopPropagation();dupW('${w.id}')" title="Duplicar">⧉</button>
+      </div>
     </div>`;
   }).join("");
 }
 
-function hideProps(){ document.getElementById("propsPanel").style.display="none"; }
+// ── Select / Props ────────────────────────────────────────────
 function selectWidget(id){
   selectedId=id;
   var w=widgets.find(x=>x.id===id);
-  if(!w){ hideProps(); return; }
-  document.getElementById("propsPanel").style.display="block";
+  if(!w){hideProps();return;}
+  var def=DEFS[w.type]||DEFS.text;
+  document.getElementById("propsSection").style.display="block";
+  document.getElementById("propsTitle").textContent="⚙ "+def.label;
   document.getElementById("pX").value=w.x;
   document.getElementById("pY").value=w.y;
   document.getElementById("pW").value=w.width;
   document.getElementById("pH").value=w.height;
   document.getElementById("pFs").value=w.font_size||16;
-  document.getElementById("pFsNum").value=w.font_size||16;
+  document.getElementById("pFsN").value=w.font_size||16;
   document.getElementById("pColor").value=w.color||"#00ff88";
   document.getElementById("pBold").checked=!!w.bold;
-  document.getElementById("pCustomText").value=w.custom_text||"";
-  renderCanvas(); renderWidgetList();
+  document.getElementById("pText").value=w.custom_text||"";
+  document.getElementById("pVis").checked=w.visible!==false;
+  renderCanvas();renderList();
+  // Scroll to props
+  document.getElementById("propsSection").scrollIntoView({behavior:"smooth",block:"nearest"});
+}
+function hideProps(){document.getElementById("propsSection").style.display="none";}
+
+function applyProp(key,val){
+  var w=widgets.find(x=>x.id===selectedId);if(!w)return;
+  snapshot();
+  w[key]=val;
+  renderCanvas();renderList();markDirty();
 }
 
-function updateSelectedProp(key,val){
-  var w=widgets.find(x=>x.id===selectedId); if(!w) return;
-  w[key]=val; renderCanvas(); renderWidgetList();
+// ── Nudge ─────────────────────────────────────────────────────
+function nudge(dx,dy){
+  var w=widgets.find(x=>x.id===selectedId);if(!w)return;
+  var step=+document.getElementById("nudgeStep").value;
+  snapshot();
+  if(dx!==0){
+    w.x=Math.max(0,Math.min(640-w.width,w.x+dx*step));
+    document.getElementById("pX").value=w.x;
+  }
+  if(dy!==0){
+    w.y=Math.max(0,Math.min(480-w.height,w.y+dy*step));
+    document.getElementById("pY").value=w.y;
+  }
+  // Snap to grid if grid is on
+  if(showGrid){
+    var gs=20;
+    w.x=Math.round(w.x/gs)*gs;
+    w.y=Math.round(w.y/gs)*gs;
+    document.getElementById("pX").value=w.x;
+    document.getElementById("pY").value=w.y;
+  }
+  renderCanvas();renderList();markDirty();
+}
+function centerWidget(){
+  var w=widgets.find(x=>x.id===selectedId);if(!w)return;
+  snapshot();
+  w.x=Math.round((640-w.width)/2);
+  document.getElementById("pX").value=w.x;
+  renderCanvas();renderList();markDirty();
 }
 
-function deleteSelected(){
-  widgets=widgets.filter(x=>x.id!==selectedId);
-  selectedId=null; hideProps(); renderCanvas(); renderWidgetList();
-}
-
-function toggleVis(id){
-  var w=widgets.find(x=>x.id===id); if(w) w.visible=!w.visible;
-  renderCanvas(); renderWidgetList();
-}
-
-function moveWidget(id,dir){
-  var i=widgets.findIndex(x=>x.id===id);
-  if(i<0) return;
-  var ni=i+dir;
-  if(ni<0||ni>=widgets.length) return;
-  [widgets[i],widgets[ni]]=[widgets[ni],widgets[i]];
-  renderCanvas(); renderWidgetList();
-}
-
-// ── ADD WIDGET ──────────────────────────────────────────────────
+// ── Add Widget ────────────────────────────────────────────────
 function addWidget(type){
-  var def=WIDGET_DEFS[type]||WIDGET_DEFS.text;
-  // Posiciona abaixo do último widget
-  var maxY=widgets.length?Math.max(...widgets.map(w=>w.y+w.height)):20;
-  var w={id:uid(),type,x:20,y:Math.min(maxY+8,600),width:def.defaultW||300,height:def.defaultH||30,
-         font_size:def.defaultFs||16,color:"#00ff88",bold:type==="name",visible:true};
+  var def=DEFS[type]||DEFS.text;
+  var maxY=widgets.length?Math.max(...widgets.map(w=>w.y+w.height)):16;
+  snapshot();
+  var w={id:uid(),type,x:20,y:Math.min(maxY+8,460-def.dH),width:def.dW,height:def.dH,
+         font_size:def.dFs,color:"#00ff88",bold:type==="name",visible:true};
   widgets.push(w);
   selectWidget(w.id);
-  renderCanvas(); renderWidgetList();
-  // Scroll to bottom
-  document.getElementById("hudCanvas").parentElement.scrollTop=999;
+  renderCanvas();renderList();markDirty();
+  document.getElementById("propsSection").scrollIntoView({behavior:"smooth",block:"nearest"});
 }
 
-// ── DRAG ────────────────────────────────────────────────────────
-var SCALE=0.5;
-function getCanvasPos(e){
+// ── Toggle Vis / Move / Dup ───────────────────────────────────
+function toggleVis(id){
+  var w=widgets.find(x=>x.id===id);if(!w)return;
+  snapshot();w.visible=w.visible===false;
+  renderCanvas();renderList();markDirty();
+}
+function moveW(id,dir){
+  var i=widgets.findIndex(x=>x.id===id);if(i<0)return;
+  var ni=i+dir;if(ni<0||ni>=widgets.length)return;
+  snapshot();[widgets[i],widgets[ni]]=[widgets[ni],widgets[i]];
+  renderCanvas();renderList();markDirty();
+}
+function dupW(id){
+  var w=widgets.find(x=>x.id===id);if(!w)return;
+  snapshot();
+  var nw={...w,id:uid(),x:w.x+20,y:w.y+20};
+  widgets.push(nw);
+  selectWidget(nw.id);
+  renderCanvas();renderList();markDirty();
+}
+function deleteSelected(){
+  if(!selectedId)return;
+  snapshot();
+  widgets=widgets.filter(x=>x.id!==selectedId);
+  selectedId=null;hideProps();renderCanvas();renderList();markDirty();
+}
+
+// ── Drag on Desktop ───────────────────────────────────────────
+(function(){
   var canvas=document.getElementById("hudCanvas");
-  var rect=canvas.getBoundingClientRect();
-  var src=e.touches?e.touches[0]:e;
-  return{x:(src.clientX-rect.left)/SCALE, y:(src.clientY-rect.top)/SCALE};
-}
-
-function startDrag(e,id){
-  if(e.target.classList.contains("whandle")) return;
-  e.preventDefault();
-  selectWidget(id);
-  var w=widgets.find(x=>x.id===id); if(!w) return;
-  var pos=getCanvasPos(e);
-  dragState={type:"move",id,startX:pos.x-w.x,startY:pos.y-w.y};
-}
-
-function startResize(e,id){
-  e.preventDefault(); e.stopPropagation();
-  selectWidget(id);
-  var w=widgets.find(x=>x.id===id); if(!w) return;
-  var pos=getCanvasPos(e);
-  dragState={type:"resize",id,startX:pos.x-w.width,startY:pos.y-w.height};
-}
-
-function onMove(e){
-  if(!dragState) return;
-  e.preventDefault();
-  var pos=getCanvasPos(e);
-  var w=widgets.find(x=>x.id===dragState.id); if(!w) return;
-  if(dragState.type==="move"){
-    w.x=Math.max(0,Math.min(480-w.width,Math.round(pos.x-dragState.startX)));
-    w.y=Math.max(0,Math.min(640-w.height,Math.round(pos.y-dragState.startY)));
-  } else {
-    w.width=Math.max(40,Math.min(480-w.x,Math.round(pos.x-dragState.startX)));
-    w.height=Math.max(16,Math.min(640-w.y,Math.round(pos.y-dragState.startY)));
+  var ds=null;
+  function startDrag(e,id){
+    var el=e.target.closest(".widget");if(!el)return;
+    if(e.target.classList.contains("sh"))return; // resize handle — skip for now
+    selectWidget(id||el.dataset.id);
+    var w=widgets.find(x=>x.id===el.dataset.id);if(!w)return;
+    var rect=canvas.getBoundingClientRect();
+    var src=e.touches?e.touches[0]:e;
+    ds={id:w.id,ox:src.clientX/SCALE-w.x,oy:src.clientY/SCALE-w.y};
+    snapshot();
+    e.preventDefault();
   }
-  // Update props inputs live
-  document.getElementById("pX").value=w.x;document.getElementById("pY").value=w.y;
-  document.getElementById("pW").value=w.width;document.getElementById("pH").value=w.height;
-  renderCanvas(); renderWidgetList();
-}
+  function onMove(e){
+    if(!ds)return;
+    var src=e.touches?e.touches[0]:e;
+    var w=widgets.find(x=>x.id===ds.id);if(!w)return;
+    var nx=Math.round(src.clientX/SCALE-ds.ox);
+    var ny=Math.round(src.clientY/SCALE-ds.oy);
+    var gs=showGrid?20:1;
+    w.x=Math.max(0,Math.min(640-w.width,Math.round(nx/gs)*gs));
+    w.y=Math.max(0,Math.min(480-w.height,Math.round(ny/gs)*gs));
+    document.getElementById("pX").value=w.x;
+    document.getElementById("pY").value=w.y;
+    renderCanvas();
+    e.preventDefault();
+  }
+  function endDrag(){if(ds){renderList();markDirty();}ds=null;}
+  canvas.addEventListener("mousedown",startDrag);
+  window.addEventListener("mousemove",onMove);
+  window.addEventListener("mouseup",endDrag);
+  // Touch drag only on desktop-sized screens (>= 600px)
+  canvas.addEventListener("touchstart",e=>{
+    if(window.innerWidth>=600) startDrag(e);
+  },{passive:false});
+  canvas.addEventListener("touchmove",e=>{
+    if(window.innerWidth>=600) onMove(e);
+  },{passive:false});
+  canvas.addEventListener("touchend",endDrag);
+})();
 
-function onEnd(e){ dragState=null; }
-
-var canvas=document.getElementById("hudCanvas");
-canvas.addEventListener("touchmove",onMove,{passive:false});
-canvas.addEventListener("touchend",onEnd);
-canvas.addEventListener("mousemove",onMove);
-canvas.addEventListener("mouseup",onEnd);
-
-// ── SAVE LAYOUT ─────────────────────────────────────────────────
+// ── Save ──────────────────────────────────────────────────────
 async function saveLayout(){
   var name=document.getElementById("layoutName").value.trim()||"Layout";
-  var payload={
-    name, is_default:document.getElementById("isDefault").checked,
-    background_opacity:bgOpacityVal,
-    theme:"Dark",
-    widgets: widgets.map(w=>({...w})),
-  };
+  var payload={name,is_default:document.getElementById("isDefault").checked,
+               background_opacity:bgOpacity,theme:"Dark",widgets:[...widgets]};
+  var btn=document.querySelector(".btn-save");btn.textContent="💾…";
   try{
     var r;
-    if(currentLayoutId){
-      r=await fetch(PROXY+"?id="+currentLayoutId+"&entity=FaceContextHUDLayout",
+    if(currentId){
+      r=await fetch(PROXY+"?id="+currentId+"&entity=FaceContextHUDLayout",
         {method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
     } else {
       r=await fetch(PROXY+"?entity=FaceContextHUDLayout",
         {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
     }
-    if(!r.ok) throw new Error("HTTP "+r.status);
+    if(!r.ok)throw new Error("HTTP "+r.status);
     var saved=await r.json();
-    currentLayoutId=saved.id;
-    if(!layouts.find(l=>l.id===saved.id)) layouts.push(saved);
-    else { var i=layouts.findIndex(l=>l.id===saved.id); layouts[i]=saved; }
-    localStorage.setItem("fc_layouts",JSON.stringify(layouts));
-    renderLayoutBar();
+    currentId=saved.id;
+    var idx=layouts.findIndex(l=>l.id===saved.id);
+    if(idx>=0)layouts[idx]=saved;else layouts.push(saved);
+    localStorage.setItem("fc_hl",JSON.stringify(layouts));
+    renderLayoutBar();dirty=false;
     toast("Layout salvo! ✅","ok");
-  }catch(e){ toast("Erro ao salvar: "+e.message,"err"); }
+  }catch(e){toast("Erro: "+e.message,"err");}
+  finally{btn.textContent="💾";}
 }
 
-// ── LAYOUTS MODAL ────────────────────────────────────────────────
+// ── Layouts modal ─────────────────────────────────────────────
 function openLayouts(){
-  var cards=document.getElementById("layoutCards");
-  if(!layouts.length){ cards.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">Nenhum layout salvo ainda.</div>'; }
-  else cards.innerHTML=layouts.map(l=>`
-    <div class="lcard${currentLayoutId===l.id?" active":""}" onclick="loadLayoutData(l${layouts.indexOf(l)});closeModal('layoutsOverlay')">
-      <div class="lcard-info">
-        <div class="lcard-name">${esc(l.name)}${l.is_default?" ★":""}</div>
-        <div class="lcard-sub">${(l.widgets||[]).length} widgets · opacidade ${l.background_opacity||0}%</div>
-      </div>
-      <button class="lcard-del" onclick="event.stopPropagation();deleteLayout('${l.id}')">🗑</button>
+  var el=document.getElementById("lcards");
+  if(!layouts.length){el.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">Nenhum layout ainda.</div>';}
+  else el.innerHTML=layouts.map((l,i)=>`
+    <div class="lcard${currentId===l.id?" active":""}" onclick="loadLayout(layouts[${i}]);closeOv('layoutsOv')">
+      <div class="lci"><div class="lcn">${esc(l.name)}${l.is_default?" ★":""}</div>
+        <div class="lcs">${(l.widgets||[]).length} widgets · BG ${l.background_opacity||0}%</div></div>
+      <button class="btn-ldel" onclick="event.stopPropagation();deleteLayout('${l.id}')">🗑</button>
     </div>`).join("");
-  // Patch para onclick funcionar com index
-  document.getElementById("layoutsOverlay").classList.add("open");
+  document.getElementById("layoutsOv").classList.add("open");
 }
-// Expor loadLayoutData via índice p/ onclick inline
-window._loadLayoutByIdx = function(i){ loadLayoutData(layouts[i]); }
-
 async function deleteLayout(id){
-  if(!confirm("Excluir este layout?")) return;
+  if(!confirm("Excluir este layout?"))return;
   try{
     await fetch(PROXY+"?id="+id+"&entity=FaceContextHUDLayout",{method:"DELETE"});
     layouts=layouts.filter(l=>l.id!==id);
-    if(currentLayoutId===id){currentLayoutId=null;newLayout();}
-    localStorage.setItem("fc_layouts",JSON.stringify(layouts));
-    openLayouts(); renderLayoutBar();
-    toast("Layout excluído","");
-  }catch(e){ toast("Erro ao excluir","err"); }
+    if(currentId===id){currentId=null;newLayout();}
+    localStorage.setItem("fc_hl",JSON.stringify(layouts));
+    openLayouts();renderLayoutBar();toast("Excluído","");
+  }catch(e){toast("Erro","err");}
 }
+function closeOv(id){document.getElementById(id).classList.remove("open");}
+document.querySelectorAll(".overlay").forEach(o=>{
+  o.addEventListener("click",e=>{if(e.target===o)o.classList.remove("open");});
+});
 
-function closeModal(id){ document.getElementById(id).classList.remove("open"); }
-document.querySelectorAll(".overlay").forEach(o=>{o.addEventListener("click",e=>{if(e.target===o)o.classList.remove("open")})});
+// ── Keyboard shortcuts ────────────────────────────────────────
+document.addEventListener("keydown",e=>{
+  if(e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA")return;
+  if((e.metaKey||e.ctrlKey)&&e.key==="z"&&!e.shiftKey){e.preventDefault();undo();}
+  else if((e.metaKey||e.ctrlKey)&&(e.key==="y"||(e.key==="z"&&e.shiftKey))){e.preventDefault();redo();}
+  else if(e.key==="ArrowLeft") nudge(-1,0);
+  else if(e.key==="ArrowRight")nudge(1,0);
+  else if(e.key==="ArrowUp")   nudge(0,-1);
+  else if(e.key==="ArrowDown") nudge(0,1);
+  else if(e.key==="Delete"||e.key==="Backspace") deleteSelected();
+});
 
-// ── INIT ────────────────────────────────────────────────────────
-// Patch layoutCards onclick para funcionar com layouts dinâmicos
-function openLayouts(){
-  var cards=document.getElementById("layoutCards");
-  if(!layouts.length){ cards.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">Nenhum layout salvo ainda.</div>'; }
-  else cards.innerHTML=layouts.map((l,i)=>`
-    <div class="lcard${currentLayoutId===l.id?" active":""}" onclick="loadLayoutData(layouts[${i}]);closeModal('layoutsOverlay')">
-      <div class="lcard-info">
-        <div class="lcard-name">${esc(l.name)}${l.is_default?" ★":""}</div>
-        <div class="lcard-sub">${(l.widgets||[]).length} widgets · opacidade ${l.background_opacity||0}%</div>
-      </div>
-      <button class="lcard-del" onclick="event.stopPropagation();deleteLayout('${l.id}')">🗑</button>
-    </div>`).join("");
-  document.getElementById("layoutsOverlay").classList.add("open");
-}
+// ── Warn before leave ─────────────────────────────────────────
+window.addEventListener("beforeunload",e=>{if(dirty){e.preventDefault();e.returnValue="";}});
 
+// ── Init ──────────────────────────────────────────────────────
+calcScale();
 loadLayouts();
 </script>
 </body>
