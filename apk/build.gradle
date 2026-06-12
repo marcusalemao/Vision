@@ -1,0 +1,44 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace         'com.facecontext'
+    compileSdk        34
+
+    defaultConfig {
+        applicationId   "com.facecontext"
+        minSdk          31          // Android 12 — YodaOS minimum
+        targetSdk       34
+        versionCode     1
+        versionName     "0.1-alpha"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled   false
+            // TODO: enable ProGuard when APK is stable
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+}
+
+dependencies {
+    // AndroidX core
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+
+    // Room — local profile database (Phase 2)
+    // implementation "androidx.room:room-runtime:2.6.1"
+    // annotationProcessor "androidx.room:room-compiler:2.6.1"
+
+    // TensorFlow Lite — offline face recognition (Phase 3)
+    // implementation 'org.tensorflow:tensorflow-lite:2.14.0'
+    // implementation 'org.tensorflow:tensorflow-lite-support:0.4.4'
+
+    // ML Kit face detection fallback (Phase 3)
+    // implementation 'com.google.mlkit:face-detection:16.1.5'
+}
