@@ -239,6 +239,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   border-radius:10px;padding:10px 12px;font-size:13px;color:rgba(255,255,255,.8);
   line-height:1.65;margin-bottom:8px;white-space:pre-wrap}
 
+
+/* ── TIMELINE: item focado via teclado ── */
+.tl-item.tl-focused{
+  background:rgba(0,255,136,.07);
+  outline:none;
+}
+.tl-item.tl-focused .tl-dot{
+  box-shadow:0 0 0 3px rgba(0,255,136,.3), 0 0 8px rgba(0,255,136,.6);
+}
+.tl-item.tl-focused .tl-who{color:var(--green)}
+
 </style>
 </head>
 <body>
@@ -537,7 +548,7 @@ function showPage(id){
   document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
   document.getElementById("page-"+id).classList.add("active");
   document.querySelector('[data-page="'+id+'"]').classList.add("active");
-  if(id==="encounters") renderEncounters();
+  if(id==="encounters"){ renderEncounters(); _tlFocusIdx=-1; initTLKeyboard(); }
   if(id==="merge") renderMergeList("A"), renderMergeList("B");
 }
 function closeModal(id){document.getElementById(id).classList.remove("open")}
@@ -763,7 +774,7 @@ function renderEncounters(){
       var sum = e.context ? esc(e.context.slice(0,120)) : "";
       var timeStr = e.date ? new Date(e.date).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}) : "";
       var pending = e.capture_mode === "auto" && !e.context;
-      html += `<div class="tl-item" onclick="showEncDetail('${e.id}')">
+      html += `<div class="tl-item" data-encid="${e.id}" data-idx="${encounters.indexOf(e)}" tabindex="-1" onclick="showEncDetail('${e.id}')">
         <div class="tl-dot${pending?" pend":""}"></div>
         <div class="tl-body">
           <div class="tl-who">${esc(who)}</div>
@@ -1012,6 +1023,54 @@ async function saveEncounterFull(){
     encTranscript="";
   }catch(e){ toast("Erro: "+e.message,"err"); }
 }
+
+
+// ── TIMELINE: navegação por teclado ──────────────────────────────
+var _tlFocusIdx = -1;
+
+function getTLItems(){
+  return Array.from(document.querySelectorAll("#encList .tl-item"));
+}
+
+function focusTLItem(idx){
+  var items = getTLItems();
+  if(!items.length) return;
+  idx = Math.max(0, Math.min(idx, items.length-1));
+  items.forEach(function(el){ el.classList.remove("tl-focused"); });
+  items[idx].classList.add("tl-focused");
+  items[idx].scrollIntoView({block:"center", behavior:"smooth"});
+  _tlFocusIdx = idx;
+}
+
+function initTLKeyboard(){
+  // Toque em item → foca ele
+  document.getElementById("encList").addEventListener("click", function(e){
+    var item = e.target.closest(".tl-item");
+    if(!item) return;
+    var items = getTLItems();
+    _tlFocusIdx = items.indexOf(item);
+  }, true);
+}
+
+// Keyboard listener para timeline
+document.addEventListener("keydown", function(e){
+  var page = document.querySelector(".page.active");
+  if(!page || page.id !== "page-encounters") return;
+  if(document.querySelector(".overlay.open")) return; // modal aberto = ignora
+  if(e.key === "ArrowDown" || e.key === "ArrowUp"){
+    e.preventDefault();
+    if(_tlFocusIdx < 0 && getTLItems().length) _tlFocusIdx = 0;
+    focusTLItem(_tlFocusIdx + (e.key==="ArrowDown" ? 1 : -1));
+  }
+  if(e.key === "Enter"){
+    e.preventDefault();
+    var items = getTLItems();
+    if(_tlFocusIdx >= 0 && items[_tlFocusIdx]){
+      var id = items[_tlFocusIdx].getAttribute("data-encid");
+      if(id) showEncDetail(id);
+    }
+  }
+});
 
 // ── merge page ─────────────────────────────────────────────────
 function renderMergeList(ab){
