@@ -406,7 +406,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 <div class="toast" id="toast"></div>
 
 <script>
-const PROXY = "https://facecontext-10a8c066.base44.app/functions/fcProxy";
+const PROXY = "https://base44.app/api/apps/6a11083db49430b410a8c066/functions/fcProxy";
 const APP_ID = "6a11083db49430b410a8c066";
 
 var contacts = [], encounters = [], filterStatus = "all", filterRelation = "all";
@@ -462,7 +462,7 @@ async function loadAll(){
 
 async function loadEncounters(){
   try{
-    var r=await fetch("https://facecontext-10a8c066.base44.app/functions/fcProxy?entity=FaceContextEncounter");
+    var r=await fetch("https://base44.app/api/apps/6a11083db49430b410a8c066/functions/fcProxy?entity=FaceContextEncounter");
     encounters= r.ok ? await r.json() : [];
   }catch{ encounters=[]; }
   renderEncounters();
