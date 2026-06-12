@@ -278,6 +278,36 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
   margin-top:4px;text-align:left;-webkit-tap-highlight-color:transparent}
 .btn-add-msg:active{background:rgba(255,255,255,.03)}
 
+
+/* ── PENDING CARDS v2 ── */
+.pend-card{background:rgba(255,255,255,.03);border:1px solid var(--border);
+  border-radius:14px;margin:10px 14px;overflow:hidden}
+.pend-card-top{display:flex;gap:12px;padding:12px;align-items:center;cursor:pointer}
+.pend-card-top:active{background:rgba(255,255,255,.03)}
+.pend-photo{width:56px;height:56px;border-radius:12px;object-fit:cover;
+  background:rgba(255,255,255,.07);display:flex;align-items:center;
+  justify-content:center;font-size:20px;flex-shrink:0;border:2px solid rgba(245,158,11,.4)}
+.pend-photo img{width:100%;height:100%;object-fit:cover;border-radius:10px}
+.pend-info{flex:1;min-width:0}
+.pend-name{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pend-meta{font-size:11px;color:var(--muted);margin-top:2px}
+.pend-badge{font-size:9px;padding:2px 7px;border-radius:8px;background:rgba(245,158,11,.15);
+  color:#f59e0b;border:1px solid rgba(245,158,11,.25);font-weight:700;display:inline-block;margin-top:3px}
+.pend-actions{display:flex;gap:0;border-top:1px solid var(--border)}
+.pend-btn{flex:1;padding:10px 6px;background:none;border:none;color:var(--muted);
+  font-size:12px;cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent}
+.pend-btn:active{background:rgba(255,255,255,.04)}
+.pend-btn+.pend-btn{border-left:1px solid var(--border)}
+.pend-btn.green{color:var(--green)}
+.pend-btn.red{color:#ef4444}
+/* inline rename */
+.pend-rename{padding:10px 12px;border-top:1px solid var(--border);display:none}
+.pend-rename input{width:100%;padding:8px 10px;background:rgba(255,255,255,.06);
+  border:1px solid var(--border);border-radius:9px;color:#fff;font-size:14px;
+  box-sizing:border-box;margin-bottom:8px}
+.pend-rename .row2{display:flex;gap:8px}
+.pend-rename .btn-save{flex:1;padding:8px}
+
 </style>
 </head>
 <body>
@@ -681,26 +711,87 @@ function renderContacts(){ applyFilters(); }
 function renderPending(){
   var pending=contacts.filter(c=>c.status==="Pendente");
   document.getElementById("pendBadge").textContent=pending.length;
+  var el=document.getElementById("pendingList");
   if(!pending.length){
-    document.getElementById("pendingList").innerHTML='<div class="empty"><div class="ei">✅</div><p>Nenhum rosto pendente!</p></div>';
+    el.innerHTML='<div class="empty"><div class="ei">✅</div><p>Nenhum rosto pendente!</p></div>';
     return;
   }
-  document.getElementById("pendingList").innerHTML=
-    '<div class="section-title">Rostos não identificados ('+pending.length+')</div>'+
+  el.innerHTML='<div class="section-title" style="padding:12px 14px 4px;font-size:11px;color:var(--muted)">'+pending.length+' rostos aguardando identificação</div>'+
     pending.map(c=>{
-      var av=initials(c.name||"?");
       var candidates=findSimilar(c,3);
-      return `<div class="pending-card" onclick="openMergeSuggestion('${c.id}')">
-        <div class="pending-row">
-          <div class="av">${av}</div>
-          <div class="pending-info">
-            <div class="pending-label">${esc(c.name||"Desconhecido")}</div>
-            <div class="pending-sub">${candidates.length?`Possíveis matches: ${candidates.map(x=>x.name).join(", ")}`:"Sem matches sugeridos"}</div>
+      var photoHtml = c.photo_url
+        ? `<div class="pend-photo"><img src="${c.photo_url}" onerror="this.parentElement.textContent='👤'"></div>`
+        : `<div class="pend-photo">👤</div>`;
+      var capDate = c.last_seen_date ? fmtDate(c.last_seen_date) : "data desconhecida";
+      var matchTxt = candidates.length
+        ? "Possível match: "+candidates.slice(0,2).map(x=>x.name).join(", ")
+        : "Sem matches sugeridos";
+      return `<div class="pend-card" id="pc-${c.id}">
+        <div class="pend-card-top" onclick="togglePendRename('${c.id}')">
+          ${photoHtml}
+          <div class="pend-info">
+            <div class="pend-name">${esc(c.name||"Desconhecido")}</div>
+            <div class="pend-meta">${matchTxt}</div>
+            <span class="pend-badge">⚠ Pendente · ${capDate}</span>
           </div>
-          <button class="btn-merge">Vincular</button>
+        </div>
+        <div class="pend-rename" id="pr-${c.id}">
+          <input type="text" id="pn-${c.id}" placeholder="Nome completo…" value="${esc(c.name||"")}" onkeydown="if(event.key==='Enter')savePendingName('${c.id}')">
+          <div class="row2">
+            <button class="btn-save pend-btn green" onclick="savePendingName('${c.id}')">✅ Salvar nome</button>
+            <button class="btn-save pend-btn" onclick="openMergeSuggestion('${c.id}')" style="background:rgba(0,255,136,.08);border-color:rgba(0,255,136,.2);color:var(--green)">🔀 Mesclar</button>
+          </div>
+        </div>
+        <div class="pend-actions">
+          <button class="pend-btn green" onclick="editPending('${c.id}')">✏️ Editar perfil</button>
+          <button class="pend-btn" onclick="openMergeSuggestion('${c.id}')">🔀 Mesclar</button>
+          <button class="pend-btn red" onclick="deletePending('${c.id}','${esc(c.name||"?")}')">🗑</button>
         </div>
       </div>`;
     }).join("");
+}
+
+function togglePendRename(id){
+  var el=document.getElementById("pr-"+id);
+  if(!el) return;
+  var open=el.style.display==="block";
+  el.style.display=open?"none":"block";
+  if(!open) setTimeout(function(){var inp=document.getElementById("pn-"+id);if(inp)inp.focus();},50);
+}
+
+async function savePendingName(id){
+  var inp=document.getElementById("pn-"+id);
+  if(!inp) return;
+  var name=inp.value.trim();
+  if(!name){toast("Nome não pode ser vazio","err");return;}
+  try{
+    await fetch(PROXY+"?id="+id+"&entity=FaceContextPerson",{
+      method:"PUT",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({name:name,status:"Ativo"})
+    });
+    var c=contacts.find(x=>x.id===id);
+    if(c){c.name=name;c.status="Ativo";}
+    renderPending(); renderContacts();
+    toast("✅ "+name+" identificado!","ok");
+  }catch(e){toast("Erro: "+e.message,"err");}
+}
+
+function editPending(id){
+  var c=contacts.find(x=>x.id===id);
+  if(!c) return;
+  editingId=id; fillForm(c);
+  document.getElementById("addTitle").textContent="Completar Perfil";
+  document.getElementById("addOverlay").classList.add("open");
+}
+
+async function deletePending(id,name){
+  if(!confirm("Excluir o rosto '"+name+"'? Esta ação é irreversível.")) return;
+  try{
+    await fetch(PROXY+"?id="+id+"&entity=FaceContextPerson",{method:"DELETE"});
+    contacts=contacts.filter(x=>x.id!==id);
+    renderPending(); renderContacts();
+    toast("🗑 Excluído","");
+  }catch(e){toast("Erro: "+e.message,"err");}
 }
 
 function findSimilar(c,n){
