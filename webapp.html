@@ -176,6 +176,69 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .apply-row{display:flex;gap:6px;flex-wrap:wrap}
 .btn-apply{padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,0.04);color:var(--text);font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .btn-apply:active{background:rgba(255,255,255,0.08)}
+
+/* ── TIMELINE ── */
+.tl-day{margin-bottom:20px}
+.tl-day-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;
+  padding:4px 14px;margin-bottom:8px;position:sticky;top:56px;z-index:5;
+  background:var(--bg);border-bottom:1px solid var(--border);}
+.tl-item{display:flex;gap:10px;padding:8px 14px;border-bottom:1px solid var(--border);cursor:pointer;
+  -webkit-tap-highlight-color:transparent;}
+.tl-item:active{background:rgba(255,255,255,.03)}
+.tl-dot{width:8px;height:8px;border-radius:50%;background:var(--green);margin-top:5px;flex-shrink:0;
+  box-shadow:0 0 6px rgba(0,255,136,.4);}
+.tl-dot.pend{background:#f59e0b;box-shadow:0 0 6px rgba(245,158,11,.4);}
+.tl-body{flex:1;min-width:0}
+.tl-who{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl-where{font-size:11px;color:var(--muted);margin:1px 0}
+.tl-summary{font-size:12px;color:rgba(255,255,255,.55);line-height:1.45;margin-top:3px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tl-time{font-size:10px;color:var(--muted);flex-shrink:0;margin-top:4px}
+.tl-empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:13px}
+/* modal encontro */
+.enc-modal .field textarea{min-height:80px}
+/* gravação */
+.rec-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(239,68,68,.08);
+  border:1px solid rgba(239,68,68,.2);border-radius:10px;margin-bottom:8px}
+.rec-dot-anim{width:8px;height:8px;border-radius:50%;background:#ef4444;animation:blink2 .7s infinite}
+@keyframes blink2{0%,100%{opacity:1}50%{opacity:0}}
+.rec-txt{font-size:12px;color:#ef4444;flex:1}
+.rec-dur{font-size:11px;color:#ef4444}
+.ai-sum{background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.15);border-radius:10px;
+  padding:10px 12px;font-size:13px;color:rgba(255,255,255,.8);line-height:1.6;margin-bottom:8px;
+  white-space:pre-wrap}
+
+
+/* ── TIMELINE DE ENCONTROS ── */
+.tl-day{margin-bottom:0}
+.tl-day-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;
+  letter-spacing:1px;padding:8px 14px 4px;background:var(--bg);
+  border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:4}
+.tl-item{display:flex;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);
+  cursor:pointer;-webkit-tap-highlight-color:transparent;align-items:flex-start}
+.tl-item:active{background:rgba(255,255,255,.03)}
+.tl-dot{width:8px;height:8px;border-radius:50%;background:var(--green);margin-top:5px;
+  flex-shrink:0;box-shadow:0 0 6px rgba(0,255,136,.5)}
+.tl-dot.pend{background:#f59e0b;box-shadow:0 0 6px rgba(245,158,11,.4)}
+.tl-body{flex:1;min-width:0}
+.tl-who{font-size:14px;font-weight:600}
+.tl-where{font-size:11px;color:var(--muted);margin:2px 0}
+.tl-sum{font-size:12px;color:rgba(255,255,255,.5);line-height:1.45;margin-top:3px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tl-time{font-size:10px;color:var(--muted);flex-shrink:0}
+.tl-empty{text-align:center;padding:48px 20px;color:var(--muted);font-size:13px;line-height:1.8}
+/* gravação */
+.rec-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;
+  background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);
+  border-radius:10px;margin-bottom:8px}
+.rdot{width:8px;height:8px;border-radius:50%;background:#ef4444;animation:blink2 .7s infinite}
+@keyframes blink2{0%,100%{opacity:1}50%{opacity:0}}
+.rec-txt{font-size:12px;color:#ef4444;flex:1}
+.rec-dur{font-size:11px;color:#ef4444;font-variant-numeric:tabular-nums}
+.ai-sum-box{background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.18);
+  border-radius:10px;padding:10px 12px;font-size:13px;color:rgba(255,255,255,.8);
+  line-height:1.65;margin-bottom:8px;white-space:pre-wrap}
+
 </style>
 </head>
 <body>
@@ -228,7 +291,11 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 
 <!-- ═══════════════ PAGE: ENCOUNTERS ═══════════════ -->
 <div class="page" id="page-encounters">
-  <div class="topbar"><h2>💬 Encontros</h2><span class="badge" id="encBadge">0</span></div>
+  <div class="topbar">
+    <h2>💬 Encontros</h2>
+    <span class="badge" id="encBadge">0</span>
+    <button onclick="openAddEncounter(null,null)" style="margin-left:auto;background:var(--green);color:#000;border:none;border-radius:9px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer">+ Novo</button>
+  </div>
   <div id="encList"><div class="loader"><div class="spin"></div>Carregando…</div></div>
 </div>
 
@@ -372,19 +439,51 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
     <div class="mhandle"></div>
     <div class="mhead"><span class="mtitle" id="encTitle">Novo Encontro</span><button class="btn-x" onclick="closeModal('encOverlay')">✕</button></div>
     <div class="mbody">
-      <div class="field"><label>Pessoa</label><input type="text" id="encPerson" placeholder="Nome" readonly style="opacity:.7"></div>
+
+      <!-- pessoa -->
+      <div class="field" id="encPersonField">
+        <label>Pessoa</label>
+        <input type="text" id="encPersonSearch" placeholder="Buscar contato…" oninput="renderEncPersonList(this.value)" autocomplete="off">
+        <div id="encPersonList" style="max-height:130px;overflow-y:auto;border:1px solid var(--border);border-radius:9px;margin-top:4px;display:none"></div>
+        <div id="encPersonSelected" style="display:none;padding:7px 10px;background:rgba(0,255,136,.07);border:1px solid rgba(0,255,136,.2);border-radius:9px;font-size:13px;margin-top:4px;cursor:pointer" onclick="clearEncPerson()"></div>
+      </div>
+
       <div class="row2">
-        <div class="field"><label>Local</label><input type="text" id="encLocation" placeholder="Onde?"></div>
-        <div class="field"><label>Modo</label>
-          <select id="encMode"><option value="Manual">Manual</option><option value="Automático">Automático</option></select>
+        <div class="field"><label>Local / Evento</label><input type="text" id="encLocation" placeholder="Onde?"></div>
+        <div class="field"><label>Data</label><input type="datetime-local" id="encDate"></div>
+      </div>
+
+      <!-- GRAVAÇÃO DE ÁUDIO -->
+      <div class="field">
+        <label>🎙 Gravar Conversa</label>
+        <div class="rec-bar" id="recBar" style="display:none">
+          <div class="rdot"></div><span class="rec-txt">Gravando…</span>
+          <span class="rec-dur" id="recDur">0:00</span>
         </div>
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <button class="btn-capture" style="flex:1" id="btnRecStart" onclick="startEncRec()">🎙 Iniciar</button>
+          <button class="btn-capture" style="flex:1;display:none;background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.3);color:#ef4444" id="btnRecStop" onclick="stopEncRec()">⏹ Parar</button>
+        </div>
+        <div id="encTranscript" style="display:none;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:9px;padding:9px;font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:8px;min-height:44px;max-height:90px;overflow-y:auto"></div>
+        <div id="encAISummary" class="ai-sum-box" style="display:none"></div>
+        <button id="btnGenSum" onclick="generateEncSummary()" style="display:none;width:100%;padding:9px;background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.2);border-radius:9px;color:var(--green);font-size:13px;cursor:pointer;margin-bottom:8px">✨ Gerar resumo com IA</button>
       </div>
-      <div class="field"><label>Contexto / Resumo da conversa</label><textarea id="encContext" placeholder="Do que vocês falaram? O que aconteceu?" style="min-height:100px"></textarea></div>
-      <div style="display:flex;gap:8px;margin-bottom:10px">
-        <button class="btn-capture" style="flex:1" onclick="openEncMic()">🎙 Gravar conversa</button>
+
+      <div class="field">
+        <label>Resumo / Notas</label>
+        <textarea id="encContext" placeholder="Do que vocês falaram? Decisões, próximos passos…" style="min-height:80px"></textarea>
       </div>
-      <div class="transcript-box" id="encTranscript" style="display:none;margin-bottom:8px"></div>
-      <button class="btn-save" onclick="saveEncounter()">💾 Salvar Encontro</button>
+
+      <div class="field">
+        <label>Modo de captura</label>
+        <select id="encMode">
+          <option value="manual">✍️ Manual</option>
+          <option value="audio">🎙 Áudio</option>
+          <option value="auto">🤖 Automático (óculos)</option>
+        </select>
+      </div>
+
+      <button class="btn-save" onclick="saveEncounterFull()">💾 Salvar Encontro</button>
     </div>
   </div>
 </div>
@@ -624,61 +723,294 @@ function createFromPending(id){
 }
 
 // ── encounters ────────────────────────────────────────────────
+var encounters = [];
+var encRecognition = null, encRecording = false, encTranscript = "";
+var encRecTimer = null, encRecSecs = 0;
+var _encPersonId = null;
+
+async function loadEncounters(){
+  try{
+    var r = await fetch(PROXY+"?entity=FaceContextEncounter&_sort=-date&_limit=200");
+    encounters = r.ok ? await r.json() : [];
+    if(!Array.isArray(encounters)) encounters = [];
+  }catch{ encounters = []; }
+  renderEncounters();
+}
+
 function renderEncounters(){
-  // Usa contacts.last_seen como proxy de encontros enquanto FaceContextEncounter estiver vazio
-  var withSeen=contacts.filter(c=>c.last_seen_date||c.last_seen_context||c.notes).sort((a,b)=>{
-    return (b.last_seen_date||"").localeCompare(a.last_seen_date||"");
-  });
-  document.getElementById("encBadge").textContent=withSeen.length;
-  if(!withSeen.length){
-    document.getElementById("encList").innerHTML='<div class="empty"><div class="ei">💬</div><p>Nenhum encontro registrado.</p></div>';
+  document.getElementById("encBadge").textContent = encounters.length;
+  var el = document.getElementById("encList");
+  if(!encounters.length){
+    el.innerHTML = `<div class="tl-empty">Nenhum encontro registrado.<br>Toque <strong>+ Novo</strong> para começar.</div>`;
     return;
   }
-  document.getElementById("encList").innerHTML=
-    '<div class="section-title">Últimas interações</div>'+
-    withSeen.map(c=>`
-      <div class="enc-card" onclick="openDetail('${c.id}')">
-        <div class="enc-header">
-          <div class="enc-avatar">${c.photo_url?`<img src="${esc(c.photo_url)}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`:(initials(c.name||"?"))}</div>
-          <div style="flex:1">
-            <div class="enc-name">${esc(c.name||"?")}</div>
-            <div class="enc-date">${c.last_seen_date?fmtDate(c.last_seen_date):"Data não registrada"}</div>
-          </div>
-          <button style="background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.25);color:var(--green);border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer" onclick="event.stopPropagation();openAddEncounter('${c.id}','${esc(c.name||"")}')">+ Encontro</button>
+  // Agrupa por dia
+  var byDay = {};
+  encounters.forEach(function(e){
+    var d = e.date ? e.date.slice(0,10) : "sem-data";
+    if(!byDay[d]) byDay[d] = [];
+    byDay[d].push(e);
+  });
+  var days = Object.keys(byDay).sort().reverse();
+  var html = "";
+  days.forEach(function(day){
+    var label = day === "sem-data" ? "Sem data" : fmtDayLabel(day);
+    html += `<div class="tl-day">
+      <div class="tl-day-label">${label}</div>`;
+    byDay[day].forEach(function(e){
+      var who = e.person_name || "Desconhecido";
+      var where = e.location ? "📍 "+esc(e.location) : "";
+      var sum = e.context ? esc(e.context.slice(0,120)) : "";
+      var timeStr = e.date ? new Date(e.date).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}) : "";
+      var pending = e.capture_mode === "auto" && !e.context;
+      html += `<div class="tl-item" onclick="showEncDetail('${e.id}')">
+        <div class="tl-dot${pending?" pend":""}"></div>
+        <div class="tl-body">
+          <div class="tl-who">${esc(who)}</div>
+          ${where?`<div class="tl-where">${where}</div>`:""}
+          ${sum?`<div class="tl-sum">${sum}${e.context&&e.context.length>120?"…":""}</div>`:""}
         </div>
-        ${c.last_seen_context?`<div class="enc-text">📍 ${esc(c.last_seen_context)}</div>`:""}
-        ${c.notes?`<div class="enc-text" style="margin-top:4px">📝 ${esc(c.notes.slice(0,120))}${c.notes.length>120?"…":""}</div>`:""}
-      </div>`).join("");
+        <div class="tl-time">${timeStr}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  });
+  el.innerHTML = html;
+}
+
+function fmtDayLabel(dateStr){
+  var d = new Date(dateStr+"T12:00:00");
+  var today = new Date(); today.setHours(0,0,0,0);
+  var yest = new Date(today); yest.setDate(yest.getDate()-1);
+  if(d >= today) return "Hoje";
+  if(d >= yest) return "Ontem";
+  return d.toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"});
+}
+
+function showEncDetail(id){
+  var e = encounters.find(function(x){return x.id===id;});
+  if(!e) return;
+  var c = contacts.find(function(x){return x.id===e.person_id;});
+  var html = "";
+  if(c && c.photo_url) html += `<div style="text-align:center;margin-bottom:12px"><img src="${c.photo_url}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid var(--green)"></div>`;
+  html += `<h2 style="font-size:18px;margin-bottom:4px">${esc(e.person_name||"Desconhecido")}</h2>`;
+  if(e.date) html += `<div style="font-size:12px;color:var(--muted);margin-bottom:10px">${new Date(e.date).toLocaleString("pt-BR")}</div>`;
+  if(e.location) html += `<div style="font-size:13px;margin-bottom:8px">📍 ${esc(e.location)}</div>`;
+  if(e.context) html += `<div style="font-size:14px;line-height:1.65;margin-bottom:8px;white-space:pre-wrap">${esc(e.context)}</div>`;
+  if(e.speech_captured) html += `<details style="margin-top:8px"><summary style="font-size:11px;color:var(--muted);cursor:pointer">Ver transcrição completa</summary><div style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.6;white-space:pre-wrap">${esc(e.speech_captured)}</div></details>`;
+  html += `<div style="display:flex;gap:8px;margin-top:16px">
+    <button onclick="deleteEncounter('${e.id}')" style="flex:1;padding:10px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:9px;color:#ef4444;font-size:13px;cursor:pointer">🗑 Excluir</button>
+  </div>`;
+  document.getElementById("detailContent").innerHTML = html;
+  document.getElementById("detOverlay").classList.add("open");
+}
+
+async function deleteEncounter(id){
+  if(!confirm("Excluir este encontro?")) return;
+  try{
+    await fetch(PROXY+"?id="+id+"&entity=FaceContextEncounter", {method:"DELETE"});
+    encounters = encounters.filter(function(e){return e.id!==id;});
+    renderEncounters();
+    closeModal("detOverlay");
+    toast("Encontro excluído","");
+  }catch(e){ toast("Erro ao excluir","err"); }
 }
 
 function openAddEncounter(personId, personName){
-  encPersonId=personId;
-  document.getElementById("encTitle").textContent="Novo Encontro — "+personName;
-  document.getElementById("encPerson").value=personName;
-  document.getElementById("encLocation").value="";
-  document.getElementById("encContext").value="";
-  document.getElementById("encTranscript").style.display="none";
+  _encPersonId = personId;
+  // Reset campos
+  document.getElementById("encPersonSearch").value = personName||"";
+  document.getElementById("encPersonList").style.display = "none";
+  document.getElementById("encPersonList").innerHTML = "";
+  if(personId && personName){
+    document.getElementById("encPersonField").style.display = "none";
+    document.getElementById("encPersonSelected") && (document.getElementById("encPersonSelected").style.display="none");
+  } else {
+    document.getElementById("encPersonField").style.display = "block";
+    document.getElementById("encPersonSearch").value = "";
+    _encPersonId = null;
+  }
+  document.getElementById("encLocation").value = "";
+  var now = new Date(); now.setMinutes(now.getMinutes()-now.getTimezoneOffset());
+  document.getElementById("encDate").value = now.toISOString().slice(0,16);
+  document.getElementById("encContext").value = "";
+  document.getElementById("encTranscript").style.display = "none";
+  document.getElementById("encTranscript").textContent = "";
+  document.getElementById("encAISummary").style.display = "none";
+  document.getElementById("btnGenSum").style.display = "none";
+  document.getElementById("encMode").value = "manual";
+  document.getElementById("recBar").style.display = "none";
+  document.getElementById("btnRecStart").style.display = "";
+  document.getElementById("btnRecStop").style.display = "none";
+  encTranscript = "";
+  document.getElementById("encTitle").textContent = personName ? "Encontro — "+personName : "Novo Encontro";
   document.getElementById("encOverlay").classList.add("open");
 }
 
-async function saveEncounter(){
-  var ctx=document.getElementById("encContext").value.trim();
-  var loc=document.getElementById("encLocation").value.trim();
-  if(!ctx&&!loc){ toast("Preencha ao menos o contexto","err"); return; }
-  var c=contacts.find(x=>x.id===encPersonId);
-  var now=new Date().toISOString();
-  // Atualiza last_seen no perfil
+function renderEncPersonList(q){
+  var list = document.getElementById("encPersonList");
+  if(!q||q.length<1){ list.style.display="none"; return; }
+  var results = contacts.filter(function(c){
+    return (c.name||"").toLowerCase().includes(q.toLowerCase());
+  }).slice(0,8);
+  if(!results.length){ list.style.display="none"; return; }
+  list.style.display = "block";
+  list.innerHTML = results.map(function(c){
+    return `<div onclick="selectEncPerson('${c.id}','${esc(c.name||"")}');event.stopPropagation()"
+      style="padding:8px 10px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border)">${esc(c.name||"")}</div>`;
+  }).join("");
+}
+
+function selectEncPerson(id, name){
+  _encPersonId = id;
+  document.getElementById("encPersonSearch").value = name;
+  document.getElementById("encPersonList").style.display = "none";
+  document.getElementById("encPersonList").innerHTML = "";
+}
+
+function clearEncPerson(){
+  _encPersonId = null;
+  document.getElementById("encPersonSearch").value = "";
+  document.getElementById("encPersonSelected").style.display = "none";
+}
+
+// ── GRAVAÇÃO DE ÁUDIO ────────────────────────────────────────
+function startEncRec(){
+  if(!("webkitSpeechRecognition" in window||"SpeechRecognition" in window)){
+    toast("Gravação não suportada neste browser","err"); return;
+  }
+  var SR = window.SpeechRecognition||window.webkitSpeechRecognition;
+  encRecognition = new SR();
+  encRecognition.lang = "pt-BR";
+  encRecognition.continuous = true;
+  encRecognition.interimResults = true;
+  encTranscript = "";
+  encRecSecs = 0;
+
+  document.getElementById("recBar").style.display = "flex";
+  document.getElementById("btnRecStart").style.display = "none";
+  document.getElementById("btnRecStop").style.display = "";
+  document.getElementById("encTranscript").style.display = "block";
+  document.getElementById("encTranscript").textContent = "Ouvindo…";
+
+  encRecTimer = setInterval(function(){
+    encRecSecs++;
+    var m = Math.floor(encRecSecs/60), s = encRecSecs%60;
+    document.getElementById("recDur").textContent = m+":"+(s<10?"0"+s:s);
+  }, 1000);
+
+  encRecognition.onresult = function(ev){
+    var final="", interim="";
+    for(var i=ev.resultIndex;i<ev.results.length;i++){
+      if(ev.results[i].isFinal) final += ev.results[i][0].transcript+" ";
+      else interim += ev.results[i][0].transcript;
+    }
+    encTranscript += final;
+    document.getElementById("encTranscript").textContent = encTranscript + interim;
+    document.getElementById("encTranscript").scrollTop = 9999;
+  };
+  encRecognition.onerror = function(e){ toast("Erro mic: "+e.error,"err"); stopEncRec(); };
+  encRecognition.onend = function(){ if(encRecording){ try{encRecognition.start();}catch(e){} } };
+  encRecording = true;
+  encRecognition.start();
+}
+
+function stopEncRec(){
+  encRecording = false;
+  if(encRecognition) encRecognition.stop();
+  if(encRecTimer){ clearInterval(encRecTimer); encRecTimer=null; }
+  document.getElementById("recBar").style.display = "none";
+  document.getElementById("btnRecStart").style.display = "";
+  document.getElementById("btnRecStop").style.display = "none";
+  if(encTranscript.trim()){
+    document.getElementById("encMode").value = "audio";
+    document.getElementById("btnGenSum").style.display = "block";
+    toast("Gravação finalizada — gere o resumo ✨","ok");
+  }
+}
+
+// ── RESUMO IA ────────────────────────────────────────────────
+async function generateEncSummary(){
+  var txt = encTranscript.trim();
+  if(!txt){ toast("Sem transcrição para resumir","err"); return; }
+  var btn = document.getElementById("btnGenSum");
+  btn.textContent = "⏳ Gerando…"; btn.disabled = true;
+  var personName = document.getElementById("encPersonSearch").value || "a pessoa";
+  // Usa o Base44 LLM endpoint se disponível, caso contrário formata o texto
   try{
-    var upd={last_seen_date:now, last_seen_context:loc||ctx,
-             notes:[c?.notes, ctx].filter(Boolean).join("\n\n["+new Date().toLocaleDateString("pt-BR")+"] ")};
-    await fetch(PROXY+"?id="+encPersonId,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(upd)});
-    var idx=contacts.findIndex(x=>x.id===encPersonId);
-    if(idx>=0) contacts[idx]={...contacts[idx],...upd};
-    localStorage.setItem("fc_c",JSON.stringify(contacts));
-    closeModal("encOverlay");
+    var r = await fetch("https://base44.app/api/apps/6a11083db49430b410a8c066/functions/fcProxy", {
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        _action: "summarize",
+        person: personName,
+        transcript: txt.slice(0,3000)
+      })
+    });
+    var data = await r.json();
+    var summary = data.summary || data.result || makeFallbackSummary(txt, personName);
+    document.getElementById("encAISummary").textContent = summary;
+    document.getElementById("encAISummary").style.display = "block";
+    document.getElementById("encContext").value = summary;
+    toast("Resumo gerado ✅","ok");
+  }catch(e){
+    var summary = makeFallbackSummary(txt, personName);
+    document.getElementById("encAISummary").textContent = summary;
+    document.getElementById("encAISummary").style.display = "block";
+    document.getElementById("encContext").value = summary;
+  }
+  btn.textContent = "✨ Gerar resumo com IA"; btn.disabled = false;
+}
+
+function makeFallbackSummary(txt, person){
+  var sentences = txt.split(/[.!?]+/).map(function(s){return s.trim();}).filter(function(s){return s.length>20;});
+  var top = sentences.slice(0,5).join(". ");
+  return "Conversa com "+person+":
+
+"+(top||txt.slice(0,400));
+}
+
+async function saveEncounterFull(){
+  var personId = _encPersonId;
+  var personName = document.getElementById("encPersonSearch").value.trim();
+  var ctx = document.getElementById("encContext").value.trim();
+  var loc = document.getElementById("encLocation").value.trim();
+  var dateVal = document.getElementById("encDate").value;
+  var mode = document.getElementById("encMode").value;
+  if(!personName && !ctx && !loc){ toast("Preencha ao menos um campo","err"); return; }
+  var date = dateVal ? new Date(dateVal).toISOString() : new Date().toISOString();
+  var payload = {
+    person_id: personId||"",
+    person_name: personName,
+    date: date,
+    location: loc,
+    context: ctx,
+    speech_captured: encTranscript||"",
+    capture_mode: mode,
+    notes: ""
+  };
+  try{
+    var r = await fetch(PROXY+"?entity=FaceContextEncounter",{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(payload)
+    });
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    var saved = await r.json();
+    encounters.unshift(saved);
+    // Atualiza last_seen no perfil
+    if(personId){
+      await fetch(PROXY+"?id="+personId+"&entity=FaceContextPerson",{
+        method:"PUT", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({last_seen_date:date, last_seen_context:loc||ctx})
+      });
+      var c = contacts.find(function(x){return x.id===personId;});
+      if(c){ c.last_seen_date=date; c.last_seen_context=loc||ctx; }
+    }
     renderEncounters(); renderContacts();
-    toast("Encontro registrado! ✅","ok");
-  }catch(e){ toast("Erro ao salvar","err"); }
+    closeModal("encOverlay");
+    toast("Encontro salvo! ✅","ok");
+    encTranscript="";
+  }catch(e){ toast("Erro: "+e.message,"err"); }
 }
 
 // ── merge page ─────────────────────────────────────────────────
@@ -1030,27 +1362,6 @@ function applyTranscript(field){
   toast("Dados aplicados ao formulário ✅","ok");
 }
 
-// ── ENC MIC ───────────────────────────────────────────────────
-var encRecognition=null, encRecording=false, encTranscriptText="";
-function openEncMic(){
-  if(!("webkitSpeechRecognition" in window||"SpeechRecognition" in window)){
-    toast("Reconhecimento de fala não suportado","err"); return;
-  }
-  if(encRecording){ encRecognition.stop(); encRecording=false; return; }
-  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  encRecognition=new SR(); encRecognition.lang="pt-BR"; encRecognition.continuous=true; encRecognition.interimResults=true;
-  encTranscriptText="";
-  encRecognition.onresult=e=>{
-    var f="";for(var i=e.resultIndex;i<e.results.length;i++)if(e.results[i].isFinal)f+=e.results[i][0].transcript+" ";
-    encTranscriptText+=f;
-    var box=document.getElementById("encTranscript");
-    box.style.display="block"; box.textContent=encTranscriptText;
-    document.getElementById("encContext").value=encTranscriptText.slice(0,500);
-  };
-  encRecognition.onend=()=>{ if(encRecording) encRecognition.start(); };
-  encRecognition.start(); encRecording=true;
-  toast("🎙 Gravando conversa…","ok");
-}
 
 // ── close on backdrop ─────────────────────────────────────────
 document.querySelectorAll(".overlay").forEach(o=>{
