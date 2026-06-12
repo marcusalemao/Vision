@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>FaceContext — HUD Editor</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--green:#00ff88;--bg:#0a0e1a;--card:#111827;--border:rgba(255,255,255,0.08);--text:rgba(255,255,255,0.85);--muted:rgba(255,255,255,0.4)}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* TOP BAR */
+.topbar{padding:12px 16px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;background:var(--bg)}
+.topbar h2{font-size:17px;font-weight:700;flex:1}
+.btn-sm{padding:7px 14px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,0.05);color:var(--text);font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.btn-sm:active{background:rgba(255,255,255,0.1)}
+.btn-primary{background:var(--green);color:#0a0e1a;border-color:var(--green);font-weight:700}
+
+/* STATUS BAR */
+.sbar{padding:5px 16px;font-size:11px;display:flex;align-items:center;gap:5px;border-bottom:1px solid var(--border)}
+.sbar.ok{color:var(--green);background:rgba(0,255,136,0.04);border-color:rgba(0,255,136,0.15)}
+.sbar.off{color:#f59e0b;background:rgba(245,158,11,0.04);border-color:rgba(245,158,11,0.15)}
+.sdot{width:5px;height:5px;border-radius:50%;background:currentColor}
+
+/* LAYOUT SELECTOR */
+.layout-bar{display:flex;gap:8px;padding:12px 16px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid var(--border)}
+.layout-bar::-webkit-scrollbar{display:none}
+.layout-chip{flex-shrink:0;padding:6px 14px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;white-space:nowrap}
+.layout-chip.active{background:var(--green);color:#0a0e1a;border-color:var(--green);font-weight:700}
+.layout-chip.new{border-color:rgba(0,255,136,0.3);color:var(--green)}
+
+/* MAIN SPLIT */
+.editor-wrap{display:flex;flex-direction:column;padding:16px}
+
+/* PREVIEW — exatamente 480x640 escalado */
+.preview-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.preview-label span{background:rgba(0,255,136,0.1);color:var(--green);border:1px solid rgba(0,255,136,0.2);border-radius:10px;padding:1px 8px;font-size:10px}
+.preview-outer{display:flex;justify-content:center;margin-bottom:16px}
+.preview-wrap{position:relative;width:240px;height:320px;background:#000;border:2px solid rgba(0,255,136,0.3);border-radius:8px;overflow:hidden;flex-shrink:0}
+/* Scale 480x640 → 240x320 (0.5x) */
+.hud-canvas{position:absolute;top:0;left:0;width:480px;height:640px;transform:scale(0.5);transform-origin:top left;pointer-events:none}
+.hud-canvas.editable{pointer-events:all}
+.widget{position:absolute;cursor:move;user-select:none;-webkit-user-select:none}
+.widget .wlabel{font-family:monospace;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.widget.selected .wlabel{outline:1px dashed rgba(255,255,255,0.5)}
+.widget .whandle{position:absolute;bottom:-4px;right:-4px;width:12px;height:12px;background:rgba(0,255,136,0.8);border-radius:2px;cursor:se-resize}
+.preview-note{text-align:center;font-size:10px;color:var(--muted);margin-bottom:12px}
+
+/* TOOLBAR */
+.toolbar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px;padding:10px;background:rgba(255,255,255,0.03);border-radius:10px;border:1px solid var(--border)}
+.tool-btn{padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,0.04);color:var(--text);font-size:12px;cursor:pointer;-webkit-tap-highlight-color:transparent;display:flex;align-items:center;gap:4px}
+.tool-btn:active{background:rgba(255,255,255,0.1)}
+.tool-sep{width:1px;background:var(--border);margin:0 2px}
+
+/* WIDGET LIST */
+.widget-list{margin-bottom:14px}
+.witem{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:7px;display:flex;align-items:center;gap:10px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.witem.active{border-color:var(--green);background:rgba(0,255,136,0.05)}
+.witem:active{background:rgba(255,255,255,0.05)}
+.wicon{font-size:18px;width:28px;text-align:center;flex-shrink:0}
+.winfo{flex:1}
+.wname{font-size:14px;font-weight:600}
+.wdesc{font-size:11px;color:var(--muted)}
+.wvis{font-size:16px;cursor:pointer;padding:4px}
+
+/* SELECTED WIDGET PROPS */
+.props-panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px}
+.props-title{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px}
+.prop-row{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.prop-label{font-size:12px;color:var(--muted);width:60px;flex-shrink:0}
+.prop-row input[type=range]{flex:1;accent-color:var(--green)}
+.prop-row input[type=number]{width:60px;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:6px;padding:5px 8px;color:var(--text);font-size:13px;outline:none;text-align:center}
+.prop-row input[type=color]{width:44px;height:32px;border-radius:6px;border:1px solid var(--border);background:none;cursor:pointer}
+.prop-row select{flex:1;background:rgba(255,255,255,0.06);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-size:13px;outline:none}
+.prop-row select option{background:#141824}
+.prop-row .chk-lbl{font-size:13px;display:flex;align-items:center;gap:6px;cursor:pointer}
+
+/* GENERAL SETTINGS */
+.gen-panel{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:14px}
+.gen-title{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+
+/* MODALS */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
+.overlay.open{opacity:1;pointer-events:all}
+.modal{background:#141824;border-radius:20px 20px 0 0;width:100%;max-width:600px;max-height:85vh;overflow-y:auto;padding-bottom:36px;transform:translateY(100%);transition:transform .3s ease}
+.overlay.open .modal{transform:translateY(0)}
+.mhandle{width:36px;height:4px;background:rgba(255,255,255,0.15);border-radius:2px;margin:12px auto 0}
+.mhead{display:flex;align-items:center;justify-content:space-between;padding:14px 20px 10px}
+.mtitle{font-size:17px;font-weight:700}
+.btn-x{background:rgba(255,255,255,0.08);border:none;color:var(--text);width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+.mbody{padding:0 20px}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.field input,.field select{width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;padding:10px 13px;color:var(--text);font-size:15px;outline:none;font-family:inherit}
+.field input:focus,.field select:focus{border-color:var(--green)}
+.btn-save{width:100%;padding:13px;background:var(--green);color:#0a0e1a;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;margin-top:8px}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(60px);background:#1e293b;color:var(--text);border:1px solid var(--border);border-radius:12px;padding:10px 20px;font-size:14px;z-index:999;transition:transform .3s;white-space:nowrap;pointer-events:none}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.toast.ok{border-color:rgba(0,255,136,0.4);color:var(--green)}
+.toast.err{border-color:rgba(255,80,80,0.4);color:#ff6b6b}
+
+/* LAYOUT CARDS */
+.lcards{display:flex;flex-direction:column;gap:8px}
+.lcard{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.lcard:active{background:rgba(255,255,255,0.06)}
+.lcard.active{border-color:var(--green);background:rgba(0,255,136,0.05)}
+.lcard-info{flex:1}
+.lcard-name{font-size:15px;font-weight:600}
+.lcard-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.lcard-del{padding:5px 10px;border-radius:8px;border:1px solid rgba(255,80,80,0.3);background:transparent;color:#ff6b6b;font-size:12px;cursor:pointer}
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <button class="btn-sm" onclick="window.location.href='webapp.html'">← Voltar</button>
+  <h2>🥽 HUD Editor</h2>
+  <button class="btn-sm" onclick="openLayouts()">📋</button>
+  <button class="btn-sm btn-primary" onclick="saveLayout()">💾 Salvar</button>
+</div>
+<div id="sbar" class="sbar off"><div class="sdot"></div><span id="smsg">Conectando…</span></div>
+
+<!-- LAYOUT CHIPS -->
+<div class="layout-bar" id="layoutBar">
+  <button class="layout-chip new" onclick="newLayout()">+ Novo Layout</button>
+</div>
+
+<div class="editor-wrap">
+
+  <!-- PREVIEW -->
+  <div class="preview-label">Preview Waveguide Rokid <span>480×640 · 0.5×</span></div>
+  <div class="preview-outer">
+    <div class="preview-wrap" id="previewWrap">
+      <div class="hud-canvas editable" id="hudCanvas"></div>
+    </div>
+  </div>
+  <div class="preview-note">⚫ Fundo preto = transparente nos óculos • 🟢 Verde = visível no prisma</div>
+
+  <!-- TOOLBAR -->
+  <div class="toolbar">
+    <button class="tool-btn" onclick="addWidget('text')">＋ Texto</button>
+    <button class="tool-btn" onclick="addWidget('name')">👤 Nome</button>
+    <button class="tool-btn" onclick="addWidget('company')">🏢 Empresa</button>
+    <button class="tool-btn" onclick="addWidget('role')">💼 Cargo</button>
+    <div class="tool-sep"></div>
+    <button class="tool-btn" onclick="addWidget('relation')">🤝 Relação</button>
+    <button class="tool-btn" onclick="addWidget('notes')">📝 Notas</button>
+    <button class="tool-btn" onclick="addWidget('lastSeen')">📅 Último visto</button>
+    <button class="tool-btn" onclick="addWidget('tags')">🏷 Tags</button>
+    <div class="tool-sep"></div>
+    <button class="tool-btn" onclick="addWidget('photo')">🖼 Foto</button>
+    <button class="tool-btn" onclick="addWidget('separator')">─ Linha</button>
+  </div>
+
+  <!-- GENERAL SETTINGS -->
+  <div class="gen-panel">
+    <div class="gen-title">Configurações gerais</div>
+    <div class="prop-row">
+      <span class="prop-label">Nome</span>
+      <input type="text" id="layoutName" placeholder="Nome do layout" style="flex:1;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:14px;outline:none">
+    </div>
+    <div class="prop-row">
+      <span class="prop-label">Padrão</span>
+      <label class="chk-lbl"><input type="checkbox" id="isDefault"> Usar como layout padrão nos óculos</label>
+    </div>
+    <div class="prop-row">
+      <span class="prop-label">Opacidade</span>
+      <input type="range" id="bgOpacity" min="0" max="100" value="0" oninput="updateBgOpacity(this.value)">
+      <input type="number" id="bgOpacityNum" min="0" max="100" value="0" style="width:50px" oninput="document.getElementById('bgOpacity').value=this.value;updateBgOpacity(this.value)">
+      <span style="font-size:11px;color:var(--muted)">%</span>
+    </div>
+  </div>
+
+  <!-- WIDGETS LIST -->
+  <div class="props-title" style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Widgets</div>
+  <div class="widget-list" id="widgetList"></div>
+
+  <!-- SELECTED WIDGET PROPS -->
+  <div class="props-panel" id="propsPanel" style="display:none">
+    <div class="props-title">⚙ Propriedades do widget</div>
+    <div class="prop-row"><span class="prop-label">X</span><input type="number" id="pX" min="0" max="480" oninput="updateSelectedProp('x',+this.value)"><span style="font-size:11px;color:var(--muted)">px</span></div>
+    <div class="prop-row"><span class="prop-label">Y</span><input type="number" id="pY" min="0" max="640" oninput="updateSelectedProp('y',+this.value)"><span style="font-size:11px;color:var(--muted)">px</span></div>
+    <div class="prop-row"><span class="prop-label">Largura</span><input type="number" id="pW" min="40" max="480" oninput="updateSelectedProp('width',+this.value)"><span style="font-size:11px;color:var(--muted)">px</span></div>
+    <div class="prop-row"><span class="prop-label">Altura</span><input type="number" id="pH" min="16" max="640" oninput="updateSelectedProp('height',+this.value)"><span style="font-size:11px;color:var(--muted)">px</span></div>
+    <div class="prop-row"><span class="prop-label">Fonte</span><input type="range" id="pFs" min="10" max="60" oninput="updateSelectedProp('font_size',+this.value);document.getElementById('pFsNum').value=this.value"><input type="number" id="pFsNum" min="10" max="60" style="width:50px" oninput="document.getElementById('pFs').value=this.value;updateSelectedProp('font_size',+this.value)"><span style="font-size:11px;color:var(--muted)">px</span></div>
+    <div class="prop-row"><span class="prop-label">Cor</span><input type="color" id="pColor" value="#00ff88" oninput="updateSelectedProp('color',this.value)"></div>
+    <div class="prop-row"><span class="prop-label">Negrito</span><label class="chk-lbl"><input type="checkbox" id="pBold" onchange="updateSelectedProp('bold',this.checked)"> Bold</label></div>
+    <div class="prop-row"><span class="prop-label">Texto</span><input type="text" id="pCustomText" placeholder="(usa campo automático)" oninput="updateSelectedProp('custom_text',this.value)" style="flex:1;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:8px;padding:6px 10px;color:var(--text);font-size:13px;outline:none"></div>
+    <button style="width:100%;padding:9px;border-radius:8px;border:1px solid rgba(255,80,80,0.3);background:transparent;color:#ff6b6b;font-size:13px;cursor:pointer;margin-top:4px" onclick="deleteSelected()">🗑 Remover widget</button>
+  </div>
+
+</div>
+
+<!-- MODAL: LAYOUTS -->
+<div class="overlay" id="layoutsOverlay">
+  <div class="modal">
+    <div class="mhandle"></div>
+    <div class="mhead"><span class="mtitle">📋 Layouts salvos</span><button class="btn-x" onclick="closeModal('layoutsOverlay')">✕</button></div>
+    <div class="mbody">
+      <div class="lcards" id="layoutCards"></div>
+      <button class="btn-save" style="margin-top:14px" onclick="newLayout();closeModal('layoutsOverlay')">+ Criar novo layout</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const PROXY = "https://facecontext-10a8c066.base44.app/functions/fcProxy";
+
+var layouts = [];
+var currentLayoutId = null;
+var widgets = [];
+var selectedId = null;
+var dragState = null;
+var bgOpacityVal = 0;
+
+// ── SAMPLE DATA (preview dos óculos) ────────────────────────────
+var sampleProfile = {
+  name: "João Silva",
+  nickname: "João",
+  company: "Ironhack",
+  role: "UX Designer",
+  relation: "Colega de trabalho",
+  notes: "Conhecemos no bootcamp 2024. Trabalha com design systems.",
+  last_seen_date: new Date().toISOString(),
+  last_seen_context: "Evento de tecnologia, SP",
+  tags: ["design","UX","bootcamp"],
+  photo_url: null,
+};
+
+// ── WIDGET DEFINITIONS ──────────────────────────────────────────
+var WIDGET_DEFS = {
+  name:     {icon:"👤",label:"Nome",       defaultH:40, defaultW:440, defaultFs:28, preview:()=>sampleProfile.name},
+  nickname: {icon:"😊",label:"Apelido",    defaultH:30, defaultW:300, defaultFs:20, preview:()=>sampleProfile.nickname},
+  company:  {icon:"🏢",label:"Empresa",    defaultH:30, defaultW:360, defaultFs:18, preview:()=>sampleProfile.company},
+  role:     {icon:"💼",label:"Cargo",      defaultH:26, defaultW:360, defaultFs:16, preview:()=>sampleProfile.role},
+  relation: {icon:"🤝",label:"Relação",    defaultH:26, defaultW:300, defaultFs:16, preview:()=>sampleProfile.relation},
+  notes:    {icon:"📝",label:"Notas",      defaultH:80, defaultW:440, defaultFs:14, preview:()=>sampleProfile.notes},
+  lastSeen: {icon:"📅",label:"Último visto",defaultH:26,defaultW:360, defaultFs:14, preview:()=>"Visto: "+fmtDate(sampleProfile.last_seen_date)},
+  tags:     {icon:"🏷",label:"Tags",       defaultH:26, defaultW:440, defaultFs:13, preview:()=>(sampleProfile.tags||[]).join("  ·  ")},
+  photo:    {icon:"🖼",label:"Foto",       defaultH:80, defaultW:80,  defaultFs:0,  preview:()=>"[foto]"},
+  text:     {icon:"✏️",label:"Texto livre", defaultH:30, defaultW:300, defaultFs:18, preview:()=>"Texto personalizado"},
+  separator:{icon:"─",label:"Linha",      defaultH:4,  defaultW:440, defaultFs:0,  preview:()=>""},
+};
+
+function fmtDate(d){if(!d)return "—";try{return new Date(d).toLocaleDateString("pt-BR",{day:"2-digit",month:"short"})}catch{return d}}
+function uid(){return "w"+Math.random().toString(36).slice(2,9)}
+function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;")}
+
+// ── TOAST ───────────────────────────────────────────────────────
+function toast(msg,type){
+  var el=document.getElementById("toast");
+  el.textContent=msg; el.className="toast "+(type||"");
+  el.classList.add("show"); setTimeout(()=>el.classList.remove("show"),3000);
+}
+
+// ── STATUS ──────────────────────────────────────────────────────
+function setStatus(ok,msg){
+  var b=document.getElementById("sbar"),s=document.getElementById("smsg");
+  b.className="sbar "+(ok?"ok":"off"); s.textContent=msg;
+}
+
+// ── LOAD LAYOUTS ────────────────────────────────────────────────
+async function loadLayouts(){
+  try{
+    var r=await fetch(PROXY+"?entity=FaceContextHUDLayout");
+    if(r.ok){ layouts=await r.json(); setStatus(true,"☁ "+layouts.length+" layouts"); }
+    else throw new Error();
+    localStorage.setItem("fc_layouts",JSON.stringify(layouts));
+  }catch{
+    var c=localStorage.getItem("fc_layouts");
+    layouts=c?JSON.parse(c):[];
+    setStatus(false,"⚠ Offline");
+  }
+  renderLayoutBar();
+  if(layouts.length){
+    var def=layouts.find(l=>l.is_default)||layouts[0];
+    loadLayoutData(def);
+  } else {
+    newLayout();
+  }
+}
+
+function renderLayoutBar(){
+  var bar=document.getElementById("layoutBar");
+  bar.innerHTML='<button class="layout-chip new" onclick="newLayout()">+ Novo</button>';
+  layouts.forEach(l=>{
+    var chip=document.createElement("button");
+    chip.className="layout-chip"+(currentLayoutId===l.id?" active":"");
+    chip.textContent=(l.is_default?"★ ":"")+l.name;
+    chip.onclick=()=>{ loadLayoutData(l); };
+    bar.appendChild(chip);
+  });
+}
+
+function loadLayoutData(l){
+  currentLayoutId=l.id;
+  document.getElementById("layoutName").value=l.name||"";
+  document.getElementById("isDefault").checked=!!l.is_default;
+  bgOpacityVal=l.background_opacity||0;
+  document.getElementById("bgOpacity").value=bgOpacityVal;
+  document.getElementById("bgOpacityNum").value=bgOpacityVal;
+  updateBgOpacity(bgOpacityVal);
+  widgets=(l.widgets||[]).map(w=>({...w,id:w.id||uid()}));
+  selectedId=null;
+  renderCanvas(); renderWidgetList(); hideProps();
+  renderLayoutBar();
+}
+
+function newLayout(){
+  currentLayoutId=null;
+  document.getElementById("layoutName").value="Novo Layout";
+  document.getElementById("isDefault").checked=false;
+  bgOpacityVal=0;
+  document.getElementById("bgOpacity").value=0;
+  document.getElementById("bgOpacityNum").value=0;
+  updateBgOpacity(0);
+  // Default widgets
+  widgets=[
+    {id:uid(),type:"name",    x:20, y:20, width:440,height:40, font_size:28,color:"#00ff88",bold:true, visible:true},
+    {id:uid(),type:"company", x:20, y:68, width:360,height:26, font_size:18,color:"#00cc66",bold:false,visible:true},
+    {id:uid(),type:"role",    x:20, y:98, width:360,height:22, font_size:15,color:"#009944",bold:false,visible:true},
+    {id:uid(),type:"separator",x:20,y:126,width:440,height:3,  font_size:0, color:"#004422",bold:false,visible:true},
+    {id:uid(),type:"relation",x:20, y:134,width:300,height:24, font_size:15,color:"#00ff88",bold:false,visible:true},
+    {id:uid(),type:"notes",   x:20, y:164,width:440,height:80, font_size:13,color:"#00aa55",bold:false,visible:true},
+  ];
+  selectedId=null;
+  renderCanvas(); renderWidgetList(); hideProps();
+}
+
+// ── CANVAS ──────────────────────────────────────────────────────
+function updateBgOpacity(v){
+  bgOpacityVal=+v;
+  var alpha=Math.round(v*2.55).toString(16).padStart(2,"0");
+  document.getElementById("hudCanvas").style.background="#000000"+alpha;
+}
+
+function renderCanvas(){
+  var canvas=document.getElementById("hudCanvas");
+  canvas.innerHTML="";
+  widgets.forEach(w=>{
+    if(!w.visible) return;
+    var el=document.createElement("div");
+    el.className="widget"+(selectedId===w.id?" selected":"");
+    el.dataset.id=w.id;
+    el.style.cssText=`left:${w.x}px;top:${w.y}px;width:${w.width}px;height:${w.height}px`;
+
+    if(w.type==="separator"){
+      var line=document.createElement("div");
+      line.style.cssText=`width:100%;height:${w.height||3}px;background:${w.color||"#004422"}`;
+      el.appendChild(line);
+    } else if(w.type==="photo"){
+      var photo=document.createElement("div");
+      var dim=Math.min(w.width,w.height);
+      photo.style.cssText=`width:${dim}px;height:${dim}px;border-radius:50%;background:rgba(0,255,136,0.15);border:2px solid ${w.color||"#00ff88"};display:flex;align-items:center;justify-content:center;font-size:24px;color:${w.color||"#00ff88"}`;
+      photo.textContent="👤";
+      el.appendChild(photo);
+    } else {
+      var def=WIDGET_DEFS[w.type]||WIDGET_DEFS.text;
+      var text=w.custom_text||def.preview();
+      var lbl=document.createElement("div");
+      lbl.className="wlabel";
+      lbl.style.cssText=`font-size:${w.font_size||16}px;color:${w.color||"#00ff88"};font-weight:${w.bold?"700":"400"};font-family:${w.type==="notes"?"monospace":"sans-serif"};line-height:1.3;width:${w.width}px`;
+      lbl.textContent=text;
+      el.appendChild(lbl);
+    }
+
+    // Resize handle
+    if(w.type!=="separator"){
+      var handle=document.createElement("div");
+      handle.className="whandle";
+      handle.addEventListener("touchstart",e=>startResize(e,w.id),{passive:false});
+      handle.addEventListener("mousedown",e=>startResize(e,w.id));
+      el.appendChild(handle);
+    }
+
+    el.addEventListener("touchstart",e=>startDrag(e,w.id),{passive:false});
+    el.addEventListener("mousedown",e=>startDrag(e,w.id));
+    canvas.appendChild(el);
+  });
+}
+
+function renderWidgetList(){
+  var list=document.getElementById("widgetList");
+  if(!widgets.length){ list.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px">Nenhum widget. Use a toolbar acima para adicionar.</div>'; return; }
+  list.innerHTML=widgets.map((w,i)=>{
+    var def=WIDGET_DEFS[w.type]||WIDGET_DEFS.text;
+    return `<div class="witem${selectedId===w.id?" active":""}" onclick="selectWidget('${w.id}')">
+      <span class="wicon">${def.icon}</span>
+      <div class="winfo">
+        <div class="wname">${def.label}${w.custom_text?' · "'+esc(w.custom_text.slice(0,20))+'"':""}</div>
+        <div class="wdesc">${w.x}x${w.y} · ${w.width}×${w.height}px · ${w.font_size||0}px</div>
+      </div>
+      <span class="wvis" onclick="event.stopPropagation();toggleVis('${w.id}')">${w.visible?"👁":"🚫"}</span>
+      <span style="cursor:pointer;padding:4px" onclick="event.stopPropagation();moveWidget('${w.id}',-1)"title="Mover cima">▲</span>
+      <span style="cursor:pointer;padding:4px" onclick="event.stopPropagation();moveWidget('${w.id}',1)"title="Mover baixo">▼</span>
+    </div>`;
+  }).join("");
+}
+
+function hideProps(){ document.getElementById("propsPanel").style.display="none"; }
+function selectWidget(id){
+  selectedId=id;
+  var w=widgets.find(x=>x.id===id);
+  if(!w){ hideProps(); return; }
+  document.getElementById("propsPanel").style.display="block";
+  document.getElementById("pX").value=w.x;
+  document.getElementById("pY").value=w.y;
+  document.getElementById("pW").value=w.width;
+  document.getElementById("pH").value=w.height;
+  document.getElementById("pFs").value=w.font_size||16;
+  document.getElementById("pFsNum").value=w.font_size||16;
+  document.getElementById("pColor").value=w.color||"#00ff88";
+  document.getElementById("pBold").checked=!!w.bold;
+  document.getElementById("pCustomText").value=w.custom_text||"";
+  renderCanvas(); renderWidgetList();
+}
+
+function updateSelectedProp(key,val){
+  var w=widgets.find(x=>x.id===selectedId); if(!w) return;
+  w[key]=val; renderCanvas(); renderWidgetList();
+}
+
+function deleteSelected(){
+  widgets=widgets.filter(x=>x.id!==selectedId);
+  selectedId=null; hideProps(); renderCanvas(); renderWidgetList();
+}
+
+function toggleVis(id){
+  var w=widgets.find(x=>x.id===id); if(w) w.visible=!w.visible;
+  renderCanvas(); renderWidgetList();
+}
+
+function moveWidget(id,dir){
+  var i=widgets.findIndex(x=>x.id===id);
+  if(i<0) return;
+  var ni=i+dir;
+  if(ni<0||ni>=widgets.length) return;
+  [widgets[i],widgets[ni]]=[widgets[ni],widgets[i]];
+  renderCanvas(); renderWidgetList();
+}
+
+// ── ADD WIDGET ──────────────────────────────────────────────────
+function addWidget(type){
+  var def=WIDGET_DEFS[type]||WIDGET_DEFS.text;
+  // Posiciona abaixo do último widget
+  var maxY=widgets.length?Math.max(...widgets.map(w=>w.y+w.height)):20;
+  var w={id:uid(),type,x:20,y:Math.min(maxY+8,600),width:def.defaultW||300,height:def.defaultH||30,
+         font_size:def.defaultFs||16,color:"#00ff88",bold:type==="name",visible:true};
+  widgets.push(w);
+  selectWidget(w.id);
+  renderCanvas(); renderWidgetList();
+  // Scroll to bottom
+  document.getElementById("hudCanvas").parentElement.scrollTop=999;
+}
+
+// ── DRAG ────────────────────────────────────────────────────────
+var SCALE=0.5;
+function getCanvasPos(e){
+  var canvas=document.getElementById("hudCanvas");
+  var rect=canvas.getBoundingClientRect();
+  var src=e.touches?e.touches[0]:e;
+  return{x:(src.clientX-rect.left)/SCALE, y:(src.clientY-rect.top)/SCALE};
+}
+
+function startDrag(e,id){
+  if(e.target.classList.contains("whandle")) return;
+  e.preventDefault();
+  selectWidget(id);
+  var w=widgets.find(x=>x.id===id); if(!w) return;
+  var pos=getCanvasPos(e);
+  dragState={type:"move",id,startX:pos.x-w.x,startY:pos.y-w.y};
+}
+
+function startResize(e,id){
+  e.preventDefault(); e.stopPropagation();
+  selectWidget(id);
+  var w=widgets.find(x=>x.id===id); if(!w) return;
+  var pos=getCanvasPos(e);
+  dragState={type:"resize",id,startX:pos.x-w.width,startY:pos.y-w.height};
+}
+
+function onMove(e){
+  if(!dragState) return;
+  e.preventDefault();
+  var pos=getCanvasPos(e);
+  var w=widgets.find(x=>x.id===dragState.id); if(!w) return;
+  if(dragState.type==="move"){
+    w.x=Math.max(0,Math.min(480-w.width,Math.round(pos.x-dragState.startX)));
+    w.y=Math.max(0,Math.min(640-w.height,Math.round(pos.y-dragState.startY)));
+  } else {
+    w.width=Math.max(40,Math.min(480-w.x,Math.round(pos.x-dragState.startX)));
+    w.height=Math.max(16,Math.min(640-w.y,Math.round(pos.y-dragState.startY)));
+  }
+  // Update props inputs live
+  document.getElementById("pX").value=w.x;document.getElementById("pY").value=w.y;
+  document.getElementById("pW").value=w.width;document.getElementById("pH").value=w.height;
+  renderCanvas(); renderWidgetList();
+}
+
+function onEnd(e){ dragState=null; }
+
+var canvas=document.getElementById("hudCanvas");
+canvas.addEventListener("touchmove",onMove,{passive:false});
+canvas.addEventListener("touchend",onEnd);
+canvas.addEventListener("mousemove",onMove);
+canvas.addEventListener("mouseup",onEnd);
+
+// ── SAVE LAYOUT ─────────────────────────────────────────────────
+async function saveLayout(){
+  var name=document.getElementById("layoutName").value.trim()||"Layout";
+  var payload={
+    name, is_default:document.getElementById("isDefault").checked,
+    background_opacity:bgOpacityVal,
+    theme:"Dark",
+    widgets: widgets.map(w=>({...w})),
+  };
+  try{
+    var r;
+    if(currentLayoutId){
+      r=await fetch(PROXY+"?id="+currentLayoutId+"&entity=FaceContextHUDLayout",
+        {method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    } else {
+      r=await fetch(PROXY+"?entity=FaceContextHUDLayout",
+        {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    }
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    var saved=await r.json();
+    currentLayoutId=saved.id;
+    if(!layouts.find(l=>l.id===saved.id)) layouts.push(saved);
+    else { var i=layouts.findIndex(l=>l.id===saved.id); layouts[i]=saved; }
+    localStorage.setItem("fc_layouts",JSON.stringify(layouts));
+    renderLayoutBar();
+    toast("Layout salvo! ✅","ok");
+  }catch(e){ toast("Erro ao salvar: "+e.message,"err"); }
+}
+
+// ── LAYOUTS MODAL ────────────────────────────────────────────────
+function openLayouts(){
+  var cards=document.getElementById("layoutCards");
+  if(!layouts.length){ cards.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">Nenhum layout salvo ainda.</div>'; }
+  else cards.innerHTML=layouts.map(l=>`
+    <div class="lcard${currentLayoutId===l.id?" active":""}" onclick="loadLayoutData(l${layouts.indexOf(l)});closeModal('layoutsOverlay')">
+      <div class="lcard-info">
+        <div class="lcard-name">${esc(l.name)}${l.is_default?" ★":""}</div>
+        <div class="lcard-sub">${(l.widgets||[]).length} widgets · opacidade ${l.background_opacity||0}%</div>
+      </div>
+      <button class="lcard-del" onclick="event.stopPropagation();deleteLayout('${l.id}')">🗑</button>
+    </div>`).join("");
+  // Patch para onclick funcionar com index
+  document.getElementById("layoutsOverlay").classList.add("open");
+}
+// Expor loadLayoutData via índice p/ onclick inline
+window._loadLayoutByIdx = function(i){ loadLayoutData(layouts[i]); }
+
+async function deleteLayout(id){
+  if(!confirm("Excluir este layout?")) return;
+  try{
+    await fetch(PROXY+"?id="+id+"&entity=FaceContextHUDLayout",{method:"DELETE"});
+    layouts=layouts.filter(l=>l.id!==id);
+    if(currentLayoutId===id){currentLayoutId=null;newLayout();}
+    localStorage.setItem("fc_layouts",JSON.stringify(layouts));
+    openLayouts(); renderLayoutBar();
+    toast("Layout excluído","");
+  }catch(e){ toast("Erro ao excluir","err"); }
+}
+
+function closeModal(id){ document.getElementById(id).classList.remove("open"); }
+document.querySelectorAll(".overlay").forEach(o=>{o.addEventListener("click",e=>{if(e.target===o)o.classList.remove("open")})});
+
+// ── INIT ────────────────────────────────────────────────────────
+// Patch layoutCards onclick para funcionar com layouts dinâmicos
+function openLayouts(){
+  var cards=document.getElementById("layoutCards");
+  if(!layouts.length){ cards.innerHTML='<div style="text-align:center;padding:20px;color:var(--muted)">Nenhum layout salvo ainda.</div>'; }
+  else cards.innerHTML=layouts.map((l,i)=>`
+    <div class="lcard${currentLayoutId===l.id?" active":""}" onclick="loadLayoutData(layouts[${i}]);closeModal('layoutsOverlay')">
+      <div class="lcard-info">
+        <div class="lcard-name">${esc(l.name)}${l.is_default?" ★":""}</div>
+        <div class="lcard-sub">${(l.widgets||[]).length} widgets · opacidade ${l.background_opacity||0}%</div>
+      </div>
+      <button class="lcard-del" onclick="event.stopPropagation();deleteLayout('${l.id}')">🗑</button>
+    </div>`).join("");
+  document.getElementById("layoutsOverlay").classList.add("open");
+}
+
+loadLayouts();
+</script>
+</body>
+</html>
