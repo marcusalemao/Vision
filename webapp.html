@@ -250,6 +250,34 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 }
 .tl-item.tl-focused .tl-who{color:var(--green)}
 
+
+/* ── TIMELINE: cards de mensagem ── */
+.tl-msg-section{padding:4px 14px 2px;border-bottom:1px solid var(--border)}
+.tl-msg-header{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;
+  margin-bottom:4px;display:flex;align-items:center;gap:6px}
+.tl-msg-item{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);
+  cursor:pointer;align-items:flex-start}
+.tl-msg-item:last-child{border-bottom:none}
+.tl-ch-icon{font-size:13px;flex-shrink:0;margin-top:1px;width:18px;text-align:center}
+.tl-msg-body{flex:1;min-width:0}
+.tl-msg-subj{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tl-msg-snip{font-size:11px;color:var(--muted);line-height:1.4;
+  display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.tl-msg-date{font-size:9px;color:var(--muted);flex-shrink:0;white-space:nowrap}
+.tl-msg-loading{font-size:11px;color:var(--muted);padding:6px 0;font-style:italic}
+.tl-msg-empty{font-size:11px;color:rgba(255,255,255,.2);padding:4px 0}
+/* tag de canal */
+.ch-tag{font-size:8px;padding:1px 6px;border-radius:10px;font-weight:600;letter-spacing:.5px}
+.ch-tag.gmail{background:rgba(234,67,53,.15);color:#ea4335;border:1px solid rgba(234,67,53,.25)}
+.ch-tag.whatsapp{background:rgba(37,211,102,.12);color:#25d366;border:1px solid rgba(37,211,102,.2)}
+.ch-tag.linkedin{background:rgba(10,102,194,.15);color:#0a66c2;border:1px solid rgba(10,102,194,.25)}
+.ch-tag.manual{background:rgba(255,255,255,.06);color:var(--muted);border:1px solid var(--border)}
+/* botão add mensagem manual */
+.btn-add-msg{background:none;border:1px dashed var(--border);border-radius:8px;
+  color:var(--muted);font-size:11px;padding:5px 10px;cursor:pointer;width:100%;
+  margin-top:4px;text-align:left;-webkit-tap-highlight-color:transparent}
+.btn-add-msg:active{background:rgba(255,255,255,.03)}
+
 </style>
 </head>
 <body>
@@ -495,6 +523,34 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
       </div>
 
       <button class="btn-save" onclick="saveEncounterFull()">💾 Salvar Encontro</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════ MODAL: MENSAGEM MANUAL ══════════ -->
+<div class="overlay" id="manualMsgOverlay">
+  <div class="modal">
+    <div class="mhandle"></div>
+    <div class="mhead"><span class="mtitle" id="manualMsgTitle">Adicionar Mensagem</span><button class="btn-x" onclick="closeModal('manualMsgOverlay')">✕</button></div>
+    <div class="mbody">
+      <div class="field">
+        <label>Canal</label>
+        <select id="manualMsgChannel">
+          <option value="whatsapp">💬 WhatsApp</option>
+          <option value="linkedin">💼 LinkedIn</option>
+          <option value="manual">📝 Outro</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Data</label>
+        <input type="datetime-local" id="manualMsgDate">
+      </div>
+      <div class="field">
+        <label>Resumo da conversa</label>
+        <textarea id="manualMsgText" placeholder="Cole ou descreva o conteúdo da mensagem…" style="min-height:90px"></textarea>
+      </div>
+      <button class="btn-save" onclick="saveManualMsg()">💾 Salvar</button>
     </div>
   </div>
 </div>
@@ -813,6 +869,17 @@ function showEncDetail(id){
     <button onclick="deleteEncounter('${e.id}')" style="flex:1;padding:10px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:9px;color:#ef4444;font-size:13px;cursor:pointer">🗑 Excluir</button>
   </div>`;
   document.getElementById("detailContent").innerHTML = html;
+  // Carrega mensagens do Gmail para esta pessoa
+  if(e.person_id){
+    var msgDiv = document.createElement("div");
+    document.getElementById("detailContent").appendChild(msgDiv);
+    msgDiv.innerHTML = `<div class="tl-msg-loading">Carregando mensagens…</div>`;
+    var c2 = contacts.find(function(x){return x.id===e.person_id;});
+    var pEmail = c2 && c2.contact_email ? c2.contact_email : "";
+    loadPersonMessages(e.person_id, e.person_name||"", pEmail).then(function(){
+      renderMsgSection(e.person_id, e.person_name||"", msgDiv);
+    });
+  }
   document.getElementById("detOverlay").classList.add("open");
 }
 
@@ -1071,6 +1138,132 @@ document.addEventListener("keydown", function(e){
     }
   }
 });
+
+
+// ── MENSAGENS NA TIMELINE ─────────────────────────────────────────────────
+var MSG_PROXY = "https://base44.app/api/apps/6a11083db49430b410a8c066/functions/fcMessages";
+var _manualMsgPersonId = null, _manualMsgPersonName = "";
+// cache: personId → {gmail:[...], manual:[...]}
+var _msgCache = {};
+
+async function loadPersonMessages(personId, personName, personEmail){
+  if(_msgCache[personId]) return _msgCache[personId];
+  var result = {gmail:[], manual:[]};
+  // Gmail
+  try{
+    var q = personEmail
+      ? "email="+encodeURIComponent(personEmail)
+      : "name="+encodeURIComponent(personName);
+    var r = await fetch(MSG_PROXY+"?"+q+"&limit=5");
+    if(r.ok){
+      var d = await r.json();
+      result.gmail = d.messages || [];
+    }
+  }catch(e){}
+  // Manual (do FaceContextEncounter com capture_mode whatsapp/linkedin/manual)
+  result.manual = encounters.filter(function(e){
+    return e.person_id === personId &&
+      ["whatsapp","linkedin","manual"].includes(e.capture_mode);
+  });
+  _msgCache[personId] = result;
+  return result;
+}
+
+function renderMsgSection(personId, personName, containerEl){
+  var msgs = _msgCache[personId];
+  if(!msgs || (!msgs.gmail.length && !msgs.manual.length)){
+    containerEl.innerHTML = "";
+    return;
+  }
+  var all = [];
+  msgs.gmail.forEach(function(m){
+    all.push({
+      channel:"gmail", icon:"✉️",
+      subject: m.subject,
+      snippet: m.snippet,
+      date: m.date ? new Date(m.date) : null,
+      id: m.id
+    });
+  });
+  msgs.manual.forEach(function(m){
+    all.push({
+      channel: m.capture_mode, icon: m.capture_mode==="whatsapp"?"💬":m.capture_mode==="linkedin"?"💼":"📝",
+      subject: m.location || m.capture_mode,
+      snippet: m.context || m.speech_captured || "",
+      date: m.date ? new Date(m.date) : null,
+      id: m.id
+    });
+  });
+  // Ordena por data desc
+  all.sort(function(a,b){return (b.date||0)-(a.date||0);});
+
+  var html = `<div class="tl-msg-section">
+    <div class="tl-msg-header">
+      <span>Mensagens recentes</span>
+      <span class="ch-tag gmail">Gmail</span>
+      ${msgs.manual.length?'<span class="ch-tag manual">+manual</span>':''}
+    </div>`;
+  all.slice(0,6).forEach(function(m){
+    var dateStr = m.date ? m.date.toLocaleDateString("pt-BR",{day:"2-digit",month:"short"}) : "";
+    html += `<div class="tl-msg-item" onclick="openGmailMsg('${m.id}','${m.channel}')">
+      <div class="tl-ch-icon">${m.icon}</div>
+      <div class="tl-msg-body">
+        <div class="tl-msg-subj">${esc(m.subject||"")}</div>
+        <div class="tl-msg-snip">${esc(m.snippet||"")}</div>
+      </div>
+      <div class="tl-msg-date">${dateStr}</div>
+    </div>`;
+  });
+  html += `<button class="btn-add-msg" onclick="event.stopPropagation();openManualMsg('${personId}','${esc(personName)}')">+ WhatsApp / LinkedIn / outro</button>`;
+  html += `</div>`;
+  containerEl.innerHTML = html;
+}
+
+function openGmailMsg(id, channel){
+  if(channel === "gmail"){
+    window.open("https://mail.google.com/mail/u/0/#inbox/"+id,"_blank");
+  }
+}
+
+function openManualMsg(personId, personName){
+  _manualMsgPersonId = personId;
+  _manualMsgPersonName = personName;
+  document.getElementById("manualMsgTitle").textContent = "Msg — "+personName;
+  var now = new Date(); now.setMinutes(now.getMinutes()-now.getTimezoneOffset());
+  document.getElementById("manualMsgDate").value = now.toISOString().slice(0,16);
+  document.getElementById("manualMsgText").value = "";
+  document.getElementById("manualMsgOverlay").classList.add("open");
+}
+
+async function saveManualMsg(){
+  var channel = document.getElementById("manualMsgChannel").value;
+  var txt = document.getElementById("manualMsgText").value.trim();
+  var dateVal = document.getElementById("manualMsgDate").value;
+  if(!txt){ toast("Escreva algo","err"); return; }
+  var date = dateVal ? new Date(dateVal).toISOString() : new Date().toISOString();
+  var icon = channel==="whatsapp"?"💬":channel==="linkedin"?"💼":"📝";
+  var payload = {
+    person_id: _manualMsgPersonId,
+    person_name: _manualMsgPersonName,
+    date: date,
+    context: txt,
+    capture_mode: channel,
+    location: icon+" "+channel,
+    speech_captured: ""
+  };
+  try{
+    var r = await fetch(PROXY+"?entity=FaceContextEncounter",{
+      method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify(payload)
+    });
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    var saved = await r.json();
+    encounters.unshift(saved);
+    delete _msgCache[_manualMsgPersonId];
+    closeModal("manualMsgOverlay");
+    toast(icon+" Mensagem salva","ok");
+  }catch(e){ toast("Erro: "+e.message,"err"); }
+}
 
 // ── merge page ─────────────────────────────────────────────────
 function renderMergeList(ab){
