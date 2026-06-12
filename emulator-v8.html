@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>FaceContext</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#030a05;color:#00ff88;font-family:monospace;padding:16px;display:flex;flex-direction:column;align-items:center;gap:14px;min-height:100vh}
+h1{font-size:14px;color:#005533;letter-spacing:3px;margin-top:8px}
+p.sub{font-size:9px;color:#003320}
+
+/* diag */
+#diag{width:100%;max-width:400px;background:#0a0f0a;border:1.5px solid #0d3a1a;border-radius:12px;padding:14px}
+#dlbl{font-size:9px;color:#004422;letter-spacing:2px;margin-bottom:8px}
+#dlog{font-size:12px;color:#00aa55;min-height:24px;margin-bottom:12px}
+#dbtn{display:block;width:100%;padding:18px;background:#0d2016;border:2px solid #1a5030;border-radius:12px;color:#00ff88;font-size:16px;font-family:monospace;text-align:center;cursor:pointer;-webkit-tap-highlight-color:rgba(0,255,136,.3)}
+
+/* screen */
+.screen{width:min(220px,55vw);aspect-ratio:3/4;background:#000;border-radius:12px;border:1px solid #0a2a18;position:relative;overflow:hidden}
+.idle{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;font-size:10px;color:#002a14}
+.hud{position:absolute;inset:0;padding:12px;display:none;flex-direction:column}
+.hn{font-size:15px;font-weight:bold;color:#00ff88}
+.hr{font-size:10px;color:#00cc6e;margin-top:3px}
+.hc{font-size:10px;color:#00aa55;margin-top:2px}
+.hx{font-size:9px;color:#008844;margin-top:5px}
+.hw{position:absolute;bottom:10px;left:12px;font-size:8px;color:#005533}
+.dot{position:absolute;top:10px;right:10px;width:7px;height:7px;border-radius:50%;background:#00ff88;display:none}
+.dot.on{display:block;animation:blink .8s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* cam */
+.camwrap{width:100%;max-width:400px;background:#000;border-radius:12px;overflow:hidden;border:1px solid #0a2a18;position:relative}
+video{width:100%;display:block;min-height:80px}
+.fbox{position:absolute;border:2px solid #00ff88;border-radius:3px;display:none;pointer-events:none}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .08s}
+.flash.on{opacity:.4}
+.cst{padding:8px 12px;font-size:10px;color:#664400;white-space:pre-wrap;line-height:1.5;min-height:32px}
+.cst.ok{color:#00cc6e}
+
+/* btn row */
+.brow{width:100%;max-width:400px;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px}
+.btn{padding:13px 4px 11px;background:#0d2016;border:1.5px solid #153520;border-radius:12px;color:#009944;font-family:monospace;font-size:10px;text-align:center;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:rgba(0,255,136,.25)}
+.bicon{font-size:20px;line-height:1}
+.btn:active{background:#0f3020;border-color:#00ff88;color:#00ff88}
+.btn.on{background:#0a2a18;border-color:#00ff88;color:#00ff88}
+.btn.dim{opacity:.3;pointer-events:none}
+.btn.red{border-color:#2a1000;color:#663300}
+
+/* form */
+.pform{width:100%;max-width:400px;background:#070e09;border:1px solid #0a2a18;border-radius:12px;padding:14px;display:none}
+.pform.show{display:block}
+.ftit{font-size:9px;color:#006633;letter-spacing:2px;margin-bottom:10px}
+.trow{display:flex;gap:10px;margin-bottom:10px}
+.thumb{width:58px;height:58px;border-radius:8px;background:#0a1a0f;border:1px solid #0a2a18;object-fit:cover;flex-shrink:0}
+.fcol{flex:1;display:flex;flex-direction:column;gap:6px}
+.fi{background:#0a1a0f;border:1px solid #0a2a18;border-radius:8px;color:#00cc6e;font-size:12px;font-family:monospace;padding:9px 10px;outline:none;width:100%;-webkit-appearance:none}
+.fi:focus{border-color:#00ff88}
+.fi::placeholder{color:#002a14}
+.tags{display:flex;flex-wrap:wrap;gap:5px;margin:8px 0}
+.tag{font-size:10px;color:#006633;background:rgba(0,255,136,.03);border:1px solid #0a2a18;border-radius:20px;padding:5px 11px;cursor:pointer;touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:rgba(0,255,136,.25)}
+.tag.on{color:#00ff88;background:rgba(0,255,136,.1);border-color:#00aa55}
+.savebtn{width:100%;padding:14px;background:rgba(0,255,136,.05);border:1.5px solid rgba(0,255,136,.18);border-radius:10px;color:#00ff88;font-size:13px;font-family:monospace;cursor:pointer;touch-action:manipulation;-webkit-tap-highlight-color:rgba(0,255,136,.25)}
+.savebtn:active{background:rgba(0,255,136,.14)}
+
+/* log */
+.sec{width:100%;max-width:400px}
+.slbl{font-size:9px;color:#003a18;letter-spacing:2px;margin-bottom:4px}
+.logbox{background:#060e08;border:1px solid #0a2a18;border-radius:8px;height:68px;overflow-y:auto;padding:6px 10px;font-size:9px}
+.ll{color:#004420;line-height:1.8}
+.ll.hi{color:#00bb66}
+.pcard{background:#060e08;border:1px solid #0a2a18;border-radius:8px;padding:10px 12px;margin-bottom:6px}
+.pcn{font-size:12px;color:#00bb66;font-weight:bold}
+.pcs{font-size:9px;color:#004422;margin-top:2px}
+
+/* help */
+#help{display:none;position:fixed;inset:0;background:rgba(0,4,2,.96);z-index:9999;overflow-y:auto;padding:28px 16px 40px}
+#help.show{display:block}
+.hcard{max-width:340px;margin:0 auto;background:#060e08;border:1.5px solid #0d3a1a;border-radius:16px;padding:22px 18px}
+.hhead{font-size:12px;color:#00ff88;letter-spacing:3px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center}
+.hx-btn{background:#0d2016;border:1px solid #153520;border-radius:50%;width:34px;height:34px;color:#009944;font-size:18px;cursor:pointer;touch-action:manipulation;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:rgba(0,255,136,.25)}
+.hx-btn:active{color:#00ff88}
+.hsec{font-size:8px;color:#004422;letter-spacing:2px;margin:12px 0 8px}
+.hrow{display:flex;gap:12px;margin-bottom:8px;align-items:flex-start}
+.hkey{min-width:64px;padding:4px 6px;background:rgba(0,255,136,.04);border:1px solid rgba(0,255,136,.1);border-radius:6px;font-size:9px;color:#00ff88;text-align:center;flex-shrink:0}
+.hdesc{font-size:9px;color:#007744;line-height:1.6}
+.hnote{font-size:9px;color:#004422;line-height:1.7;margin-top:14px;padding-top:12px;border-top:1px solid #0a2a18}
+</style>
+</head>
+<body>
+
+<!-- DIAG -->
+<div id="diag">
+  <div id="dlbl">DIAGNÓSTICO DE TOQUE</div>
+  <div id="dlog">Toque no botão abaixo</div>
+  <button id="dbtn">TOQUE AQUI</button>
+</div>
+
+<h1>FACECONTEXT</h1>
+<p class="sub">Rokid AI · v8 local</p>
+
+<div class="screen">
+  <div class="idle" id="idle"><span style="font-size:22px;opacity:.25">◉</span><span>pronto</span></div>
+  <div class="hud" id="hud">
+    <div class="hn" id="hn"></div><div class="hr" id="hr"></div>
+    <div class="hc" id="hc"></div><div class="hx" id="hx2"></div>
+    <div class="hw" id="hw"></div>
+  </div>
+  <div class="dot" id="dot"></div>
+</div>
+
+<div class="camwrap">
+  <video id="vid" autoplay playsinline muted></video>
+  <div class="fbox" id="fbox"></div>
+  <div class="flash" id="flash"></div>
+  <canvas id="cnv" style="display:none"></canvas>
+  <div class="cst" id="cst">câmera inativa</div>
+</div>
+
+<div class="brow">
+  <div class="btn" id="bcam"><span class="bicon">⏻</span><span>Câmera</span></div>
+  <div class="btn dim" id="bsnap"><span class="bicon">⊙</span><span>Capturar</span></div>
+  <div class="btn dim red" id="bstop"><span class="bicon">■</span><span>Parar</span></div>
+  <div class="btn" id="bhelp"><span class="bicon">?</span><span>Ajuda</span></div>
+</div>
+
+<div class="pform" id="pform">
+  <div class="ftit">NOVO PERFIL</div>
+  <div class="trow">
+    <img class="thumb" id="thumb" src="" alt=""/>
+    <div class="fcol">
+      <input class="fi" id="fname" type="text" placeholder="Nome completo" autocomplete="off"/>
+      <input class="fi" id="frole" type="text" placeholder="Cargo / função" autocomplete="off"/>
+    </div>
+  </div>
+  <input class="fi" id="fco" type="text" placeholder="Empresa" autocomplete="off" style="margin-bottom:6px"/>
+  <input class="fi" id="fctx" type="text" placeholder="Como se conheceram?" autocomplete="off"/>
+  <div class="tags">
+    <span class="tag">amigo</span><span class="tag">trabalho</span><span class="tag">tech</span>
+    <span class="tag">design</span><span class="tag">família</span><span class="tag">academia</span><span class="tag">evento</span>
+  </div>
+  <button class="savebtn" id="savebtn">✓  Salvar perfil</button>
+</div>
+
+<div class="sec"><div class="slbl">LOG</div><div class="logbox" id="logbox"></div></div>
+<div class="sec"><div class="slbl" id="slbl">PERFIS SALVOS (0)</div><div id="slist"></div></div>
+
+<div id="help">
+  <div class="hcard">
+    <div class="hhead"><span>REFERÊNCIA</span><button class="hx-btn" id="helpx">✕</button></div>
+    <div class="hsec">BOTÕES</div>
+    <div class="hrow"><span class="hkey">⏻ Câmera</span><span class="hdesc">Liga e desliga a câmera traseira</span></div>
+    <div class="hrow"><span class="hkey">⊙ Capturar</span><span class="hdesc">Fotografa e abre formulário</span></div>
+    <div class="hrow"><span class="hkey">■ Parar</span><span class="hdesc">Para a câmera</span></div>
+    <div class="hsec">TECLADO</div>
+    <div class="hrow"><span class="hkey">Espaço</span><span class="hdesc">Liga/desliga câmera</span></div>
+    <div class="hrow"><span class="hkey">↑</span><span class="hdesc">Capturar frame</span></div>
+    <div class="hrow"><span class="hkey">Esc</span><span class="hdesc">Fechar</span></div>
+    <div class="hnote">Se câmera não pedir permissão: toque no 🔒 na barra de endereços → Câmera → Permitir → recarregue.</div>
+  </div>
+</div>
+
+<script>
+// ── estado ──
+var stream=null, snap=null, faceT=null, profiles=[];
+try{profiles=JSON.parse(localStorage.getItem('fc_p')||'[]');}catch(e){}
+
+// ── log ──
+function lg(m,hi){
+  var el=document.getElementById('logbox');
+  var d=document.createElement('div');
+  d.className='ll'+(hi?' hi':'');
+  d.textContent=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})+'  '+m;
+  el.appendChild(d); el.scrollTop=el.scrollHeight;
+}
+function cs(m,ok){var e=document.getElementById('cst');e.textContent=m;e.className='cst'+(ok?' ok':'');}
+
+// ── DIAG: descobre qual evento funciona ──
+var dlog=document.getElementById('dlog');
+var dcount=0;
+function dhit(n){dcount++;dlog.style.color='#00ff88';dlog.textContent='✓ '+n+' ('+dcount+'x)';}
+var db=document.getElementById('dbtn');
+// testa todos de uma vez, sem preventDefault, sem passive:false
+['touchstart','touchend','touchcancel',
+ 'pointerdown','pointerup',
+ 'mousedown','mouseup','click'
+].forEach(function(ev){
+  db.addEventListener(ev,function(){dhit(ev);},true);   // capture phase
+  db.addEventListener(ev,function(){dhit(ev);},false);  // bubble phase
+});
+
+// ── câmera ──
+function startCam(){
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    cs('getUserMedia indisponível neste browser',false);lg('ERRO: sem suporte',false);return;
+  }
+  cs('Aguardando permissão...',false);lg('Solicitando câmera...',false);
+  navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:true})
+    .then(gotStream)
+    .catch(function(e1){
+      lg('Traseira: '+e1.name,false);
+      navigator.mediaDevices.getUserMedia({video:true,audio:false})
+        .then(function(s){gotStream(s);lg('Câmera frontal',false);})
+        .catch(function(e2){
+          var m=e2.name==='NotAllowedError'
+            ?'Permissão negada.\nToque no 🔒 na barra URL\n→ Câmera → Permitir → Recarregue'
+            :'Erro: '+e2.name+'\n'+e2.message;
+          cs(m,false);lg('ERRO: '+e2.name,false);
+        });
+    });
+}
+function gotStream(s){
+  stream=s;document.getElementById('vid').srcObject=s;
+  cs('● CÂMERA ATIVA',true);lg('Câmera ativa!',true);
+  document.getElementById('bcam').classList.add('on');
+  document.querySelector('#bcam .bicon').textContent='⏸';
+  document.getElementById('bsnap').classList.remove('dim');
+  document.getElementById('bstop').classList.remove('dim');
+  document.getElementById('dot').classList.add('on');
+  document.getElementById('idle').style.display='none';
+  document.getElementById('hud').style.display='flex';
+  faceT=setTimeout(function(){
+    if(!stream)return;
+    var fb=document.getElementById('fbox');
+    fb.style.cssText='display:block;left:27%;top:11%;width:46%;height:63%;';
+    cs('◈ Rosto detectado',true);lg('◈ Rosto — toque ⊙',true);
+  },1800);
+}
+function stopCam(){
+  if(stream){stream.getTracks().forEach(function(t){t.stop();});stream=null;}
+  if(faceT){clearTimeout(faceT);faceT=null;}
+  document.getElementById('vid').srcObject=null;
+  document.getElementById('fbox').style.display='none';
+  document.getElementById('dot').classList.remove('on');
+  cs('câmera inativa',false);
+  document.getElementById('bcam').classList.remove('on');
+  document.querySelector('#bcam .bicon').textContent='⏻';
+  document.getElementById('bsnap').classList.add('dim');
+  document.getElementById('bstop').classList.add('dim');
+  document.getElementById('idle').style.display='flex';
+  document.getElementById('hud').style.display='none';
+  lg('Câmera parada',false);
+}
+function doSnap(){
+  var v=document.getElementById('vid'),c=document.getElementById('cnv');
+  c.width=v.videoWidth||640;c.height=v.videoHeight||480;
+  c.getContext('2d').drawImage(v,0,0,c.width,c.height);
+  snap=c.toDataURL('image/jpeg',.85);
+  var fl=document.getElementById('flash');fl.classList.add('on');
+  setTimeout(function(){fl.classList.remove('on');},120);
+  document.getElementById('thumb').src=snap;
+  ['fname','frole','fco','fctx'].forEach(function(id){document.getElementById(id).value='';});
+  document.querySelectorAll('.tag').forEach(function(t){t.classList.remove('on');});
+  document.getElementById('pform').classList.add('show');
+  lg('Frame capturado',true);
+  setTimeout(function(){document.getElementById('fname').focus();},100);
+}
+function saveProfile(){
+  var nm=document.getElementById('fname').value.trim();
+  if(!nm){document.getElementById('fname').style.borderColor='#ff3300';
+    setTimeout(function(){document.getElementById('fname').style.borderColor='';},700);return;}
+  var tags=[];document.querySelectorAll('.tag.on').forEach(function(t){tags.push(t.textContent);});
+  var p={id:Date.now(),name:nm,
+    role:document.getElementById('frole').value.trim(),
+    company:document.getElementById('fco').value.trim(),
+    context:document.getElementById('fctx').value.trim(),
+    tags:tags,photo:snap||'',date:new Date().toLocaleDateString('pt-BR')};
+  profiles.unshift(p);
+  try{localStorage.setItem('fc_p',JSON.stringify(profiles));}catch(e){}
+  document.getElementById('hn').textContent=p.name;
+  document.getElementById('hr').textContent=p.role;
+  document.getElementById('hc').textContent=p.company;
+  document.getElementById('hx2').textContent=p.context;
+  document.getElementById('hw').textContent='Agora · '+p.date;
+  document.getElementById('idle').style.display='none';
+  document.getElementById('hud').style.display='flex';
+  document.getElementById('pform').classList.remove('show');
+  renderSaved();lg('✓ '+p.name,true);
+}
+function renderSaved(){
+  var list=document.getElementById('slist');
+  document.getElementById('slbl').textContent='PERFIS SALVOS ('+profiles.length+')';
+  list.innerHTML='';
+  profiles.slice(0,8).forEach(function(p){
+    var c=document.createElement('div');c.className='pcard';
+    c.innerHTML='<div class="pcn">'+p.name+'</div><div class="pcs">'+(p.role||'')+(p.company?' · '+p.company:'')+'</div>';
+    list.appendChild(c);
+  });
+}
+
+// ── BIND: usa evento nativo que o diag confirmar ──
+// estratégia: escuta capture+bubble, sem preventDefault
+function wire(id, fn){
+  var el=document.getElementById(id);if(!el)return;
+  // capture phase — chega antes de qualquer coisa
+  el.addEventListener('click',fn,true);
+  el.addEventListener('touchend',fn,true);
+  el.addEventListener('pointerup',fn,true);
+  // bubble como fallback
+  el.addEventListener('click',fn,false);
+}
+
+wire('bcam', function(){ if(stream)stopCam();else startCam(); });
+wire('bsnap',function(){ if(stream)doSnap(); });
+wire('bstop',stopCam);
+wire('bhelp',function(){ document.getElementById('help').classList.add('show'); });
+wire('helpx', function(){ document.getElementById('help').classList.remove('show'); });
+wire('savebtn',saveProfile);
+
+document.querySelectorAll('.tag').forEach(function(t){
+  t.addEventListener('click',function(){t.classList.toggle('on');},true);
+  t.addEventListener('touchend',function(){t.classList.toggle('on');},true);
+});
+
+// keyboard
+document.addEventListener('keydown',function(e){
+  if(e.repeat)return;
+  if(e.key===' '){e.preventDefault();if(stream)stopCam();else startCam();}
+  else if(e.key==='ArrowUp'){e.preventDefault();if(stream)doSnap();}
+  else if(e.key==='Escape'){
+    document.getElementById('help').classList.remove('show');
+    document.getElementById('hud').style.display='none';
+    document.getElementById('idle').style.display='flex';
+  }
+});
+
+renderSaved();
+lg('v8 local — toque no botão DIAG acima',false);
+</script>
+</body>
+</html>
