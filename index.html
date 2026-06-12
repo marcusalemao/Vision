@@ -3,124 +3,233 @@
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
-<title>FaceContext</title>
-<!-- face-api.js para reconhecimento facial real -->
+<title>FaceContext — Óculos AR</title>
 <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{background:#030a05;color:#00ff88;font-family:monospace;min-height:100vh}
-body{display:flex;flex-direction:column;align-items:center;padding:16px 14px 28px;gap:14px}
-h1{font-size:14px;color:#005533;letter-spacing:3px;margin-top:8px;text-align:center}
-.sub{font-size:9px;color:#003320;text-align:center}
+html,body{background:#111;color:#00ff88;font-family:monospace;min-height:100vh;display:flex;flex-direction:column;align-items:center;gap:10px;padding-bottom:20px}
 
-#syncbadge{font-size:9px;padding:4px 10px;border-radius:20px;border:1px solid #0a2a18;color:#004422;background:#060e08}
-#syncbadge.ok{color:#00ff88;border-color:#00aa55}
-#syncbadge.err{color:#aa4400;border-color:#441a00}
-#syncbadge.loading{color:#aaaa00;border-color:#444400}
+/* ── badges topo ── */
+.topbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;padding:10px 14px 0}
+.badge{font-size:9px;padding:3px 9px;border-radius:20px;border:1px solid #0a2a18;color:#004422;background:#080f09}
+.badge.ok{color:#00ff88;border-color:#00aa55}
+.badge.err{color:#aa4400;border-color:#441a00}
+.badge.loading{color:#aaaa00;border-color:#444400}
+.badge.ai-ready{color:#00bbff;border-color:#005577}
+.badge.ai-scan{color:#ffaa00;border-color:#554400;animation:pulse .7s infinite}
+.badge.ai-match{color:#00ff88;border-color:#00aa55;animation:pulse .4s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 
-#aistate{font-size:9px;padding:3px 8px;border-radius:20px;border:1px solid #0a2a18;color:#004422;background:#060e08}
-#aistate.ready{color:#00bbff;border-color:#005577}
-#aistate.scanning{color:#ffaa00;border-color:#554400;animation:pulse .8s infinite}
-#aistate.match{color:#00ff88;border-color:#00aa55}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+/* ══════════════════════════════════════════
+   VISOR PRINCIPAL — câmera + HUD sobrepostos
+   480×640 ratio (portrait, igual ao waveguide)
+   ══════════════════════════════════════════ */
+.visor{
+  position:relative;
+  width:min(300px,90vw);
+  aspect-ratio:3/4;
+  background:#000;
+  border-radius:16px;
+  overflow:hidden;
+  border:2px solid #0a2a18;
+  box-shadow:0 0 30px #00ff8818;
+}
 
-.screen{width:min(220px,55vw);aspect-ratio:3/4;background:#000;border-radius:12px;border:1px solid #0a2a18;position:relative;overflow:hidden}
-.idle{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;font-size:10px;color:#002a14}
-.hud{position:absolute;inset:0;padding:10px;display:none;flex-direction:column}
-.hn{font-size:14px;font-weight:bold;color:#00ff88;text-shadow:0 0 8px #00ff8866}
-.hr,.hc{font-size:9px;color:#00cc6e;margin-top:2px}
-.hx2{font-size:8px;color:#008844;margin-top:4px}
-.hw{position:absolute;bottom:8px;left:10px;font-size:7px;color:#005533}
-.hconf{position:absolute;top:8px;right:8px;font-size:9px;color:#00ff88}
-.hunknown{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;display:none}
-.hunknown .ulbl{font-size:11px;color:#ffaa00}
-.hunknown .uhint{font-size:8px;color:#664400;text-align:center}
-.dot{position:absolute;top:10px;right:10px;width:7px;height:7px;border-radius:50%;background:#00ff88;display:none}
-.dot.on{display:block;animation:blink .8s infinite}
+/* Câmera ocupa 100% do visor — é o "mundo real" */
+.visor video{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+}
+
+/* Canvas de detecção (bounding boxes) */
+.visor canvas.det{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  pointer-events:none;
+}
+
+/* Flash de captura */
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .06s;z-index:5}
+.flash.on{opacity:.35}
+
+/* Tela "câmera inativa" */
+.visor .idle-screen{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:10px;background:#000;z-index:1;
+}
+.idle-screen .idle-icon{font-size:36px;opacity:.2}
+.idle-screen .idle-txt{font-size:10px;color:#003320;letter-spacing:2px}
+
+/* ── HUD overlay — cobre o visor, fundo transparente ── */
+.hud{
+  position:absolute;inset:0;
+  pointer-events:none;
+  z-index:10;
+  padding:12px;
+  display:flex;
+  flex-direction:column;
+}
+
+/* Indicador de gravação piscando — canto sup esq */
+.rec-dot{
+  position:absolute;top:10px;left:10px;
+  width:7px;height:7px;border-radius:50%;background:#00ff88;
+  display:none;
+  animation:blink .8s infinite;
+}
+.rec-dot.on{display:block}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 
-.camwrap{width:100%;max-width:400px;background:#000;border-radius:12px;overflow:hidden;border:1px solid #0a2a18;position:relative}
-video{width:100%;display:block;min-height:80px}
-canvas.overlay{position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none}
-.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .08s}
-.flash.on{opacity:.4}
-.cst{padding:8px 12px;font-size:10px;color:#664400;white-space:pre-wrap;line-height:1.5;min-height:32px}
-.cst.ok{color:#00cc6e}
+/* Confiança — canto sup dir */
+.hud-conf{
+  position:absolute;top:10px;right:10px;
+  font-size:10px;color:#00ff88;
+  text-shadow:0 0 6px #00ff8888;
+}
 
-.brow{width:100%;max-width:400px;display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px}
-.btn{padding:13px 4px 11px;background:#0d2016;border:1.5px solid #153520;border-radius:12px;color:#009944;font-family:monospace;font-size:10px;text-align:center;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;touch-action:manipulation;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:rgba(0,255,136,.25)}
-.bicon{font-size:20px;line-height:1}
-.btn:active{background:#0f3020;border-color:#00ff88;color:#00ff88}
-.btn.on{background:#0a2a18;border-color:#00ff88;color:#00ff88}
+/* Nome — destaque principal */
+.hud-name{
+  position:absolute;bottom:52px;left:12px;right:12px;
+  font-size:18px;font-weight:bold;color:#00ff88;
+  text-shadow:0 0 12px #00ff88aa, 0 0 24px #00ff8844;
+  line-height:1.1;
+}
+
+/* Cargo e empresa */
+.hud-role{
+  position:absolute;bottom:34px;left:12px;right:12px;
+  font-size:10px;color:#00dd77;
+  text-shadow:0 0 8px #00ff8855;
+}
+.hud-co{
+  position:absolute;bottom:20px;left:12px;right:12px;
+  font-size:9px;color:#009944;
+  text-shadow:0 0 6px #00ff8833;
+}
+
+/* Relação / contexto */
+.hud-rel{
+  position:absolute;bottom:8px;left:12px;
+  font-size:8px;color:#006633;
+}
+
+/* Hora — canto inf dir */
+.hud-time{
+  position:absolute;bottom:8px;right:10px;
+  font-size:8px;color:#004422;
+}
+
+/* ── Painel DESCONHECIDO ── */
+.hud-unknown{
+  position:absolute;inset:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  gap:6px;pointer-events:none;display:none;
+}
+.hud-unknown .uq{font-size:28px;color:#ffaa00;text-shadow:0 0 16px #ffaa0066}
+.hud-unknown .ul{font-size:11px;color:#ffaa00;text-shadow:0 0 8px #ffaa0044}
+.hud-unknown .uh{font-size:8px;color:#664400;text-align:center;line-height:1.5}
+
+/* ── scanline sutil (efeito AR) ── */
+.hud::after{
+  content:"";position:absolute;inset:0;
+  background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,255,136,.012) 3px,rgba(0,255,136,.012) 4px);
+  pointer-events:none;
+}
+
+/* ── borda HUD ativa (glow verde) ── */
+.visor.active{border-color:#00ff8844;box-shadow:0 0 40px #00ff8822,inset 0 0 20px #00ff8808}
+
+/* ══ BOTÕES ══ */
+.brow{
+  display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;
+  width:min(300px,90vw);
+}
+.btn{
+  padding:12px 4px 10px;background:#0d1f11;border:1.5px solid #152a18;
+  border-radius:12px;color:#009944;font-family:monospace;font-size:10px;
+  text-align:center;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  touch-action:manipulation;-webkit-user-select:none;user-select:none;
+  -webkit-tap-highlight-color:rgba(0,255,136,.2);
+}
+.btn:active,.btn.on{background:#0a2a18;border-color:#00ff88;color:#00ff88}
 .btn.dim{opacity:.3;pointer-events:none}
 .btn.red{border-color:#2a1000;color:#663300}
+.bicon{font-size:19px;line-height:1}
 
-.sec{width:100%;max-width:400px}
-.slbl{font-size:9px;color:#003320;letter-spacing:2px;margin-bottom:6px}
-.logbox{background:#040d07;border:1px solid #081a0e;border-radius:8px;padding:8px;height:90px;overflow-y:auto;font-size:9px}
-.ll{color:#003320;margin-bottom:2px}
-.ll.hi{color:#00aa55}
-.ll.warn{color:#aa6600}
+/* ══ LOG ══ */
+.logwrap{width:min(300px,90vw)}
+.slbl{font-size:8px;color:#002a14;letter-spacing:2px;margin-bottom:5px}
+.logbox{background:#040d07;border:1px solid #081a0e;border-radius:8px;padding:7px;height:80px;overflow-y:auto;font-size:9px}
+.ll{color:#002a14;margin-bottom:2px}.ll.hi{color:#00aa55}.ll.warn{color:#aa6600}
 
-.pcard{display:flex;align-items:center;gap:10px;background:#060e08;border:1px solid #0a2a18;border-radius:8px;padding:8px 10px;margin-bottom:6px}
-.pthumb{width:36px;height:36px;border-radius:50%;object-fit:cover;background:#0a2a18;border:1px solid #153520;flex-shrink:0}
-.pinfo{flex:1;min-width:0}
-.pcn{font-size:11px;color:#00cc6e;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pcs{font-size:9px;color:#005533;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pbadge{font-size:8px;padding:1px 5px;border-radius:8px;background:#0a1a0d;color:#003320;border:1px solid #0d2016;display:inline-block;margin-top:3px}
-.pbadge.cloud{color:#00884d;border-color:#0d3020}
-.pbadge.hasemb{color:#00aaff;border-color:#003355}
-
-#help{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:100;display:none;align-items:center;justify-content:center}
+/* ══ HELP OVERLAY ══ */
+#help{position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:100;display:none;align-items:center;justify-content:center}
 #help.show{display:flex}
-.hcard{background:#060e08;border:1px solid #0a2a18;border-radius:16px;padding:20px;width:min(340px,92vw);max-height:80vh;overflow-y:auto}
+.hcard{background:#060e08;border:1px solid #0a2a18;border-radius:16px;padding:20px;width:min(320px,92vw);max-height:82vh;overflow-y:auto}
 .hhead{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;font-size:11px;letter-spacing:2px;color:#006633}
 .hxbtn{background:none;border:1px solid #0a2a18;color:#006633;border-radius:6px;padding:3px 8px;cursor:pointer;font-family:monospace}
 .hsec{font-size:8px;letter-spacing:2px;color:#003320;margin:10px 0 5px}
 .hrow{display:flex;justify-content:space-between;margin-bottom:4px;font-size:9px}
 .hkey{color:#009944}.hdesc{color:#005533;text-align:right}
-.hnote{font-size:8px;color:#004422;margin-top:12px;line-height:1.6;background:#040d07;padding:8px;border-radius:6px}
+.hnote{font-size:8px;color:#004422;margin-top:10px;line-height:1.6;background:#040d07;padding:8px;border-radius:6px}
 </style>
 </head>
 <body>
 
-<h1>FACECONTEXT</h1>
-<div class="sub">emulador v11 · reconhecimento real</div>
-<div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center">
-  <div id="syncbadge" class="loading">⟳ conectando...</div>
-  <div id="aistate">⬡ IA não carregada</div>
+<!-- badges de estado -->
+<div class="topbar">
+  <div class="badge loading" id="syncbadge">⟳ conectando...</div>
+  <div class="badge" id="aibadge">⬡ IA não carregada</div>
 </div>
 
-<div class="screen">
-  <div class="idle" id="idle">
-    <div style="font-size:24px;opacity:.3">◎</div>
-    <div>câmera inativa</div>
+<!-- ═══════ VISOR ÚNICO ═══════ -->
+<div class="visor" id="visor">
+
+  <!-- mundo real (câmera) -->
+  <video id="vid" autoplay playsinline muted></video>
+
+  <!-- bounding boxes de detecção -->
+  <canvas id="detCanvas" class="det"></canvas>
+
+  <!-- flash de captura -->
+  <div class="flash" id="flash"></div>
+
+  <!-- tela idle (câmera off) -->
+  <div class="idle-screen" id="idleScreen">
+    <div class="idle-icon">◎</div>
+    <div class="idle-txt">VISOR INATIVO</div>
+    <div style="font-size:8px;color:#002015;margin-top:4px">toque ⏻ para ligar</div>
   </div>
+
+  <!-- HUD sobreposto ao vivo -->
   <div class="hud" id="hud">
-    <div class="hconf" id="hconf"></div>
-    <div class="hn" id="hn"></div>
-    <div class="hr" id="hr"></div>
-    <div class="hc" id="hc"></div>
-    <div class="hx2" id="hx2"></div>
-    <div class="hw" id="hw"></div>
+    <div class="rec-dot" id="recDot"></div>
+    <div class="hud-conf" id="hudConf"></div>
+
+    <!-- painel conhecido -->
+    <div class="hud-name" id="hudName"></div>
+    <div class="hud-role" id="hudRole"></div>
+    <div class="hud-co"   id="hudCo"></div>
+    <div class="hud-rel"  id="hudRel"></div>
+    <div class="hud-time" id="hudTime"></div>
+
     <!-- painel desconhecido -->
-    <div class="hunknown" id="hunknown">
-      <div style="font-size:20px">?</div>
-      <div class="ulbl">Rosto desconhecido</div>
-      <div class="uhint">Capturado para identificação<br>Abrir webapp.html para identificar</div>
+    <div class="hud-unknown" id="hudUnknown">
+      <div class="uq">?</div>
+      <div class="ul">ROSTO DESCONHECIDO</div>
+      <div class="uh">Capturado para identificação<br>Abra o gestor para identificar</div>
     </div>
   </div>
-  <div class="dot" id="dot"></div>
 </div>
 
-<div class="camwrap">
-  <video id="vid" autoplay playsinline muted></video>
-  <canvas id="overlay" class="overlay"></canvas>
-  <div class="flash" id="flash"></div>
-  <canvas id="cnv" style="display:none"></canvas>
-  <div class="cst" id="cst">câmera inativa</div>
-</div>
-
+<!-- botões de controle -->
 <div class="brow">
   <div class="btn" id="bcam"><span class="bicon">⏻</span><span>Câmera</span></div>
   <div class="btn dim" id="bsnap"><span class="bicon">⊙</span><span>Capturar</span></div>
@@ -128,415 +237,332 @@ canvas.overlay{position:absolute;top:0;left:0;width:100%;height:100%;pointer-eve
   <div class="btn" id="bhelp"><span class="bicon">?</span><span>Ajuda</span></div>
 </div>
 
-<div class="sec"><div class="slbl">LOG</div><div class="logbox" id="logbox"></div></div>
-<div class="sec"><div class="slbl" id="slbl">PERFIS (carregando...)</div><div id="slist"></div></div>
+<!-- log -->
+<div class="logwrap">
+  <div class="slbl">LOG</div>
+  <div class="logbox" id="logbox"></div>
+</div>
 
+<!-- help modal -->
 <div id="help">
   <div class="hcard">
-    <div class="hhead"><span>REFERÊNCIA v11</span><button class="hxbtn" id="helpx">✕</button></div>
-    <div class="hsec">COMO FUNCIONA</div>
+    <div class="hhead"><span>FACECONTEXT v12</span><button class="hxbtn" id="helpx">✕</button></div>
+    <div class="hsec">VISOR AR</div>
     <div class="hnote">
-      ① Câmera liga → IA detecta rostos em tempo real<br>
-      ② Se rosto = perfil conhecido → HUD mostra nome/cargo<br>
-      ③ Se rosto = desconhecido → captura automática<br>
-      ④ Identifique desconhecidos no gestor (webapp.html)<br><br>
-      📸 Quanto mais fotos num perfil, melhor o match
+      A câmera mostra o mundo real ao fundo.<br>
+      O HUD verde é sobreposto — simula o waveguide dos óculos Rokid.<br><br>
+      🟢 Rosto identificado → nome/cargo aparecem sobre a pessoa<br>
+      🟡 Rosto desconhecido → capturado automaticamente<br>
+      🔵 Box verde = match confirmado · laranja = desconhecido
     </div>
     <div class="hsec">BOTÕES</div>
-    <div class="hrow"><span class="hkey">⏻ Câmera</span><span class="hdesc">Liga/desliga câmera</span></div>
+    <div class="hrow"><span class="hkey">⏻ Câmera</span><span class="hdesc">Liga/desliga</span></div>
     <div class="hrow"><span class="hkey">⊙ Capturar</span><span class="hdesc">Força captura manual</span></div>
     <div class="hrow"><span class="hkey">■ Parar</span><span class="hdesc">Para câmera e IA</span></div>
     <div class="hsec">TECLADO</div>
     <div class="hrow"><span class="hkey">Espaço</span><span class="hdesc">Liga/desliga câmera</span></div>
     <div class="hrow"><span class="hkey">↑</span><span class="hdesc">Captura manual</span></div>
-    <div class="hrow"><span class="hkey">Esc</span><span class="hdesc">Fechar overlay</span></div>
+    <div class="hrow"><span class="hkey">Esc</span><span class="hdesc">Fechar ajuda</span></div>
     <div class="hnote">
-      🟦 Badge azul = perfil tem embedding facial<br>
-      ☁ Badge verde = salvo no banco<br>
-      💾 Badge cinza = só local<br><br>
-      ⚠ Perfis sem foto não podem ser reconhecidos.
+      Para reconhecimento funcionar, o perfil precisa ter<br>
+      uma <strong>foto real com rosto</strong> cadastrada no gestor.
     </div>
   </div>
 </div>
 
 <script>
 // ─── CONFIG ────────────────────────────────────────────────
-var APP_ID = "6a11083db49430b410a8c066";
-var API    = "https://base44.app/api/apps/6a11083db49430b410a8c066/functions/fcProxy";
-var MODELS = "https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights";
-var MATCH_THRESHOLD = 0.45; // distância euclidiana — menor = mais parecido
+var APP_ID  = "6a11083db49430b410a8c066";
+var API     = "https://base44.app/api/apps/"+APP_ID+"/functions/fcProxy";
+var MODELS  = "https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights";
+var THRESH  = 0.45;
 
-// ─── STATE ────────────────────────────────────────────────
-var stream = null, detectLoop = null;
-var profiles = [];       // perfis do banco
-var embeddings = [];     // [{id, name, role, company, photo_url, descriptor: Float32Array}]
-var isOnline = false;
-var aiReady = false;
-var lastMatchId = null;
-var unknownCooldown = false;
+// ─── STATE ─────────────────────────────────────────────────
+var stream=null, detLoop=null, profiles=[], embeddings=[];
+var isOnline=false, aiReady=false, lastMatchId=null, unknownCooldown=false;
 
-// ─── FACE-API INIT ────────────────────────────────────────
-async function loadModels() {
-  setAI("⟳ carregando modelos...", "loading");
-  lg("Carregando modelos de IA...", false);
-  try {
+// ─── FACE-API ──────────────────────────────────────────────
+async function loadModels(){
+  setAI("⟳ carregando IA..","loading");
+  try{
     await Promise.all([
       faceapi.nets.tinyFaceDetector.loadFromUri(MODELS),
       faceapi.nets.faceLandmark68Net.loadFromUri(MODELS),
       faceapi.nets.faceRecognitionNet.loadFromUri(MODELS)
     ]);
-    aiReady = true;
-    setAI("⬡ IA pronta", "ready");
-    lg("✓ Modelos carregados — reconhecimento ativo", true);
+    aiReady=true; setAI("⬡ IA pronta","ai-ready");
+    lg("✓ Modelos carregados",true);
     await buildEmbeddings();
-  } catch(e) {
-    setAI("✕ IA falhou", "");
-    lg("Erro modelos: " + e.message, false);
-  }
+  }catch(e){ setAI("✕ IA erro",""); lg("Erro IA: "+e.message,false); }
 }
 
-// Gera embeddings dos perfis que têm foto
-async function buildEmbeddings() {
-  embeddings = [];
-  var withPhoto = profiles.filter(function(p){ return p.photo_url && p.photo_url.startsWith("http"); });
-  lg("Gerando embeddings de " + withPhoto.length + " perfis com foto...", false);
-  var ok = 0;
-  for (var i = 0; i < withPhoto.length; i++) {
-    var p = withPhoto[i];
-    try {
-      var img = await loadImg(p.photo_url);
-      var det = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
-                             .withFaceLandmarks().withFaceDescriptor();
-      if (det) {
-        embeddings.push({ id: p.id, name: p.name, role: p.role||"", company: p.company||"",
-                          photo_url: p.photo_url, relation: p.relation||"", descriptor: det.descriptor });
-        ok++;
-      }
-    } catch(e) { /* imagem inacessível ou sem rosto */ }
+async function buildEmbeddings(){
+  embeddings=[];
+  var com=profiles.filter(function(p){ return p.photo_url&&p.photo_url.startsWith("http"); });
+  lg("Gerando embeddings de "+com.length+" perfis...",false);
+  var ok=0;
+  for(var i=0;i<com.length;i++){
+    var p=com[i];
+    try{
+      var img=await loadImg(p.photo_url);
+      var det=await faceapi.detectSingleFace(img,new faceapi.TinyFaceDetectorOptions())
+                           .withFaceLandmarks().withFaceDescriptor();
+      if(det){ embeddings.push({id:p.id,name:p.name,role:p.role||"",company:p.company||"",relation:p.relation||"",descriptor:det.descriptor}); ok++; }
+    }catch(e){}
   }
-  lg("✓ " + ok + "/" + withPhoto.length + " embeddings gerados", true);
-  setAI("⬡ IA pronta · " + ok + " rostos", "ready");
+  lg("✓ "+ok+" rostos reconhecíveis",true);
+  setAI("⬡ IA · "+ok+" rostos","ai-ready");
 }
 
-function loadImg(url) {
-  return new Promise(function(res, rej) {
-    var img = new Image(); img.crossOrigin = "anonymous";
-    img.onload = function(){ res(img); };
-    img.onerror = function(){ rej(new Error("img load")); };
-    img.src = url;
+function loadImg(url){
+  return new Promise(function(res,rej){
+    var img=new Image(); img.crossOrigin="anonymous";
+    img.onload=function(){res(img);};
+    img.onerror=function(){rej(new Error("img"));};
+    img.src=url;
   });
 }
 
-// ─── DETECTION LOOP ──────────────────────────────────────
-async function startDetectLoop() {
-  var vid = document.getElementById("vid");
-  var canvas = document.getElementById("overlay");
-  var displaySize = { width: vid.clientWidth, height: vid.clientHeight };
-  faceapi.matchDimensions(canvas, displaySize);
+// ─── DETECT LOOP ──────────────────────────────────────────
+async function startDetect(){
+  var vid=document.getElementById("vid");
+  var canvas=document.getElementById("detCanvas");
+  function resize(){ faceapi.matchDimensions(canvas,{width:vid.clientWidth,height:vid.clientHeight}); }
+  resize();
+  window.addEventListener("resize",resize);
 
-  detectLoop = setInterval(async function() {
-    if (!stream || !aiReady) return;
-    var detections = await faceapi.detectAllFaces(vid, new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:.4}))
-                                  .withFaceLandmarks().withFaceDescriptors();
-    var resized = faceapi.resizeResults(detections, displaySize);
-    var ctx = canvas.getContext("2d");
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  detLoop=setInterval(async function(){
+    if(!stream||!aiReady) return;
+    var dets=await faceapi.detectAllFaces(vid,new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:.4}))
+                          .withFaceLandmarks().withFaceDescriptors();
+    var displaySize={width:vid.clientWidth,height:vid.clientHeight};
+    var resized=faceapi.resizeResults(dets,displaySize);
+    var ctx=canvas.getContext("2d");
+    ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    if (detections.length === 0) {
-      lastMatchId = null;
-      setAI("⬡ IA ativa · buscando...", "ready");
-      showIdleHUD();
-      return;
-    }
+    if(!dets.length){ lastMatchId=null; setAI("⬡ IA · buscando..","ai-ready"); clearHUD(); return; }
+    setAI("⬡ escaneando..","ai-scan");
 
-    setAI("⬡ IA escaneando...", "scanning");
+    var main=dets.reduce(function(a,b){ return a.detection.box.area>b.detection.box.area?a:b; });
+    var mainR=faceapi.resizeResults([main],displaySize)[0];
 
-    // Desenha bounding boxes
-    resized.forEach(function(d) {
-      var box = d.detection.box;
-      ctx.strokeStyle = "#00ff88"; ctx.lineWidth = 2;
-      ctx.strokeRect(box.x, box.y, box.width, box.height);
-    });
-
-    // Tenta reconhecer o rosto principal (maior)
-    var main = detections.reduce(function(a,b){ return a.detection.box.area > b.detection.box.area ? a : b; });
-    
-    if (embeddings.length > 0) {
-      // Compara com todos os embeddings conhecidos
-      var best = null, bestDist = 999;
-      embeddings.forEach(function(e) {
-        var dist = faceapi.euclideanDistance(main.descriptor, e.descriptor);
-        if (dist < bestDist) { bestDist = dist; best = e; }
+    if(embeddings.length>0){
+      var best=null,bestD=999;
+      embeddings.forEach(function(e){
+        var d=faceapi.euclideanDistance(main.descriptor,e.descriptor);
+        if(d<bestD){bestD=d;best=e;}
       });
 
-      if (bestDist < MATCH_THRESHOLD) {
-        // MATCH!
-        if (lastMatchId !== best.id) {
-          lastMatchId = best.id;
-          var conf = Math.round((1 - bestDist) * 100);
-          setAI("⬡ MATCH · " + conf + "%", "match");
-          lg("✓ RECONHECIDO: " + best.name + " (" + conf + "%)", true);
-          showKnownHUD(best, conf);
+      if(bestD<THRESH){
+        // MATCH
+        var conf=Math.round((1-bestD)*100);
+        // Box verde sobre o rosto
+        var box=mainR.detection.box;
+        ctx.strokeStyle="#00ff88"; ctx.lineWidth=2;
+        ctx.strokeRect(box.x,box.y,box.width,box.height);
+        ctx.fillStyle="rgba(0,255,136,0.08)";
+        ctx.fillRect(box.x,box.y,box.width,box.height);
+        // Label nome sobre o box
+        ctx.fillStyle="#00ff88"; ctx.font="bold 11px monospace";
+        ctx.fillText(best.name,box.x+3,box.y-4);
+
+        if(lastMatchId!==best.id){
+          lastMatchId=best.id;
+          setAI("⬡ MATCH · "+conf+"%","ai-match");
+          lg("✓ "+best.name+" ("+conf+"%)",true);
+          showKnownHUD(best,conf);
         }
-        // Pinta box em verde brilhante para o match
-        var box2 = main.detection.box;
-        ctx.strokeStyle = "#00ffaa"; ctx.lineWidth = 3;
-        ctx.strokeRect(box2.x, box2.y, box2.width, box2.height);
-        ctx.fillStyle = "rgba(0,255,136,0.15)";
-        ctx.fillRect(box2.x, box2.y, box2.width, box2.height);
       } else {
-        // Desconhecido
-        if (lastMatchId !== "unknown") {
-          lastMatchId = "unknown";
-          setAI("⬡ IA · rosto desconhecido", "ready");
-          lg("? Rosto desconhecido (dist=" + bestDist.toFixed(2) + ")", false);
+        // DESCONHECIDO — box laranja
+        var box2=mainR.detection.box;
+        ctx.strokeStyle="#ffaa00"; ctx.lineWidth=2;
+        ctx.strokeRect(box2.x,box2.y,box2.width,box2.height);
+        ctx.fillStyle="rgba(255,170,0,0.06)";
+        ctx.fillRect(box2.x,box2.y,box2.width,box2.height);
+        ctx.fillStyle="#ffaa00"; ctx.font="10px monospace";
+        ctx.fillText("?",box2.x+3,box2.y-4);
+
+        if(lastMatchId!=="unknown"){
+          lastMatchId="unknown";
+          setAI("⬡ desconhecido","");
+          lg("? Rosto desconhecido (d="+bestD.toFixed(2)+")",false);
           showUnknownHUD();
-          autoCaptureUnknown();
+          autoCapture();
         }
-        // Box laranja para desconhecido
-        var box3 = main.detection.box;
-        ctx.strokeStyle = "#ffaa00"; ctx.lineWidth = 2;
-        ctx.strokeRect(box3.x, box3.y, box3.width, box3.height);
       }
     } else {
-      // Sem embeddings — sem reconhecimento, só detecta
-      setAI("⬡ IA ativa · sem rostos cadastrados", "ready");
-      showUnknownHUD();
+      // Sem embeddings — só detecta
+      resized.forEach(function(d){
+        var b=d.detection.box;
+        ctx.strokeStyle="#00cc66"; ctx.lineWidth=1.5;
+        ctx.strokeRect(b.x,b.y,b.width,b.height);
+      });
+      setAI("⬡ IA · sem rostos cadastrados","ai-ready");
     }
   }, 800);
 }
 
-function stopDetectLoop() {
-  if (detectLoop) { clearInterval(detectLoop); detectLoop = null; }
-  var canvas = document.getElementById("overlay");
-  canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
-  lastMatchId = null;
+function stopDetect(){
+  if(detLoop){clearInterval(detLoop);detLoop=null;}
+  var c=document.getElementById("detCanvas");
+  c.getContext("2d").clearRect(0,0,c.width,c.height);
+  lastMatchId=null;
 }
 
-// ─── HUD ─────────────────────────────────────────────────
-function showIdleHUD() {
-  document.getElementById("hn").textContent = "";
-  document.getElementById("hr").textContent = "";
-  document.getElementById("hc").textContent = "";
-  document.getElementById("hx2").textContent = "";
-  document.getElementById("hw").textContent = "";
-  document.getElementById("hconf").textContent = "";
-  document.getElementById("hunknown").style.display = "none";
+// ─── HUD ──────────────────────────────────────────────────
+function clearHUD(){
+  document.getElementById("hudName").textContent="";
+  document.getElementById("hudRole").textContent="";
+  document.getElementById("hudCo").textContent="";
+  document.getElementById("hudRel").textContent="";
+  document.getElementById("hudConf").textContent="";
+  document.getElementById("hudTime").textContent="";
+  document.getElementById("hudUnknown").style.display="none";
 }
-function showKnownHUD(p, conf) {
-  document.getElementById("hconf").textContent = conf + "%";
-  document.getElementById("hn").textContent = p.name;
-  document.getElementById("hr").textContent = p.role || "";
-  document.getElementById("hc").textContent = p.company || "";
-  document.getElementById("hx2").textContent = p.relation || "";
-  document.getElementById("hw").textContent = new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
-  document.getElementById("hunknown").style.display = "none";
-  document.getElementById("idle").style.display = "none";
-  document.getElementById("hud").style.display = "flex";
+function showKnownHUD(p,conf){
+  document.getElementById("hudUnknown").style.display="none";
+  document.getElementById("hudConf").textContent=conf+"%";
+  document.getElementById("hudName").textContent=p.name;
+  document.getElementById("hudRole").textContent=p.role||"";
+  document.getElementById("hudCo").textContent=p.company||"";
+  document.getElementById("hudRel").textContent=p.relation||"";
+  document.getElementById("hudTime").textContent=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
 }
-function showUnknownHUD() {
-  document.getElementById("hn").textContent = "";
-  document.getElementById("hr").textContent = "";
-  document.getElementById("hc").textContent = "";
-  document.getElementById("hx2").textContent = "";
-  document.getElementById("hconf").textContent = "";
-  document.getElementById("hw").textContent = "";
-  document.getElementById("hunknown").style.display = "flex";
-  document.getElementById("idle").style.display = "none";
-  document.getElementById("hud").style.display = "flex";
+function showUnknownHUD(){
+  clearHUD();
+  document.getElementById("hudUnknown").style.display="flex";
 }
 
-// ─── AUTO-CAPTURA DESCONHECIDO ────────────────────────────
-async function autoCaptureUnknown() {
-  if (unknownCooldown) return;
-  unknownCooldown = true;
-  setTimeout(function(){ unknownCooldown = false; }, 15000); // cooldown 15s
-
-  var v = document.getElementById("vid"), c = document.getElementById("cnv");
-  c.width = v.videoWidth || 640; c.height = v.videoHeight || 480;
-  c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
-  var dataUrl = c.toDataURL("image/jpeg", .75);
-
-  // Flash sutil
+// ─── AUTO CAPTURA ─────────────────────────────────────────
+async function autoCapture(){
+  if(unknownCooldown) return;
+  unknownCooldown=true; setTimeout(function(){unknownCooldown=false;},15000);
+  var v=document.getElementById("vid"),c=document.getElementById("cnv");
+  c.width=v.videoWidth||640; c.height=v.videoHeight||480;
+  c.getContext("2d").drawImage(v,0,0,c.width,c.height);
   document.getElementById("flash").classList.add("on");
-  setTimeout(function(){ document.getElementById("flash").classList.remove("on"); }, 120);
-
-  // Salva no banco como status "Pendente" sem nome
-  if (isOnline) {
-    try {
-      var payload = {
-        name: "Desconhecido_" + Date.now(),
-        status: "Pendente",
-        last_seen_date: new Date().toISOString(),
-        last_seen_context: "Detectado automaticamente via emulador",
-        photo_url: "",
-        tags: ["pendente"]
-      };
-      // Tenta fazer upload da foto
-      try {
-        var fd = new FormData();
-        var blob = dataURLtoBlob(dataUrl);
-        fd.append("file", blob, "face_" + Date.now() + ".jpg");
-        var upRes = await fetch("https://base44.app/api/apps/" + APP_ID + "/files/upload", {method:"POST",body:fd});
-        if (upRes.ok) {
-          var upData = await upRes.json();
-          payload.photo_url = upData.url || upData.file_url || "";
-        }
-      } catch(eu) {}
-      await fetch(API, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(payload)});
-      lg("? Desconhecido salvo para identificação", false);
-    } catch(e) { lg("Falha ao salvar desconhecido: " + e.message, false); }
+  setTimeout(function(){document.getElementById("flash").classList.remove("on");},120);
+  if(isOnline){
+    try{
+      var payload={name:"Desconhecido_"+Date.now(),status:"Pendente",
+        last_seen_date:new Date().toISOString(),last_seen_context:"Detectado via emulador",
+        photo_url:"",tags:["pendente"]};
+      fetch(API,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+    }catch(e){}
   }
-}
-
-function dataURLtoBlob(dataURL) {
-  var arr = dataURL.split(','), mime = arr[0].match(/:(.*?);/)[1];
-  var bstr = atob(arr[1]), n = bstr.length, u8 = new Uint8Array(n);
-  while(n--){ u8[n] = bstr.charCodeAt(n); }
-  return new Blob([u8], {type:mime});
+  lg("? Capturado para identificação",false);
 }
 
 // ─── CÂMERA ───────────────────────────────────────────────
-function startCam() {
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    cs("getUserMedia indisponível.\nNecessário HTTPS.", false); return;
+function startCam(){
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    lg("ERRO: getUserMedia indisponível — precisa HTTPS",false); return;
   }
-  cs("Aguardando permissão...", false);
-  navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}}, audio:false})
+  lg("Solicitando câmera...",false);
+  navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"}},audio:false})
     .then(gotStream)
     .catch(function(e1){
-      navigator.mediaDevices.getUserMedia({video:true, audio:false})
-        .then(function(s){ gotStream(s); })
-        .catch(function(e2){ cs("Erro: " + e2.name, false); lg("ERRO cam: " + e2.name, false); });
+      navigator.mediaDevices.getUserMedia({video:true,audio:false})
+        .then(gotStream)
+        .catch(function(e2){lg("ERRO cam: "+e2.name,false);});
     });
 }
-function gotStream(s) {
-  stream = s;
-  var vid = document.getElementById("vid");
-  vid.srcObject = s;
-  vid.onloadedmetadata = function() {
-    if (aiReady) startDetectLoop();
+function gotStream(s){
+  stream=s;
+  var vid=document.getElementById("vid");
+  vid.srcObject=s;
+  vid.onloadedmetadata=function(){
+    if(aiReady) startDetect();
   };
-  cs("● CÂMERA ATIVA — IA escaneando", true);
-  lg("Câmera ativa. Reconhecimento iniciado.", true);
+  document.getElementById("idleScreen").style.display="none";
+  document.getElementById("visor").classList.add("active");
+  document.getElementById("recDot").classList.add("on");
   document.getElementById("bcam").classList.add("on");
-  document.querySelector("#bcam .bicon").textContent = "⏸";
+  document.querySelector("#bcam .bicon").textContent="⏸";
   document.getElementById("bsnap").classList.remove("dim");
   document.getElementById("bstop").classList.remove("dim");
-  document.getElementById("dot").classList.add("on");
-  document.getElementById("idle").style.display = "none";
-  document.getElementById("hud").style.display = "flex";
+  lg("● Câmera ativa — IA escaneando",true);
 }
-function stopCam() {
-  stopDetectLoop();
-  if (stream) { stream.getTracks().forEach(function(t){ t.stop(); }); stream = null; }
-  document.getElementById("vid").srcObject = null;
-  document.getElementById("dot").classList.remove("on");
-  cs("câmera inativa", false);
+function stopCam(){
+  stopDetect();
+  if(stream){stream.getTracks().forEach(function(t){t.stop();});stream=null;}
+  document.getElementById("vid").srcObject=null;
+  document.getElementById("idleScreen").style.display="flex";
+  document.getElementById("visor").classList.remove("active");
+  document.getElementById("recDot").classList.remove("on");
   document.getElementById("bcam").classList.remove("on");
-  document.querySelector("#bcam .bicon").textContent = "⏻";
+  document.querySelector("#bcam .bicon").textContent="⏻";
   document.getElementById("bsnap").classList.add("dim");
   document.getElementById("bstop").classList.add("dim");
-  document.getElementById("idle").style.display = "flex";
-  document.getElementById("hud").style.display = "none";
-  setAI("⬡ IA parada", "");
-  lg("Câmera parada", false);
+  clearHUD();
+  setAI("⬡ IA parada","");
+  lg("Câmera parada",false);
 }
-function doSnap() {
-  var v = document.getElementById("vid"), c = document.getElementById("cnv");
-  if (!stream) return;
-  c.width = v.videoWidth || 640; c.height = v.videoHeight || 480;
-  c.getContext("2d").drawImage(v, 0, 0, c.width, c.height);
+function doSnap(){
+  if(!stream) return;
+  var v=document.getElementById("vid"),c=document.getElementById("cnv");
+  c.width=v.videoWidth||640; c.height=v.videoHeight||480;
+  c.getContext("2d").drawImage(v,0,0,c.width,c.height);
   document.getElementById("flash").classList.add("on");
-  setTimeout(function(){ document.getElementById("flash").classList.remove("on"); }, 120);
-  lg("📸 Frame capturado manualmente", true);
+  setTimeout(function(){document.getElementById("flash").classList.remove("on");},120);
+  lg("📸 Captura manual",true);
 }
 
 // ─── API ──────────────────────────────────────────────────
-async function loadProfiles() {
-  setSyncBadge("loading", "⟳ conectando...");
-  try {
-    var r = await fetch(API + "?_limit=200&_sort=-created_date");
-    if (!r.ok) throw new Error("HTTP " + r.status);
-    var data = await r.json();
-    profiles = Array.isArray(data) ? data : (data.data || data.items || []);
-    isOnline = true;
-    setSyncBadge("ok", "☁ banco conectado");
-    lg("☁ " + profiles.length + " perfis carregados", true);
-  } catch(e) {
-    isOnline = false;
-    setSyncBadge("err", "⚠ offline");
-    lg("Offline: " + e.message, false);
-    try { profiles = JSON.parse(localStorage.getItem("fc_p") || "[]"); } catch(ex){}
+async function loadProfiles(){
+  setSyncBadge("loading","⟳ conectando...");
+  try{
+    var r=await fetch(API+"?_limit=200&_sort=-created_date");
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    var data=await r.json();
+    profiles=Array.isArray(data)?data:(data.data||data.items||[]);
+    isOnline=true; setSyncBadge("ok","☁ banco conectado");
+    lg("☁ "+profiles.length+" perfis",true);
+  }catch(e){
+    isOnline=false; setSyncBadge("err","⚠ offline");
+    try{profiles=JSON.parse(localStorage.getItem("fc_p")||"[]");}catch(ex){}
+    lg("Offline: "+e.message,false);
   }
-  renderSaved();
-  // Depois de carregar perfis, carrega modelos IA
   loadModels();
 }
 
-// ─── RENDER ───────────────────────────────────────────────
-function renderSaved() {
-  var list = document.getElementById("slist");
-  document.getElementById("slbl").textContent = "PERFIS (" + profiles.length + ")";
-  list.innerHTML = "";
-  profiles.slice(0, 12).forEach(function(p) {
-    var c = document.createElement("div"); c.className = "pcard";
-    var isCloud = !p._local;
-    var hasPhoto = p.photo_url && p.photo_url.startsWith("http");
-    var hasEmb = embeddings.some(function(e){ return e.id === p.id; });
-    var thumb = hasPhoto ? p.photo_url : "";
-    c.innerHTML =
-      '<img class="pthumb" src="' + (thumb||"") + '" onerror="this.style.visibility=\'hidden\'"/>' +
-      '<div class="pinfo">' +
-        '<div class="pcn">' + p.name + '</div>' +
-        '<div class="pcs">' + (p.role||"") + (p.company ? " · " + p.company : "") + '</div>' +
-        '<span class="pbadge ' + (isCloud?"cloud":"") + '">' + (isCloud?"☁":"💾") + '</span>' +
-        (hasEmb ? ' <span class="pbadge hasemb">🔵 reconhecível</span>' : (hasPhoto ? ' <span class="pbadge">foto ok</span>' : '')) +
-      '</div>';
-    list.appendChild(c);
-  });
-}
-
 // ─── UTILS ────────────────────────────────────────────────
-function lg(m, hi) {
-  var el = document.getElementById("logbox");
-  var d = document.createElement("div");
-  d.className = "ll" + (hi ? " hi" : "");
-  d.textContent = new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"}) + "  " + m;
-  el.appendChild(d); el.scrollTop = el.scrollHeight;
+function lg(m,hi){
+  var el=document.getElementById("logbox");
+  var d=document.createElement("div"); d.className="ll"+(hi?" hi":"");
+  d.textContent=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"})+"  "+m;
+  el.appendChild(d); el.scrollTop=el.scrollHeight;
 }
-function cs(m, ok) {
-  var e = document.getElementById("cst"); e.textContent = m;
-  e.className = "cst" + (ok ? " ok" : "");
+function setSyncBadge(cls,txt){
+  var b=document.getElementById("syncbadge"); b.className="badge "+cls; b.textContent=txt;
 }
-function setSyncBadge(cls, txt) {
-  var b = document.getElementById("syncbadge"); b.className = cls; b.textContent = txt;
-}
-function setAI(txt, cls) {
-  var b = document.getElementById("aistate"); b.textContent = txt;
-  b.className = cls ? cls : "";
+function setAI(txt,cls){
+  var b=document.getElementById("aibadge"); b.textContent=txt;
+  b.className="badge"+(cls?" "+cls:"");
 }
 
-// ─── WIRE EVENTS ─────────────────────────────────────────
-function wire(id, fn) {
-  var el = document.getElementById(id); if (!el) return;
-  el.addEventListener("click", fn);
-  el.addEventListener("touchend", function(e){ e.preventDefault(); fn(); }, {passive:false});
+// ─── WIRE ─────────────────────────────────────────────────
+function wire(id,fn){
+  var el=document.getElementById(id); if(!el) return;
+  el.addEventListener("click",fn);
+  el.addEventListener("touchend",function(e){e.preventDefault();fn();},{passive:false});
 }
-wire("bcam",  function(){ if (stream) stopCam(); else startCam(); });
-wire("bsnap", function(){ if (stream) doSnap(); });
+wire("bcam",  function(){if(stream)stopCam();else startCam();});
+wire("bsnap", doSnap);
 wire("bstop", stopCam);
-wire("bhelp", function(){ document.getElementById("help").classList.add("show"); });
-wire("helpx", function(){ document.getElementById("help").classList.remove("show"); });
-document.addEventListener("keydown", function(e) {
-  if (e.repeat) return;
-  if (e.key === " ")           { e.preventDefault(); if (stream) stopCam(); else startCam(); }
-  else if (e.key === "ArrowUp"){ e.preventDefault(); if (stream) doSnap(); }
-  else if (e.key === "Escape") { document.getElementById("help").classList.remove("show"); }
+wire("bhelp", function(){document.getElementById("help").classList.add("show");});
+wire("helpx", function(){document.getElementById("help").classList.remove("show");});
+document.addEventListener("keydown",function(e){
+  if(e.repeat) return;
+  if(e.key===" "){e.preventDefault();if(stream)stopCam();else startCam();}
+  else if(e.key==="ArrowUp"){e.preventDefault();doSnap();}
+  else if(e.key==="Escape"){document.getElementById("help").classList.remove("show");}
 });
 
-// ─── INIT ────────────────────────────────────────────────
-lg("v11 · reconhecimento facial real", false);
+// ─── INIT ─────────────────────────────────────────────────
+// canvas oculto para snapshots
+var cnv=document.createElement("canvas"); cnv.id="cnv"; cnv.style.display="none"; document.body.appendChild(cnv);
+lg("v12 · câmera + HUD sobrepostos",false);
 loadProfiles();
 </script>
 </body>
