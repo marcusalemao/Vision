@@ -205,17 +205,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .merge-item:active,.merge-item.sel{background:rgba(0,255,136,.07)}
 .merge-item.sel{border-left:3px solid var(--green)}
 
-/* REC */
-.rec-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;
-  background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);
-  border-radius:10px;margin-bottom:8px}
-.rdot{width:8px;height:8px;border-radius:50%;background:#ef4444;animation:blink .7s infinite}
-@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
-.rec-txt{font-size:12px;color:#ef4444;flex:1}
-.rec-dur{font-size:11px;color:#ef4444;font-variant-numeric:tabular-nums}
-.ai-box{background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.18);
-  border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.65;
-  margin-bottom:8px;white-space:pre-wrap;color:rgba(255,255,255,.8)}
 
 /* TOAST */
 .toast{position:fixed;bottom:92px;left:50%;transform:translateX(-50%);
@@ -435,25 +424,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
         </div>
       </div>
       <div class="field"><label>Data</label><input type="datetime-local" id="encDate"></div>
-      <div class="field">
-        <label>🎙 Gravar conversa</label>
-        <div class="rec-bar" id="recBar" style="display:none">
-          <div class="rdot"></div><span class="rec-txt">Gravando…</span>
-          <span class="rec-dur" id="recDur">0:00</span>
-        </div>
-        <div style="display:flex;gap:8px;margin-bottom:8px">
-          <button class="btn-imp primary" style="flex:1" id="btnRecStart" onclick="startRec()">🎙 Iniciar</button>
-          <button class="btn-imp" style="flex:1;display:none;color:var(--red);border-color:rgba(239,68,68,.3)"
-            id="btnRecStop" onclick="stopRec()">⏹ Parar</button>
-        </div>
-        <div id="encTranscript" style="display:none;background:rgba(255,255,255,.04);border:1px solid var(--border);
-          border-radius:9px;padding:9px;font-size:12px;color:var(--muted);line-height:1.5;
-          min-height:44px;max-height:80px;overflow-y:auto;margin-bottom:8px"></div>
-        <div id="encAIBox" class="ai-box" style="display:none"></div>
-        <button id="btnGenSum" style="display:none;width:100%;padding:9px;background:rgba(0,255,136,.1);
-          border:1px solid rgba(0,255,136,.2);border-radius:9px;color:var(--green);
-          font-size:13px;cursor:pointer;margin-bottom:8px" onclick="genSummary()">✨ Gerar resumo com IA</button>
-      </div>
       <div class="field"><label>Resumo / Notas</label>
         <textarea id="encContext" placeholder="Do que vocês falaram? Decisões, próximos passos…" style="min-height:80px"></textarea>
       </div>
@@ -497,8 +467,7 @@ var _filter = "todos";
 var _editingId = null;
 var _pendMergeId = null, _mergeTargetId = null;
 var _csvParsed = [];
-var _encPersonId = null, _encTranscript = "";
-var _recObj = null, _recTimer = null, _recSecs = 0;
+var _encPersonId = null;
 var _tlIdx = -1;
 
 // ─── UTILS ──────────────────────────────────────────────────
@@ -1042,8 +1011,7 @@ document.addEventListener("keydown",function(e){
 
 // ─── ENCOUNTER MODAL ────────────────────────────────────────
 function openNewEncounter(){
-  _encPersonId=null; _encTranscript=""; _recSecs=0;
-  document.getElementById("encPersonSearch").value="";
+  _encPersonId=null;   document.getElementById("encPersonSearch").value="";
   document.getElementById("encPersonDrop").style.display="none";
   document.getElementById("encPersonId").value="";
   document.getElementById("encLocation").value="";
@@ -1091,60 +1059,8 @@ function selEncPerson(id,name){
   document.getElementById("encPersonDrop").style.display="none";
 }
 
-function startRec(){
-  if(!("webkitSpeechRecognition"in window||"SpeechRecognition"in window)){toast("Gravação não suportada","err");return;}
-  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  _recObj=new SR(); _recObj.lang="pt-BR"; _recObj.continuous=true; _recObj.interimResults=true;
-  _encTranscript=""; _recSecs=0;
-  document.getElementById("recBar").style.display="flex";
-  document.getElementById("btnRecStart").style.display="none";
-  document.getElementById("btnRecStop").style.display="";
-  document.getElementById("encTranscript").style.display="block";
-  document.getElementById("encTranscript").textContent="Ouvindo…";
-  _recTimer=setInterval(function(){
-    _recSecs++;
-    var m=Math.floor(_recSecs/60),s=_recSecs%60;
-    document.getElementById("recDur").textContent=m+":"+(s<10?"0"+s:s);
-  },1000);
-  _recObj.onresult=function(ev){
-    var fin="",int="";
-    for(var i=ev.resultIndex;i<ev.results.length;i++){
-      if(ev.results[i].isFinal) fin+=ev.results[i][0].transcript+" ";
-      else int+=ev.results[i][0].transcript;
-    }
-    _encTranscript+=fin;
-    var el=document.getElementById("encTranscript");
-    el.textContent=_encTranscript+int;
-    el.scrollTop=9999;
-  };
-  _recObj.onerror=function(e){toast("Mic: "+e.error,"err");stopRec();};
-  _recObj.onend=function(){if(_recObj._on){try{_recObj.start();}catch(e){}}};
-  _recObj._on=true; _recObj.start();
-}
 
-function stopRec(){
-  if(_recObj){_recObj._on=false;_recObj.stop();}
-  if(_recTimer){clearInterval(_recTimer);_recTimer=null;}
-  document.getElementById("recBar").style.display="none";
-  document.getElementById("btnRecStart").style.display="";
-  document.getElementById("btnRecStop").style.display="none";
-  if(_encTranscript.trim()){
-    document.getElementById("btnGenSum").style.display="block";
-    toast("Gravação finalizada ✨","ok");
-  }
-}
 
-function genSummary(){
-  var txt=_encTranscript.trim();
-  if(!txt){toast("Sem transcrição","err");return;}
-  var name=document.getElementById("encPersonSearch").value||"a pessoa";
-  var sentences=txt.split(/[.!?]+/).map(function(s){return s.trim();}).filter(function(s){return s.length>15;});
-  var summary="Conversa com "+name+":\n\n"+sentences.slice(0,6).join(". ");
-  document.getElementById("encAIBox").textContent=summary;
-  document.getElementById("encAIBox").style.display="block";
-  document.getElementById("encContext").value=summary;
-  toast("Resumo gerado","ok");
-}
 
 async function saveEncounter(){
   var name=document.getElementById("encPersonSearch").value.trim();
@@ -1158,7 +1074,7 @@ async function saveEncounter(){
     var r=await fetch(PROXY+"?entity=FaceContextEncounter",{
       method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({person_id:_encPersonId||"",person_name:name,date:date,
-        location:loc,context:ctx,speech_captured:_encTranscript||"",capture_mode:ch,notes:""})
+        location:loc,context:ctx,capture_mode:ch,notes:""})
     });
     if(!r.ok) throw new Error("HTTP "+r.status);
     var saved=await r.json();
@@ -1174,7 +1090,6 @@ async function saveEncounter(){
     closeModal("encounterModal");
     renderHistory(); renderContacts();
     toast("✅ Encontro salvo!","ok");
-    _encTranscript="";
   }catch(e){toast("Erro: "+e.message,"err");}
 }
 
