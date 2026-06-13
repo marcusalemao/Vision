@@ -2,384 +2,590 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1"/>
-<title>FaceContext v5</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>FaceContext — Emulador Rokid</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;background:#050f07;color:#00ff88;font-family:monospace;overflow-x:hidden}
-body{display:flex;flex-direction:column;align-items:center;padding:12px 12px 180px;gap:10px}
-h1{font-size:13px;color:#007744;letter-spacing:2px;margin-top:6px}
-.sub{font-size:9px;color:#004422}
+html,body{background:#000;height:100%;overflow:hidden;font-family:monospace;color:#00ff88}
 
-.screen{width:210px;height:280px;background:#000;border-radius:10px;border:1px solid #0a2a18;position:relative;overflow:hidden;flex-shrink:0}
-.idle-msg{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;font-size:9px;color:#003322}
-.hud-panel{position:absolute;inset:0;padding:10px;flex-direction:column;display:none}
-.hud-name{font-size:15px;font-weight:bold;color:#00ff88}
-.hud-role{font-size:10px;color:#00cc6e;margin-top:2px}
-.hud-co{font-size:10px;color:#00aa5a;margin-top:1px}
-.hud-ctx{font-size:9px;color:#008844;margin-top:4px}
-.hud-when{position:absolute;bottom:8px;left:10px;font-size:9px;color:#005533}
-.cap-badge{position:absolute;top:8px;right:8px;font-size:8px;color:#00ff88;display:none}
-.cap-badge.on{display:block;animation:blink .8s infinite}
+/* ══ WAVEGUIDE — 640x480 landscape, câmera como fundo ══ */
+#waveguide{
+  position:relative;
+  width:640px; height:480px;
+  max-width:100vw;
+  max-height:calc(100vw * 0.75);
+  background:#000;
+  overflow:hidden;
+  border:1px solid #0a2a18;
+  border-radius:8px;
+  /* centralizado na tela */
+  margin:0 auto;
+  flex-shrink:0;
+}
+
+/* Câmera é o fundo do waveguide */
+#vid{
+  position:absolute;
+  inset:0;
+  width:100%; height:100%;
+  object-fit:cover;
+  display:block;
+}
+
+/* Canvas de detecção facial sobre o vídeo */
+#cnv{
+  position:absolute;
+  inset:0;
+  width:100%; height:100%;
+  pointer-events:none;
+}
+
+/* ── HUD overlay — tudo em cima da câmera ── */
+#hud{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  display:none;
+}
+
+/* Card de perfil — canto superior esquerdo */
+#hud-card{
+  position:absolute;
+  top:14px; left:14px;
+  background:rgba(0,0,0,0.55);
+  border:1px solid rgba(0,255,136,0.35);
+  border-radius:8px;
+  padding:10px 14px;
+  min-width:200px;
+  max-width:260px;
+  backdrop-filter:blur(2px);
+}
+#hud-name{font-size:18px;font-weight:bold;color:#00ff88;line-height:1.2}
+#hud-role{font-size:11px;color:#00cc6e;margin-top:2px}
+#hud-co{font-size:11px;color:#00aa5a;margin-top:1px}
+#hud-rel{font-size:10px;color:#008844;margin-top:4px;font-style:italic}
+#hud-when{font-size:9px;color:#005533;margin-top:6px}
+
+/* Badge de match — canto superior direito */
+#hud-match{
+  position:absolute;
+  top:14px; right:14px;
+  font-size:10px;
+  color:#00ff88;
+  background:rgba(0,0,0,0.5);
+  border:1px solid rgba(0,255,136,0.2);
+  border-radius:6px;
+  padding:4px 8px;
+}
+
+/* Status do sistema — canto inferior esquerdo */
+#hud-status{
+  position:absolute;
+  bottom:12px; left:14px;
+  font-size:9px;
+  color:#004422;
+  line-height:1.6;
+}
+
+/* Badge CAP piscando — canto inferior direito */
+#hud-cap{
+  position:absolute;
+  bottom:12px; right:14px;
+  font-size:9px;
+  color:#00ff88;
+  display:none;
+}
+#hud-cap.on{display:block;animation:blink .8s infinite}
+
+/* Idle state */
+#hud-idle{
+  position:absolute;
+  inset:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  font-size:11px;
+  color:#002a14;
+  pointer-events:none;
+}
+
+/* Face rect */
+.frect{
+  position:absolute;
+  border:1.5px solid #00ff88;
+  border-radius:2px;
+  box-shadow:0 0 6px rgba(0,255,136,.4);
+  pointer-events:none;
+}
+
+/* Flash de captura */
+#flash{
+  position:absolute;
+  inset:0;
+  background:#00ff88;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .05s;
+}
+#flash.on{opacity:.35}
+
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
 
-.cam-box{width:100%;max-width:360px;position:relative;background:#000;border-radius:10px;overflow:hidden;aspect-ratio:4/3;border:1px solid #0a2a18}
-video{width:100%;height:100%;object-fit:cover;display:block}
-.cam-status{position:absolute;bottom:6px;left:8px;font-size:9px;color:#664400;white-space:pre-line;line-height:1.4}
-.cam-status.ok{color:#00ff88}
-.face-rect{position:absolute;border:1.5px solid #00ff88;border-radius:3px;display:none}
-.cam-flash{position:absolute;inset:0;background:#00ff88;opacity:0;pointer-events:none;transition:opacity .06s}
-.cam-flash.on{opacity:.4}
-.mic-bars{position:absolute;bottom:5px;right:8px;display:flex;gap:2px;align-items:flex-end}
-.mic-bars span{width:3px;background:#00ff88;border-radius:1px;opacity:.2}
+/* ══ LAYOUT GERAL ══ */
+body{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-start;
+  padding:8px 8px 170px;
+  gap:8px;
+  overflow-y:auto;
+  overflow-x:hidden;
+}
 
-.pform{width:100%;max-width:360px;background:#060f09;border:1px solid #0a2a18;border-radius:10px;padding:12px;display:none}
-.pform.on{display:block}
-.ftit{font-size:9px;color:#007744;letter-spacing:1px;margin-bottom:8px}
-.prow{display:flex;gap:6px;margin-bottom:6px}
-.snap-thumb{width:52px;height:52px;border-radius:6px;object-fit:cover;background:#000;border:1px solid #0a2a18;flex-shrink:0}
-.col{flex:1;display:flex;flex-direction:column;gap:5px}
-input.fi{background:#0a1a0f;border:1px solid #0a2a18;border-radius:6px;color:#00cc6e;font-size:11px;font-family:monospace;padding:6px 8px;outline:none;width:100%}
-input.fi:focus{border-color:#00ff88}
-input.fi::placeholder{color:#002a14}
-.ptags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
-.ptag{font-size:9px;color:#006633;background:rgba(0,255,136,.04);border:1px solid #0a2a18;border-radius:10px;padding:2px 8px;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.ptag.on{color:#00ff88;background:rgba(0,255,136,.12);border-color:#00aa55}
-.save-btn{width:100%;padding:10px;background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.25);border-radius:8px;color:#00ff88;font-size:12px;font-family:monospace;cursor:pointer;-webkit-tap-highlight-color:transparent}
+#top-bar{
+  width:100%;
+  max-width:640px;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  font-size:9px;
+  color:#004422;
+  letter-spacing:1px;
+}
+#sync-badge{font-size:9px;padding:2px 8px;border:1px solid #0a2a18;border-radius:10px}
+#sync-badge.ok{color:#00ff88;border-color:#00aa55}
+#sync-badge.err{color:#ff4400;border-color:#3a1000}
 
-.log-box{width:100%;max-width:360px}
-.log-lbl{font-size:9px;color:#004422;letter-spacing:1px;margin-bottom:3px}
-.log-scroll{background:#060f09;border:1px solid #0a2a18;border-radius:8px;height:68px;overflow-y:auto;padding:6px 8px;font-size:9px}
+/* Log */
+#log-box{
+  width:100%; max-width:640px;
+  background:#060f09;
+  border:1px solid #0a2a18;
+  border-radius:8px;
+  height:60px;
+  overflow-y:auto;
+  padding:5px 8px;
+  font-size:9px;
+}
 .log-line{color:#004422;line-height:1.7}
 .log-line.hi{color:#00ff88}
 
-.saved-box{width:100%;max-width:360px}
-.saved-lbl{font-size:9px;color:#004422;letter-spacing:1px;margin-bottom:4px}
-.pcard{background:#060f09;border:1px solid #0a2a18;border-radius:8px;padding:8px 10px;margin-bottom:5px}
-.pc-name{font-size:11px;color:#00cc6e;font-weight:bold}
-.pc-sub{font-size:9px;color:#004422;margin-top:2px}
+/* Perfis salvos */
+#saved-box{width:100%;max-width:640px}
+.slbl{font-size:9px;color:#004422;letter-spacing:1px;margin-bottom:4px}
+.pcard{background:#060f09;border:1px solid #0a2a18;border-radius:8px;padding:8px 10px;margin-bottom:5px;display:flex;gap:8px;align-items:center}
+.pcard img{width:36px;height:36px;border-radius:50%;object-fit:cover;background:#000;border:1px solid #0a2a18;flex-shrink:0}
+.pc-info .pc-name{font-size:11px;color:#00cc6e;font-weight:bold}
+.pc-info .pc-sub{font-size:9px;color:#004422;margin-top:1px}
 
-/* BOTTOM BAR — fora do scroll, posição fixa */
+/* ══ BOTTOM BAR ══ */
 #bottom-bar{
   position:fixed;
   bottom:0;left:0;right:0;
-  background:#0a1a0f;
+  background:#080f0a;
   border-top:1px solid #1a4a2a;
-  padding:10px 12px 20px;
+  padding:10px 12px 22px;
   display:flex;
-  flex-direction:column;
   gap:8px;
-  z-index:100;
+  z-index:200;
 }
-.bar-row{display:flex;gap:8px}
 .bar-btn{
   flex:1;
-  padding:14px 4px;
+  padding:13px 4px;
   background:#0f2018;
   border:1px solid #1a4a2a;
   border-radius:10px;
   color:#00aa55;
-  font-size:13px;
+  font-size:12px;
   font-family:monospace;
   text-align:center;
   cursor:pointer;
-  /* sem tap highlight, sem delay */
   -webkit-tap-highlight-color:transparent;
   touch-action:manipulation;
   user-select:none;
+  line-height:1.3;
 }
-.bar-btn:active{background:#0a3020;border-color:#00ff88;color:#00ff88}
-.bar-btn.on{background:#0a2a18;border-color:#00ff88;color:#00ff88}
-.bar-btn.red{border-color:#3a1000;color:#883300}
+.bar-btn:active,.bar-btn.on{background:#0a3020;border-color:#00ff88;color:#00ff88}
 .bar-btn:disabled{opacity:.3;pointer-events:none}
+.bar-btn .blbl{font-size:9px;display:block;margin-top:2px;color:#004422}
 
-/* HELP OVERLAY */
-#help-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:500;align-items:center;justify-content:center;padding:20px}
+/* ══ HELP OVERLAY ══ */
+#help-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:500;align-items:center;justify-content:center;padding:20px}
 #help-ov.on{display:flex}
 #help-card{background:#0a1a0f;border:1.5px solid #1a4a2a;border-radius:16px;padding:20px 16px;width:100%;max-width:300px;max-height:80vh;overflow-y:auto;position:relative}
-#help-x{position:absolute;top:10px;right:10px;width:30px;height:30px;background:#111;border:1px solid #1a3a22;border-radius:50%;color:#00aa55;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+#help-x{position:absolute;top:10px;right:10px;width:30px;height:30px;background:#111;border:1px solid #1a3a22;border-radius:50%;color:#00aa55;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation}
 .h-tit{font-size:11px;color:#00ff88;letter-spacing:2px;margin-bottom:14px}
-.h-sec{font-size:8px;color:#004422;letter-spacing:2px;margin:10px 0 6px}
+.h-sec{font-size:8px;color:#004422;letter-spacing:2px;margin:10px 0 6px;text-transform:uppercase}
 .h-row{display:flex;gap:10px;margin-bottom:7px;align-items:flex-start}
-.h-key{min-width:56px;padding:3px 5px;background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.15);border-radius:5px;font-size:9px;color:#00ff88;text-align:center;flex-shrink:0}
+.h-key{min-width:70px;padding:3px 5px;background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.15);border-radius:5px;font-size:9px;color:#00ff88;text-align:center;flex-shrink:0}
 .h-desc{font-size:9px;color:#007744;line-height:1.5}
 .h-note{font-size:8px;color:#004422;line-height:1.6;margin-top:10px;border-top:1px solid #0a2a18;padding-top:8px}
 </style>
 </head>
 <body>
 
-<h1>FACECONTEXT</h1>
-<p class="sub">Rokid AI · v5</p>
-
-<div class="screen">
-  <div class="idle-msg" id="idle-msg">
-    <span style="font-size:20px;color:#003322">◉</span>
-    <span>FaceContext pronto</span>
-  </div>
-  <div class="hud-panel" id="hud-panel">
-    <div class="hud-name" id="hud-name"></div>
-    <div class="hud-role" id="hud-role"></div>
-    <div class="hud-co" id="hud-co"></div>
-    <div class="hud-ctx" id="hud-ctx"></div>
-    <div class="hud-when" id="hud-when"></div>
-  </div>
-  <div class="cap-badge" id="cap-badge">● CAP</div>
+<div id="top-bar">
+  <span>⬡ FACECONTEXT · EMULADOR ROKID</span>
+  <span id="sync-badge">● desconectado</span>
 </div>
 
-<div class="cam-box">
+<!-- ══ WAVEGUIDE 640×480 — câmera + HUD overlay ══ -->
+<div id="waveguide">
+  <!-- Câmera como fundo -->
   <video id="vid" autoplay playsinline muted></video>
-  <canvas id="cnv" style="display:none"></canvas>
-  <div class="face-rect" id="frect"></div>
-  <div class="cam-status" id="cst">câmera inativa</div>
-  <div class="mic-bars">
-    <span id="b1" style="height:4px"></span><span id="b2" style="height:7px"></span>
-    <span id="b3" style="height:10px"></span><span id="b4" style="height:5px"></span>
-    <span id="b5" style="height:3px"></span>
-  </div>
-  <div class="cam-flash" id="cfl"></div>
-</div>
+  <!-- Canvas para bounding boxes -->
+  <canvas id="cnv"></canvas>
+  <!-- Flash de captura -->
+  <div id="flash"></div>
 
-<div class="pform" id="pform">
-  <div class="ftit">NOVO PERFIL</div>
-  <div class="prow">
-    <img class="snap-thumb" id="sthumb" src="" alt=""/>
-    <div class="col">
-      <input class="fi" id="fn" placeholder="Nome completo" type="text" autocomplete="off"/>
-      <input class="fi" id="fr" placeholder="Cargo / função" type="text" autocomplete="off"/>
+  <!-- Idle state (sem câmera) -->
+  <div id="hud-idle">
+    <span style="font-size:32px;color:#002a14">◉</span>
+    <span>Pressione Câmera para iniciar</span>
+    <span style="font-size:9px;color:#001a0c">640 × 480 · Landscape · Rokid Waveguide</span>
+  </div>
+
+  <!-- HUD overlay (sobre a câmera) -->
+  <div id="hud">
+    <!-- Card de perfil -->
+    <div id="hud-card" style="display:none">
+      <div id="hud-name"></div>
+      <div id="hud-role"></div>
+      <div id="hud-co"></div>
+      <div id="hud-rel"></div>
+      <div id="hud-when"></div>
     </div>
+    <!-- Match score -->
+    <div id="hud-match" style="display:none"></div>
+    <!-- Status -->
+    <div id="hud-status">⬡ pronto</div>
+    <!-- CAP badge -->
+    <div id="hud-cap">● CAP</div>
   </div>
-  <div class="prow"><input class="fi" id="fc" placeholder="Empresa" type="text" style="width:100%" autocomplete="off"/></div>
-  <div class="prow"><input class="fi" id="fx" placeholder="Como se conheceram?" type="text" style="width:100%" autocomplete="off"/></div>
-  <div class="ptags">
-    <span class="ptag">amigo</span><span class="ptag">trabalho</span><span class="ptag">tech</span>
-    <span class="ptag">design</span><span class="ptag">família</span><span class="ptag">academia</span><span class="ptag">evento</span>
-  </div>
-  <button class="save-btn" id="save-btn">✓ Salvar perfil</button>
 </div>
 
-<div class="log-box">
-  <div class="log-lbl">LOG</div>
-  <div class="log-scroll" id="log-el"></div>
-</div>
-<div class="saved-box">
-  <div class="saved-lbl" id="slbl">PERFIS SALVOS (0)</div>
+<!-- Log -->
+<div id="log-box"><div id="log-el"></div></div>
+
+<!-- Perfis -->
+<div id="saved-box">
+  <div class="slbl" id="slbl">PERFIS (0)</div>
   <div id="slist"></div>
 </div>
 
-<!-- BOTTOM BAR -->
+<!-- ══ BOTTOM BAR ══ -->
 <div id="bottom-bar">
-  <div class="bar-row">
-    <button class="bar-btn" id="btn-cam">⏻ Câmera</button>
-    <button class="bar-btn" id="btn-snap" disabled>⊙ Capturar</button>
-    <button class="bar-btn red" id="btn-stop" disabled>■ Parar</button>
-    <button class="bar-btn" id="btn-help">? Ajuda</button>
-  </div>
+  <button class="bar-btn" id="btn-cam">⏻<span class="blbl">Câmera</span></button>
+  <button class="bar-btn" id="btn-cap" disabled>⊙<span class="blbl">Capturar</span></button>
+  <button class="bar-btn" id="btn-dismiss" disabled>✕<span class="blbl">Dispensar</span></button>
+  <button class="bar-btn" id="btn-help">?<span class="blbl">Ajuda</span></button>
 </div>
 
-<!-- HELP -->
+<!-- ══ HELP ══ -->
 <div id="help-ov">
   <div id="help-card">
     <button id="help-x">✕</button>
     <div class="h-tit">REFERÊNCIA</div>
-    <div class="h-sec">BOTÕES</div>
-    <div class="h-row"><span class="h-key">⏻ Câmera</span><span class="h-desc">Liga e desliga a câmera</span></div>
-    <div class="h-row"><span class="h-key">⊙ Capturar</span><span class="h-desc">Tira foto e abre formulário de perfil</span></div>
-    <div class="h-row"><span class="h-key">■ Parar</span><span class="h-desc">Para a câmera</span></div>
-    <div class="h-sec">TECLADO (desktop)</div>
-    <div class="h-row"><span class="h-key">Espaço</span><span class="h-desc">Liga/desliga câmera</span></div>
-    <div class="h-row"><span class="h-key">↑</span><span class="h-desc">Capturar frame</span></div>
-    <div class="h-row"><span class="h-key">↓</span><span class="h-desc">Fechar formulário</span></div>
-    <div class="h-row"><span class="h-key">Esc</span><span class="h-desc">Dispensar HUD</span></div>
-    <div class="h-note">Câmera: se não aparecer popup de permissão, vá em Configurações do site (ícone de cadeado na barra de endereço) → Câmera → Permitir.</div>
+    <div class="h-sec">Emulador (este app)</div>
+    <div class="h-row"><span class="h-key">⏻ Câmera</span><span class="h-desc">Liga câmera como fundo do waveguide</span></div>
+    <div class="h-row"><span class="h-key">⊙ Capturar</span><span class="h-desc">Captura rosto → exibe HUD overlay</span></div>
+    <div class="h-row"><span class="h-key">✕ Dispensar</span><span class="h-desc">Fecha HUD (mantém câmera)</span></div>
+    <div class="h-sec">Teclado (desktop)</div>
+    <div class="h-row"><span class="h-key">Espaço / P</span><span class="h-desc">Liga/desliga câmera</span></div>
+    <div class="h-row"><span class="h-key">↑ / Enter</span><span class="h-desc">Capturar frame</span></div>
+    <div class="h-row"><span class="h-key">Esc / ↓</span><span class="h-desc">Dispensar HUD</span></div>
+    <div class="h-sec">Mapeamento Rokid</div>
+    <div class="h-row"><span class="h-key">Power (26)</span><span class="h-desc">= Capturar</span></div>
+    <div class="h-row"><span class="h-key">Back (4)</span><span class="h-desc">= Dispensar HUD</span></div>
+    <div class="h-row"><span class="h-key">Vol+ / Vol-</span><span class="h-desc">= Navegar perfis</span></div>
+    <div class="h-note">Display real: 640×480 landscape. Preto puro (#000) = transparente no waveguide — as infos flutuam sobre o mundo real.</div>
   </div>
 </div>
 
 <script>
-var camStream=null, snapUrl=null, micRaf=null, faceTimer=null;
-var profiles=[];
-try{profiles=JSON.parse(localStorage.getItem('fcp')||'[]');}catch(e){}
+var camStream = null;
+var _profiles = [];
+var _currentProfile = null;
+var PROXY = 'https://base44.app/api/apps/6a11083db49430b410a8c066/functions/fcProxy';
 
-// LOG
-function lg(m,hi){
-  var el=document.getElementById('log-el');
-  var d=document.createElement('div');
-  d.className='log-line'+(hi?' hi':'');
-  d.textContent=new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'})+'  '+m;
-  el.appendChild(d);el.scrollTop=el.scrollHeight;
+// ── Log ──
+function log(msg, hi) {
+  var el = document.getElementById('log-el');
+  var d = new Date();
+  var t = d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')+':'+d.getSeconds().toString().padStart(2,'0');
+  var line = document.createElement('div');
+  line.className = 'log-line' + (hi ? ' hi' : '');
+  line.textContent = t + ' ' + msg;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
 }
-function cst(m,ok){var e=document.getElementById('cst');e.textContent=m;e.className='cam-status'+(ok?' ok':'');}
 
-// CAMERA
-function startCam(){
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
-    cst('getUserMedia não suportado',false);lg('ERRO: sem suporte',false);return;
-  }
-  cst('Aguardando permissão...',false);lg('Solicitando câmera...',false);
-  navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:true})
-  .then(onOk)
-  .catch(function(e1){
-    lg('Traseira falhou: '+e1.name,false);
-    navigator.mediaDevices.getUserMedia({video:true,audio:false})
-    .then(function(s){onOk(s);lg('Câmera frontal',false);})
-    .catch(function(e2){
-      var m=e2.name==='NotAllowedError'
-        ?'Permissão negada\nVá no cadeado da barra URL\nPermitir câmera e recarregue'
-        :'Erro: '+e2.name+'\n'+e2.message;
-      cst(m,false);lg('ERRO: '+e2.name,false);
-    });
+// ── Sync com banco ──
+function syncProfiles() {
+  fetch(PROXY, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'list',entity:'FaceContextPerson',limit:200})
+  })
+  .then(function(r){return r.json()})
+  .then(function(data){
+    _profiles = Array.isArray(data) ? data : (data.records || []);
+    var badge = document.getElementById('sync-badge');
+    badge.textContent = '● ' + _profiles.length + ' perfis';
+    badge.className = 'ok';
+    document.getElementById('slbl').textContent = 'PERFIS (' + _profiles.length + ')';
+    renderProfiles();
+    log('✓ ' + _profiles.length + ' perfis sincronizados', true);
+    loadEmbeddings();
+  })
+  .catch(function(e){
+    var badge = document.getElementById('sync-badge');
+    badge.textContent = '● offline';
+    badge.className = 'err';
+    log('⚠ banco offline: ' + e.message);
   });
 }
 
-function onOk(s){
-  camStream=s;
-  document.getElementById('vid').srcObject=s;
-  cst('● CÂMERA ATIVA',true);lg('Câmera ativa',true);
-  document.getElementById('btn-cam').textContent='⏸ Câmera';
-  document.getElementById('btn-cam').classList.add('on');
-  document.getElementById('btn-snap').disabled=false;
-  document.getElementById('btn-stop').disabled=false;
-  document.getElementById('cap-badge').classList.add('on');
-  document.getElementById('idle-msg').style.display='none';
-  document.getElementById('hud-panel').style.display='flex';
-  startMic(s);
-  faceTimer=setTimeout(function(){
-    if(!camStream)return;
-    var r=document.getElementById('frect');
-    r.style.cssText='display:block;left:28%;top:14%;width:44%;height:60%';
-    cst('◈ Rosto detectado',true);lg('◈ Rosto — toque ⊙',true);
-  },1800);
-}
-
-function stopCam(){
-  if(camStream){camStream.getTracks().forEach(function(t){t.stop();});camStream=null;}
-  if(micRaf){cancelAnimationFrame(micRaf);micRaf=null;}
-  if(faceTimer){clearTimeout(faceTimer);faceTimer=null;}
-  document.getElementById('vid').srcObject=null;
-  document.getElementById('frect').style.display='none';
-  document.getElementById('cap-badge').classList.remove('on');
-  cst('câmera inativa',false);
-  document.getElementById('btn-cam').textContent='⏻ Câmera';
-  document.getElementById('btn-cam').classList.remove('on');
-  document.getElementById('btn-snap').disabled=true;
-  document.getElementById('btn-stop').disabled=true;
-  resetMic();
-  document.getElementById('idle-msg').style.display='flex';
-  document.getElementById('hud-panel').style.display='none';
-  lg('Câmera parada',false);
-}
-
-function doSnap(){
-  var v=document.getElementById('vid'),c=document.getElementById('cnv');
-  c.width=v.videoWidth||320;c.height=v.videoHeight||240;
-  c.getContext('2d').drawImage(v,0,0,c.width,c.height);
-  snapUrl=c.toDataURL('image/jpeg',.85);
-  var f=document.getElementById('cfl');f.classList.add('on');setTimeout(function(){f.classList.remove('on');},160);
-  document.getElementById('sthumb').src=snapUrl;
-  ['fn','fr','fc','fx'].forEach(function(id){document.getElementById(id).value='';});
-  document.querySelectorAll('.ptag').forEach(function(t){t.classList.remove('on');});
-  document.getElementById('pform').classList.add('on');
-  setTimeout(function(){document.getElementById('fn').focus();},80);
-  lg('Frame capturado',true);
-}
-
-function saveProfile(){
-  var name=document.getElementById('fn').value.trim();
-  if(!name){
-    document.getElementById('fn').style.borderColor='#ff4400';
-    setTimeout(function(){document.getElementById('fn').style.borderColor='';},800);return;
-  }
-  var tags=[];
-  document.querySelectorAll('.ptag.on').forEach(function(t){tags.push(t.textContent);});
-  var p={id:Date.now(),name:name,role:document.getElementById('fr').value.trim(),
-    company:document.getElementById('fc').value.trim(),context:document.getElementById('fx').value.trim(),
-    tags:tags,date:new Date().toLocaleDateString('pt-BR')};
-  profiles.unshift(p);
-  try{localStorage.setItem('fcp',JSON.stringify(profiles));}catch(e){}
-  document.getElementById('hud-name').textContent=p.name;
-  document.getElementById('hud-role').textContent=p.role;
-  document.getElementById('hud-co').textContent=p.company;
-  document.getElementById('hud-ctx').textContent=p.context;
-  document.getElementById('hud-when').textContent='Agora · '+p.date;
-  document.getElementById('idle-msg').style.display='none';
-  document.getElementById('hud-panel').style.display='flex';
-  document.getElementById('pform').classList.remove('on');
-  renderProfiles();lg('✓ '+p.name,true);
-}
-
-function renderProfiles(){
-  var list=document.getElementById('slist'),lbl=document.getElementById('slbl');
-  lbl.textContent='PERFIS SALVOS ('+profiles.length+')';
-  list.innerHTML='';
-  profiles.forEach(function(p){
-    var c=document.createElement('div');c.className='pcard';
-    c.innerHTML='<div class="pc-name">'+p.name+'</div><div class="pc-sub">'+(p.role||'')+(p.company?' · '+p.company:'')+'</div>';
-    list.appendChild(c);
+function renderProfiles() {
+  var box = document.getElementById('slist');
+  box.innerHTML = '';
+  _profiles.slice(0,5).forEach(function(p){
+    var d = document.createElement('div');
+    d.className = 'pcard';
+    var img = p.photo_url ? '<img src="'+p.photo_url+'" onerror="this.style.display=\'none\'">' : '<img style="display:none">';
+    d.innerHTML = img + '<div class="pc-info"><div class="pc-name">'+(p.name||'?')+'</div><div class="pc-sub">'+(p.role||'')+(p.company?' · '+p.company:'')+'</div></div>';
+    box.appendChild(d);
   });
+  if (_profiles.length > 5) {
+    var more = document.createElement('div');
+    more.style.cssText = 'font-size:9px;color:#004422;padding:4px 10px';
+    more.textContent = '+ ' + (_profiles.length - 5) + ' mais no banco';
+    box.appendChild(more);
+  }
 }
 
-function startMic(s){
-  var at=s.getAudioTracks()[0];if(!at)return;
-  try{
-    var ac=new(window.AudioContext||window.webkitAudioContext)();
-    var src=ac.createMediaStreamSource(s);var an=ac.createAnalyser();an.fftSize=64;src.connect(an);
-    var buf=new Uint8Array(an.frequencyBinCount);
-    function tick(){
-      an.getByteFrequencyData(buf);
-      ['b1','b2','b3','b4','b5'].forEach(function(id,i){
-        var el=document.getElementById(id);
-        el.style.height=Math.max(3,Math.round((buf[i]/255)*22))+'px';
-        el.style.opacity=buf[i]>8?'0.75':'0.15';
-      });
-      micRaf=requestAnimationFrame(tick);
+// ── Face recognition (face-api.js) ──
+var _faceApiLoaded = false;
+var _descriptors = [];
+var _detectTimer = null;
+
+function loadEmbeddings() {
+  if (!_faceApiLoaded) return;
+  _descriptors = [];
+  _profiles.forEach(function(p) {
+    if (p.face_embedding) {
+      try {
+        var arr = JSON.parse(p.face_embedding);
+        _descriptors.push({ profile: p, descriptor: new Float32Array(arr) });
+      } catch(e) {}
     }
-    tick();
-  }catch(e){lg('Mic err: '+e.message,false);}
+  });
+  var rec = _descriptors.filter(function(d){return d.descriptor.length>0});
+  log('✓ ' + rec.length + ' rostos reconhecíveis');
 }
-function resetMic(){
-  ['b1','b2','b3','b4','b5'].forEach(function(id){
-    var el=document.getElementById(id);if(el){el.style.height='3px';el.style.opacity='0.2';}
+
+function startFaceDetection() {
+  if (!_faceApiLoaded || !camStream) return;
+  clearInterval(_detectTimer);
+  _detectTimer = setInterval(detectFaces, 1200);
+}
+
+function stopFaceDetection() {
+  clearInterval(_detectTimer);
+  _detectTimer = null;
+}
+
+function detectFaces() {
+  var vid = document.getElementById('vid');
+  var cnv = document.getElementById('cnv');
+  if (!vid || vid.readyState < 2) return;
+  cnv.width = vid.videoWidth || 640;
+  cnv.height = vid.videoHeight || 480;
+  faceapi.detectAllFaces(vid, new faceapi.TinyFaceDetectorOptions({scoreThreshold:0.4}))
+    .withFaceLandmarks()
+    .withFaceDescriptors()
+    .then(function(results) {
+      var ctx = cnv.getContext('2d');
+      ctx.clearRect(0, 0, cnv.width, cnv.height);
+      if (!results || results.length === 0) return;
+      results.forEach(function(r) {
+        var box = r.detection.box;
+        // Bounding box verde
+        ctx.strokeStyle = '#00ff88';
+        ctx.lineWidth = 1.5;
+        ctx.shadowColor = '#00ff88';
+        ctx.shadowBlur = 4;
+        ctx.strokeRect(box.x, box.y, box.width, box.height);
+        ctx.shadowBlur = 0;
+        // Tenta reconhecer
+        if (_descriptors.length > 0 && r.descriptor) {
+          var best = null, bestDist = 0.55;
+          _descriptors.forEach(function(d) {
+            var dist = faceapi.euclideanDistance(r.descriptor, d.descriptor);
+            if (dist < bestDist) { bestDist = dist; best = d.profile; }
+          });
+          if (best) {
+            showProfile(best, Math.round((1 - bestDist) * 100));
+            // Label no box
+            ctx.fillStyle = 'rgba(0,0,0,0.6)';
+            ctx.fillRect(box.x, box.y - 16, Math.min(box.width, 160), 16);
+            ctx.fillStyle = '#00ff88';
+            ctx.font = '10px monospace';
+            ctx.fillText(best.name || '?', box.x + 3, box.y - 4);
+          }
+        }
+      });
+    })
+    .catch(function(){});
+}
+
+// ── HUD ──
+function showProfile(p, score) {
+  _currentProfile = p;
+  document.getElementById('hud-idle').style.display = 'none';
+  document.getElementById('hud').style.display = 'block';
+  document.getElementById('hud-card').style.display = 'block';
+  document.getElementById('hud-name').textContent = p.name || '—';
+  document.getElementById('hud-role').textContent = p.role || '';
+  document.getElementById('hud-co').textContent = p.company || '';
+  document.getElementById('hud-rel').textContent = p.relation_context || p.relation || '';
+  var when = p.last_seen_date ? 'Último encontro: ' + new Date(p.last_seen_date).toLocaleDateString('pt-BR') : '';
+  document.getElementById('hud-when').textContent = when;
+  if (score) {
+    var m = document.getElementById('hud-match');
+    m.style.display = 'block';
+    m.textContent = '⬡ ' + score + '% match';
+  }
+  document.getElementById('btn-dismiss').disabled = false;
+  document.getElementById('hud-status').textContent = '⬡ identificado';
+  log('✓ HUD: ' + p.name + (score ? ' (' + score + '%)' : ''), true);
+}
+
+function dismissHUD() {
+  document.getElementById('hud').style.display = 'none';
+  document.getElementById('hud-card').style.display = 'none';
+  document.getElementById('hud-match').style.display = 'none';
+  document.getElementById('hud-idle').style.display = camStream ? 'none' : 'flex';
+  document.getElementById('hud-status').textContent = '⬡ pronto';
+  document.getElementById('btn-dismiss').disabled = true;
+  _currentProfile = null;
+  log('HUD dispensado');
+}
+
+// ── Câmera ──
+function toggleCam() {
+  if (camStream) stopCam(); else startCam();
+}
+
+function startCam() {
+  var btn = document.getElementById('btn-cam');
+  btn.textContent = '⏳'; btn.disabled = true;
+  log('Solicitando câmera...');
+  navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:640},height:{ideal:480}},audio:false})
+  .then(function(stream) {
+    camStream = stream;
+    var vid = document.getElementById('vid');
+    vid.srcObject = stream;
+    vid.onloadedmetadata = function(){ vid.play(); };
+    document.getElementById('hud-idle').style.display = 'none';
+    document.getElementById('hud-status').textContent = '⬡ câmera ativa';
+    btn.innerHTML = '■<span class="blbl">Parar</span>';
+    btn.className = 'bar-btn on';
+    btn.disabled = false;
+    document.getElementById('btn-cap').disabled = false;
+    log('✓ câmera ativa', true);
+    startFaceDetection();
+  })
+  .catch(function(e) {
+    log('✗ câmera: ' + e.message);
+    btn.innerHTML = '⏻<span class="blbl">Câmera</span>';
+    btn.disabled = false;
   });
 }
 
-// ── BIND BUTTONS — usando pointer events que funcionam em todos os browsers mobile ──
-function bindBtn(id, fn){
-  var el=document.getElementById(id);
-  el.addEventListener('pointerup', function(e){
-    e.preventDefault();
-    fn();
-  });
+function stopCam() {
+  if (camStream) { camStream.getTracks().forEach(function(t){t.stop()}); camStream = null; }
+  var vid = document.getElementById('vid');
+  vid.srcObject = null;
+  stopFaceDetection();
+  var ctx = document.getElementById('cnv').getContext('2d');
+  ctx.clearRect(0,0,640,480);
+  document.getElementById('hud-idle').style.display = 'flex';
+  document.getElementById('hud').style.display = 'none';
+  document.getElementById('btn-cam').innerHTML = '⏻<span class="blbl">Câmera</span>';
+  document.getElementById('btn-cam').className = 'bar-btn';
+  document.getElementById('btn-cap').disabled = true;
+  document.getElementById('btn-dismiss').disabled = true;
+  log('câmera parada');
 }
 
-bindBtn('btn-cam', function(){ if(camStream){stopCam();}else{startCam();} });
-bindBtn('btn-snap', function(){ if(camStream) doSnap(); });
-bindBtn('btn-stop', stopCam);
-bindBtn('btn-help', function(){
-  document.getElementById('help-ov').classList.add('on');
-});
-bindBtn('help-x', function(){
-  document.getElementById('help-ov').classList.remove('on');
-});
-document.getElementById('help-ov').addEventListener('pointerup', function(e){
-  if(e.target===this) this.classList.remove('on');
-});
-document.getElementById('save-btn').addEventListener('pointerup', function(e){
-  e.preventDefault(); saveProfile();
-});
-document.querySelectorAll('.ptag').forEach(function(t){
-  t.addEventListener('pointerup', function(e){e.preventDefault();t.classList.toggle('on');});
+// ── Capturar rosto ──
+function capture() {
+  if (!camStream) return;
+  var vid = document.getElementById('vid');
+  var cnv = document.getElementById('cnv');
+  cnv.width = vid.videoWidth || 640; cnv.height = vid.videoHeight || 480;
+  cnv.getContext('2d').drawImage(vid, 0, 0);
+  // Flash
+  var fl = document.getElementById('flash');
+  fl.classList.add('on');
+  setTimeout(function(){ fl.classList.remove('on'); }, 100);
+  var cap = document.getElementById('hud-cap');
+  cap.classList.add('on');
+  setTimeout(function(){ cap.classList.remove('on'); }, 800);
+  log('⊙ frame capturado');
+  // Se face-api carregou, detecta agora
+  if (_faceApiLoaded) detectFaces();
+}
+
+// ── Keyboard (desktop) ──
+document.addEventListener('keydown', function(e) {
+  if (e.key === ' ' || e.key === 'p') { e.preventDefault(); toggleCam(); }
+  if (e.key === 'ArrowUp' || e.key === 'Enter') { e.preventDefault(); capture(); }
+  if (e.key === 'Escape' || e.key === 'ArrowDown') dismissHUD();
 });
 
-// keyboard
-document.addEventListener('keydown',function(e){
-  if(e.repeat)return;
-  if(e.key===' '){e.preventDefault();if(camStream)stopCam();else startCam();}
-  else if(e.key==='Escape'){document.getElementById('hud-panel').style.display='none';document.getElementById('idle-msg').style.display='flex';}
-  else if(e.key==='ArrowUp'){e.preventDefault();if(camStream)doSnap();}
-  else if(e.key==='ArrowDown'){e.preventDefault();document.getElementById('pform').classList.remove('on');}
-});
+// ── Buttons (touch) ──
+function bindBtn(id, fn) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  var touched = false;
+  el.addEventListener('touchstart', function(e){ e.preventDefault(); touched=true; el.style.opacity='0.7'; }, {passive:false});
+  el.addEventListener('touchend', function(e){ e.preventDefault(); el.style.opacity=''; if(touched){touched=false;fn();} }, {passive:false});
+  el.addEventListener('touchcancel', function(){ touched=false; el.style.opacity=''; });
+  el.addEventListener('click', function(){ if(!touched) fn(); });
+}
 
-renderProfiles();
-lg('FaceContext v5 pronto',false);
+bindBtn('btn-cam', toggleCam);
+bindBtn('btn-cap', capture);
+bindBtn('btn-dismiss', dismissHUD);
+bindBtn('btn-help', function(){ document.getElementById('help-ov').classList.add('on'); });
+bindBtn('help-x', function(){ document.getElementById('help-ov').classList.remove('on'); });
+
+// ── Carrega face-api ──
+document.getElementById('hud-status').textContent = '⬡ carregando IA...';
+var script = document.createElement('script');
+script.src = 'https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js';
+script.onload = function() {
+  Promise.all([
+    faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model'),
+    faceapi.nets.faceLandmark68TinyNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model'),
+    faceapi.nets.faceRecognitionNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model')
+  ]).then(function() {
+    _faceApiLoaded = true;
+    document.getElementById('hud-status').textContent = '⬡ pronto';
+    log('✓ IA pronta', true);
+    loadEmbeddings();
+    if (camStream) startFaceDetection();
+  }).catch(function(e){ log('⚠ IA: ' + e.message); document.getElementById('hud-status').textContent = '⬡ pronto'; });
+};
+document.head.appendChild(script);
+
+// ── Init ──
+syncProfiles();
 </script>
 </body>
 </html>
