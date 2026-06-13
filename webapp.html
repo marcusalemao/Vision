@@ -2,1797 +2,1308 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
-<title>FaceContext — Gestão</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>FaceContext Manager</title>
 <style>
-*{box-sizing:border-box;margin:0;padding:0}
-:root{--green:#00ff88;--bg:#0a0e1a;--card:#111827;--border:rgba(255,255,255,0.08);--text:rgba(255,255,255,0.85);--muted:rgba(255,255,255,0.4)}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overscroll-behavior:none}
+:root{
+  --bg:#0a0e1a;--card:#111827;--border:rgba(255,255,255,.08);
+  --green:#00ff88;--muted:rgba(255,255,255,.38);--text:#f0f4ff;
+  --red:#ef4444;--amber:#f59e0b;--blue:#3b82f6;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;overflow:hidden}
 
-/* NAV */
-.nav{display:flex;background:#0d1220;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:50}
-.nav-btn{flex:1;padding:12px 4px 10px;background:none;border:none;color:var(--muted);font-size:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;-webkit-tap-highlight-color:transparent;border-bottom:2px solid transparent;transition:.15s}
-.nav-btn .icon{font-size:20px}
-.nav-btn.active{color:var(--green);border-bottom-color:var(--green)}
-
-/* PAGES */
-.page{display:none;min-height:calc(100vh - 50px)}
+/* LAYOUT */
+#app{display:flex;flex-direction:column;height:100vh;max-width:480px;margin:0 auto;position:relative}
+.page{flex:1;overflow-y:auto;display:none;padding-bottom:76px}
 .page.active{display:block}
 
 /* TOPBAR */
-.topbar{padding:14px 16px 10px;display:flex;align-items:center;gap:10px}
-.topbar h2{font-size:18px;font-weight:700;flex:1}
-.badge{background:rgba(0,255,136,0.1);color:var(--green);border:1px solid rgba(0,255,136,0.25);border-radius:20px;padding:2px 10px;font-size:12px}
-.btn-icon{width:40px;height:40px;border-radius:50%;background:var(--green);color:#0a0e1a;border:none;font-size:20px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;-webkit-tap-highlight-color:transparent}
+.topbar{position:sticky;top:0;z-index:40;background:var(--bg);
+  border-bottom:1px solid var(--border);padding:14px 16px 10px;
+  display:flex;align-items:center;gap:8px}
+.topbar h1{font-size:18px;font-weight:700;flex:1}
 
-/* SEARCH + TABS */
-.search-bar{padding:0 16px 10px;position:relative}
-.search-bar input{width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:12px;padding:10px 14px 10px 40px;color:var(--text);font-size:15px;outline:none}
-.search-bar input:focus{border-color:var(--green)}
-.search-bar .si{position:absolute;left:28px;top:50%;transform:translateY(-50%);opacity:.4;pointer-events:none}
-.tabs{display:flex;gap:6px;padding:0 16px 12px;overflow-x:auto;scrollbar-width:none}
-.tabs::-webkit-scrollbar{display:none}
-.tab{flex-shrink:0;padding:5px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--muted);font-size:12px;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.tab.active{background:var(--green);color:#0a0e1a;border-color:var(--green);font-weight:600}
+/* SEARCH */
+.search-wrap{padding:10px 14px 4px;position:relative}
+.search-wrap .si{position:absolute;left:26px;top:50%;transform:translateY(-50%);
+  font-size:15px;pointer-events:none;margin-top:5px}
+.search-input{width:100%;padding:10px 14px 10px 38px;background:rgba(255,255,255,.06);
+  border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:14px;outline:none}
+.search-input:focus{border-color:rgba(0,255,136,.35)}
 
-/* CONTACT LIST */
-.clist{padding:0 16px 80px}
-.ccard{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:13px;margin-bottom:9px;display:flex;gap:12px;align-items:center;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.ccard:active{background:rgba(255,255,255,0.06)}
-.av{width:46px;height:46px;border-radius:50%;background:rgba(0,255,136,0.12);border:2px solid rgba(0,255,136,0.25);flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:16px;font-weight:700;color:var(--green);overflow:hidden;background-size:cover;background-position:center}
-.av img{width:100%;height:100%;object-fit:cover}
-.ci{flex:1;min-width:0}
-.cn{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.cs{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ctags{display:flex;gap:4px;flex-wrap:wrap;margin-top:4px}
-.tag{background:rgba(0,255,136,0.08);border:1px solid rgba(0,255,136,0.2);color:var(--green);padding:1px 7px;border-radius:10px;font-size:10px}
-.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.dot.Identificado{background:#00ff88}.dot.Pendente{background:#f59e0b}.dot.Arquivado{background:#64748b}
+/* FILTER TABS */
+.ftabs{display:flex;gap:6px;padding:8px 14px 4px;overflow-x:auto;scrollbar-width:none}
+.ftabs::-webkit-scrollbar{display:none}
+.ftab{flex-shrink:0;padding:5px 13px;border-radius:20px;border:1px solid var(--border);
+  background:transparent;color:var(--muted);font-size:12px;cursor:pointer}
+.ftab.active{background:var(--green);color:#0a0e1a;border-color:var(--green);font-weight:600}
 
-/* PENDING / MERGE */
-.section-title{font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.7px;padding:16px 16px 8px}
-.pending-card{background:var(--card);border:1px solid rgba(245,158,11,0.3);border-radius:14px;margin:0 16px 12px;padding:14px;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.pending-card:active{background:rgba(255,255,255,0.05)}
-.pending-row{display:flex;align-items:center;gap:10px}
-.pending-info{flex:1}
-.pending-label{font-size:13px;font-weight:600;color:#f59e0b}
-.pending-sub{font-size:11px;color:var(--muted);margin-top:2px}
-.btn-merge{background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.4);color:#f59e0b;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent}
+/* CONTACT CARD */
+.clist{padding:8px 14px 0}
+.ccard{background:var(--card);border:1px solid var(--border);border-radius:14px;
+  padding:13px;margin-bottom:8px;display:flex;gap:12px;align-items:center;cursor:pointer}
+.ccard:active{opacity:.75}
+.av{width:48px;height:48px;border-radius:12px;background:rgba(0,255,136,.1);
+  border:1px solid rgba(0,255,136,.2);display:flex;align-items:center;justify-content:center;
+  font-size:16px;font-weight:700;color:var(--green);flex-shrink:0;overflow:hidden}
+.av img{width:100%;height:100%;object-fit:cover;border-radius:11px}
+.av.pend{background:rgba(245,158,11,.1);border-color:rgba(245,158,11,.3);color:var(--amber)}
+.cinfo{flex:1;min-width:0}
+.cname{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cmeta{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ctags{display:flex;gap:4px;margin-top:5px;flex-wrap:wrap}
+.ctag{font-size:9px;padding:2px 7px;border-radius:8px;background:rgba(0,255,136,.08);
+  color:rgba(0,255,136,.7);border:1px solid rgba(0,255,136,.15)}
+.cbadge{font-size:9px;padding:2px 7px;border-radius:8px;font-weight:700;
+  background:rgba(245,158,11,.15);color:var(--amber);border:1px solid rgba(245,158,11,.25)}
+.cchev{color:var(--muted);font-size:20px;flex-shrink:0}
 
-/* ENCOUNTERS */
-.enc-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin:0 16px 10px}
-.enc-header{display:flex;align-items:center;gap:8px;margin-bottom:6px}
-.enc-avatar{width:32px;height:32px;border-radius:50%;background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.2);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--green);flex-shrink:0}
-.enc-name{font-size:14px;font-weight:600}
-.enc-date{font-size:11px;color:var(--muted)}
-.enc-text{font-size:13px;color:rgba(255,255,255,0.6);line-height:1.5}
-.enc-loc{font-size:11px;color:var(--muted);margin-top:4px}
-.enc-mode{font-size:10px;background:rgba(0,255,136,0.08);color:var(--green);border-radius:10px;padding:1px 7px;margin-left:auto}
+/* FAB */
+.fab{position:fixed;bottom:82px;right:20px;width:52px;height:52px;border-radius:50%;
+  background:var(--green);border:none;color:#0a0e1a;font-size:28px;font-weight:700;
+  cursor:pointer;box-shadow:0 4px 20px rgba(0,255,136,.4);z-index:30;
+  display:flex;align-items:center;justify-content:center}
+.fab:active{transform:scale(.9)}
 
-/* MODAL */
-.overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;display:flex;align-items:flex-end;justify-content:center;opacity:0;pointer-events:none;transition:opacity .2s}
-.overlay.open{opacity:1;pointer-events:all}
-.modal{background:#141824;border-radius:20px 20px 0 0;width:100%;max-width:600px;max-height:92vh;overflow-y:auto;padding-bottom:40px;transform:translateY(100%);transition:transform .3s ease}
-.overlay.open .modal{transform:translateY(0)}
-.mhandle{width:36px;height:4px;background:rgba(255,255,255,0.15);border-radius:2px;margin:12px auto 0}
-.mhead{display:flex;align-items:center;justify-content:space-between;padding:14px 20px 10px}
-.mtitle{font-size:17px;font-weight:700}
-.mbody{padding:0 20px}
-.btn-x{background:rgba(255,255,255,0.08);border:none;color:var(--text);width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent}
+/* BOTTOM NAV */
+.bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;
+  background:var(--bg);border-top:1px solid var(--border);display:flex;z-index:50;
+  padding-bottom:env(safe-area-inset-bottom)}
+.bnav-btn{flex:1;padding:10px 4px 8px;background:none;border:none;color:var(--muted);
+  font-size:9px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:2px;
+  border-top:2px solid transparent;position:relative}
+.bnav-btn .ic{font-size:22px;line-height:1}
+.bnav-btn.active{color:var(--green);border-top-color:var(--green)}
+.bnav-badge{position:absolute;top:5px;right:calc(50% - 20px);background:var(--red);
+  color:#fff;font-size:8px;font-weight:700;min-width:16px;height:16px;border-radius:8px;
+  display:flex;align-items:center;justify-content:center;padding:0 3px}
+
+/* OVERLAY / MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:100;
+  display:none;align-items:flex-end;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:var(--card);border-radius:20px 20px 0 0;width:100%;max-width:480px;
+  max-height:92vh;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom)}
+.mhandle{width:36px;height:4px;background:rgba(255,255,255,.15);border-radius:2px;margin:10px auto 4px}
+.mhead{display:flex;align-items:center;padding:8px 16px 12px;border-bottom:1px solid var(--border)}
+.mtitle{font-size:16px;font-weight:700;flex:1}
+.btn-x{background:rgba(255,255,255,.08);border:none;color:var(--muted);width:30px;height:30px;
+  border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.mbody{padding:14px 16px 20px}
 
 /* FORM */
 .field{margin-bottom:14px}
-.field label{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
-.field input,.field textarea,.field select{width:100%;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;padding:10px 13px;color:var(--text);font-size:15px;outline:none;font-family:inherit}
-.field input:focus,.field textarea:focus,.field select:focus{border-color:var(--green)}
-.field textarea{resize:none;min-height:68px}
-.field select option{background:#141824}
-.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-
-.photo-pick{display:flex;align-items:center;gap:14px;margin-bottom:14px}
-.photo-circle{width:60px;height:60px;border-radius:50%;background:rgba(0,255,136,0.08);border:2px dashed rgba(0,255,136,0.35);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;cursor:pointer;overflow:hidden}
-.photo-circle img{width:100%;height:100%;object-fit:cover}
-#photoInput{display:none}
-
-.tags-box{display:flex;flex-wrap:wrap;gap:5px;background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;padding:7px 10px;min-height:42px;cursor:text}
-.tags-box:focus-within{border-color:var(--green)}
-.tag-chip{background:rgba(0,255,136,0.12);border:1px solid rgba(0,255,136,0.3);color:var(--green);padding:2px 8px;border-radius:10px;font-size:13px;display:flex;align-items:center;gap:4px}
-.tag-chip button{background:none;border:none;color:var(--green);cursor:pointer;padding:0;font-size:14px;line-height:1}
-.tag-inp{background:none;border:none;outline:none;color:var(--text);font-size:14px;min-width:80px;flex:1}
-
-.btn-save{width:100%;padding:13px;background:var(--green);color:#0a0e1a;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;margin-top:6px;-webkit-tap-highlight-color:transparent}
-.btn-save:disabled{opacity:.5}
+.field label{font-size:11px;color:var(--muted);display:block;margin-bottom:5px;
+  text-transform:uppercase;letter-spacing:.5px}
+.field input,.field textarea,.field select{width:100%;padding:10px 12px;
+  background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:10px;
+  color:var(--text);font-size:14px;outline:none}
+.field input:focus,.field textarea:focus{border-color:rgba(0,255,136,.4)}
+.field textarea{min-height:72px;resize:vertical;font-family:inherit}
+.field select option{background:#1a2035}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.btn-save{width:100%;padding:13px;background:var(--green);color:#0a0e1a;border:none;
+  border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;margin-top:4px}
+.btn-save:active{opacity:.85}
+.btn-danger{width:100%;padding:11px;background:rgba(239,68,68,.1);color:var(--red);
+  border:1px solid rgba(239,68,68,.25);border-radius:12px;font-size:14px;cursor:pointer;margin-top:8px}
 
 /* DETAIL */
-.det-top{text-align:center;padding:4px 0 16px}
-.det-av{width:76px;height:76px;border-radius:50%;background:rgba(0,255,136,0.1);border:3px solid rgba(0,255,136,0.3);display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:700;color:var(--green);margin:0 auto 10px;overflow:hidden}
-.det-av img{width:100%;height:100%;object-fit:cover}
-.det-name{font-size:20px;font-weight:700}
-.det-sub{font-size:13px;color:var(--muted);margin-top:3px}
-.det-actions{display:flex;gap:8px;padding:0 20px 14px}
-.btn-act{flex:1;padding:9px;border-radius:10px;border:1px solid var(--border);background:rgba(255,255,255,0.04);color:var(--text);font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.btn-act:active{background:rgba(255,255,255,0.08)}
-.btn-act.danger{border-color:rgba(255,80,80,0.3);color:#ff6b6b}
-.det-section{padding:0 20px;margin-bottom:14px}
-.det-section h3{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;border-top:1px solid var(--border);padding-top:12px}
-.det-row{display:flex;gap:10px;margin-bottom:8px;align-items:flex-start}
-.det-icon{font-size:15px;width:22px;flex-shrink:0;margin-top:1px}
-.det-val{font-size:14px;color:var(--text);word-break:break-word;line-height:1.5}
-.det-val a{color:var(--green);text-decoration:none}
-.sbadge{display:inline-block;padding:3px 12px;border-radius:20px;font-size:12px;font-weight:600}
-.sbadge.Identificado{background:rgba(0,255,136,0.12);color:var(--green);border:1px solid rgba(0,255,136,0.25)}
-.sbadge.Pendente{background:rgba(245,158,11,0.12);color:#f59e0b;border:1px solid rgba(245,158,11,0.25)}
-.sbadge.Arquivado{background:rgba(100,116,139,0.12);color:#94a3b8;border:1px solid rgba(100,116,139,0.25)}
+.det-photo{width:76px;height:76px;border-radius:18px;background:rgba(0,255,136,.1);
+  border:2px solid rgba(0,255,136,.2);display:flex;align-items:center;justify-content:center;
+  font-size:26px;margin:0 auto 10px;overflow:hidden}
+.det-photo img{width:100%;height:100%;object-fit:cover;border-radius:16px}
+.det-name{font-size:20px;font-weight:700;text-align:center;margin-bottom:4px}
+.det-role{font-size:13px;color:var(--muted);text-align:center;margin-bottom:14px}
+.det-actions{display:flex;gap:8px;margin-bottom:16px}
+.det-btn{flex:1;padding:10px 6px;border-radius:10px;border:1px solid var(--border);
+  background:rgba(255,255,255,.04);color:var(--text);font-size:12px;cursor:pointer;text-align:center}
+.det-btn.primary{background:rgba(0,255,136,.1);border-color:rgba(0,255,136,.25);color:var(--green)}
+.det-sec{margin-bottom:14px}
+.det-sec-title{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;
+  margin-bottom:6px;padding-bottom:4px;border-bottom:1px solid var(--border)}
+.det-row{display:flex;justify-content:space-between;padding:7px 0;
+  border-bottom:1px solid rgba(255,255,255,.04);font-size:13px;gap:8px}
+.det-row span:first-child{color:var(--muted);flex-shrink:0}
+.det-row span:last-child{text-align:right;word-break:break-word}
 
-/* MERGE MODAL */
-.merge-candidate{background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px;display:flex;align-items:center;gap:12px;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.merge-candidate:active,.merge-candidate.selected{background:rgba(0,255,136,0.08);border-color:var(--green)}
-.merge-or{text-align:center;padding:8px 0;color:var(--muted);font-size:13px}
-.btn-new-contact{width:100%;padding:11px;border-radius:12px;border:1px solid var(--border);background:rgba(255,255,255,0.04);color:var(--text);font-size:14px;cursor:pointer;margin-bottom:8px;-webkit-tap-highlight-color:transparent}
-.btn-new-contact:active{background:rgba(255,255,255,0.08)}
+/* PENDING */
+.pcard{background:var(--card);border:1px solid rgba(245,158,11,.2);
+  border-radius:14px;margin-bottom:10px;overflow:hidden}
+.pcard-top{display:flex;gap:12px;padding:13px;align-items:center;cursor:pointer}
+.pcard-top:active{opacity:.8}
+.pcard-photo{width:56px;height:56px;border-radius:12px;background:rgba(245,158,11,.1);
+  border:2px solid rgba(245,158,11,.3);display:flex;align-items:center;
+  justify-content:center;font-size:22px;flex-shrink:0;overflow:hidden}
+.pcard-photo img{width:100%;height:100%;object-fit:cover;border-radius:10px}
+.pcard-info{flex:1;min-width:0}
+.pcard-name{font-size:14px;font-weight:600}
+.pcard-meta{font-size:11px;color:var(--muted);margin-top:2px}
+.pcard-date{font-size:10px;color:var(--amber);margin-top:4px}
+.pcard-rename{padding:0 13px;max-height:0;overflow:hidden;transition:max-height .3s,padding .3s}
+.pcard-rename.open{max-height:130px;padding:4px 13px 12px}
+.pcard-rename input{width:100%;padding:9px 12px;background:rgba(255,255,255,.06);
+  border:1px solid var(--border);border-radius:9px;color:#fff;font-size:14px;
+  margin-bottom:8px;box-sizing:border-box}
+.pcard-rename input:focus{border-color:rgba(0,255,136,.4);outline:none}
+.pcard-actions{display:flex;border-top:1px solid var(--border)}
+.pa-btn{flex:1;padding:11px 4px;background:none;border:none;font-size:12px;
+  cursor:pointer;text-align:center;color:var(--muted)}
+.pa-btn+.pa-btn{border-left:1px solid var(--border)}
+.pa-btn.green{color:var(--green)}
+.pa-btn.red{color:var(--red)}
+.pa-btn:active{background:rgba(255,255,255,.04)}
 
-/* CONVERSATION MODAL */
-.conv-section{background:rgba(255,255,255,0.04);border-radius:12px;padding:12px;margin-bottom:12px}
-.conv-section h4{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
-.mic-btn{width:100%;padding:14px;border-radius:12px;border:1px solid rgba(0,255,136,0.3);background:rgba(0,255,136,0.06);color:var(--green);font-size:15px;cursor:pointer;-webkit-tap-highlight-color:transparent;margin-bottom:10px}
-.mic-btn.recording{background:rgba(255,80,80,0.1);border-color:rgba(255,80,80,0.4);color:#ff6b6b;animation:pulse 1s infinite}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
-.transcript-box{background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:10px;padding:10px;min-height:60px;font-size:14px;color:var(--text);line-height:1.5;white-space:pre-wrap;margin-bottom:8px}
-.summary-box{background:rgba(0,255,136,0.05);border:1px solid rgba(0,255,136,0.2);border-radius:10px;padding:10px;font-size:14px;color:rgba(255,255,255,0.8);line-height:1.5}
-
-/* EMPTY / LOADER */
-.empty{text-align:center;padding:50px 20px;color:var(--muted)}
-.empty .ei{font-size:44px;margin-bottom:10px}
-.loader{text-align:center;padding:40px}
-.spin{width:30px;height:30px;border:3px solid rgba(0,255,136,0.15);border-top-color:var(--green);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 10px}
-@keyframes spin{to{transform:rotate(360deg)}}
-
-/* TOAST */
-.toast{position:fixed;bottom:70px;left:50%;transform:translateX(-50%) translateY(60px);background:#1e293b;color:var(--text);border:1px solid var(--border);border-radius:12px;padding:10px 20px;font-size:14px;z-index:999;transition:transform .3s;white-space:nowrap;pointer-events:none}
-.toast.show{transform:translateX(-50%) translateY(0)}
-.toast.ok{border-color:rgba(0,255,136,0.4);color:var(--green)}
-.toast.err{border-color:rgba(255,80,80,0.4);color:#ff6b6b}
-
-/* STATUS BAR */
-.sbar{padding:5px 16px;font-size:11px;display:flex;align-items:center;gap:5px;border-bottom:1px solid var(--border)}
-.sbar.online{color:var(--green);background:rgba(0,255,136,0.05);border-color:rgba(0,255,136,0.15)}
-.sbar.offline{color:#f59e0b;background:rgba(245,158,11,0.05);border-color:rgba(245,158,11,0.15)}
-.sdot{width:5px;height:5px;border-radius:50%;background:currentColor}
-
-/* CONFIRM */
-.cbox{margin:20px;background:var(--card);border-radius:14px;padding:22px;text-align:center}
-.cbox h3{margin-bottom:6px}.cbox p{color:var(--muted);font-size:13px;margin-bottom:18px}
-.cbtns{display:flex;gap:8px}
-.cbtns button{flex:1;padding:12px;border-radius:10px;border:none;font-size:14px;font-weight:600;cursor:pointer}
-.btn-no{background:rgba(255,255,255,0.08);color:var(--text)}
-.btn-yes{background:#ff4444;color:#fff}
-
-/* OCR / CAMERA capture */
-.ocr-area{position:relative;background:#000;border-radius:12px;overflow:hidden;margin-bottom:10px;min-height:180px;display:flex;align-items:center;justify-content:center}
-.ocr-area video{width:100%;border-radius:12px}
-.ocr-area canvas{display:none}
-.ocr-result{background:rgba(255,255,255,0.05);border:1px solid var(--border);border-radius:10px;padding:10px;font-size:14px;min-height:50px;color:var(--text);margin-bottom:8px}
-.btn-capture{width:100%;padding:12px;border-radius:10px;background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.3);color:var(--green);font-size:14px;font-weight:600;cursor:pointer;margin-bottom:6px;-webkit-tap-highlight-color:transparent}
-.apply-row{display:flex;gap:6px;flex-wrap:wrap}
-.btn-apply{padding:7px 12px;border-radius:8px;border:1px solid var(--border);background:rgba(255,255,255,0.04);color:var(--text);font-size:13px;cursor:pointer;-webkit-tap-highlight-color:transparent}
-.btn-apply:active{background:rgba(255,255,255,0.08)}
-
-/* ── TIMELINE ── */
-.tl-day{margin-bottom:20px}
-.tl-day-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:1px;
-  padding:4px 14px;margin-bottom:8px;position:sticky;top:56px;z-index:5;
-  background:var(--bg);border-bottom:1px solid var(--border);}
-.tl-item{display:flex;gap:10px;padding:8px 14px;border-bottom:1px solid var(--border);cursor:pointer;
-  -webkit-tap-highlight-color:transparent;}
-.tl-item:active{background:rgba(255,255,255,.03)}
-.tl-dot{width:8px;height:8px;border-radius:50%;background:var(--green);margin-top:5px;flex-shrink:0;
-  box-shadow:0 0 6px rgba(0,255,136,.4);}
-.tl-dot.pend{background:#f59e0b;box-shadow:0 0 6px rgba(245,158,11,.4);}
-.tl-body{flex:1;min-width:0}
-.tl-who{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tl-where{font-size:11px;color:var(--muted);margin:1px 0}
-.tl-summary{font-size:12px;color:rgba(255,255,255,.55);line-height:1.45;margin-top:3px;
-  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.tl-time{font-size:10px;color:var(--muted);flex-shrink:0;margin-top:4px}
-.tl-empty{text-align:center;padding:40px 20px;color:var(--muted);font-size:13px}
-/* modal encontro */
-.enc-modal .field textarea{min-height:80px}
-/* gravação */
-.rec-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:rgba(239,68,68,.08);
-  border:1px solid rgba(239,68,68,.2);border-radius:10px;margin-bottom:8px}
-.rec-dot-anim{width:8px;height:8px;border-radius:50%;background:#ef4444;animation:blink2 .7s infinite}
-@keyframes blink2{0%,100%{opacity:1}50%{opacity:0}}
-.rec-txt{font-size:12px;color:#ef4444;flex:1}
-.rec-dur{font-size:11px;color:#ef4444}
-.ai-sum{background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.15);border-radius:10px;
-  padding:10px 12px;font-size:13px;color:rgba(255,255,255,.8);line-height:1.6;margin-bottom:8px;
-  white-space:pre-wrap}
-
-
-/* ── TIMELINE DE ENCONTROS ── */
-.tl-day{margin-bottom:0}
-.tl-day-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;
-  letter-spacing:1px;padding:8px 14px 4px;background:var(--bg);
-  border-bottom:1px solid var(--border);position:sticky;top:56px;z-index:4}
-.tl-item{display:flex;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);
-  cursor:pointer;-webkit-tap-highlight-color:transparent;align-items:flex-start}
-.tl-item:active{background:rgba(255,255,255,.03)}
+/* TIMELINE */
+.tl-day-hdr{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;
+  letter-spacing:1px;padding:10px 14px 4px;background:var(--bg);
+  position:sticky;top:0;z-index:4;border-bottom:1px solid var(--border)}
+.tl-item{display:flex;gap:10px;padding:11px 14px;border-bottom:1px solid var(--border);
+  cursor:pointer;align-items:flex-start}
+.tl-item:active,.tl-item.focused{background:rgba(0,255,136,.05)}
+.tl-item.focused .tl-who{color:var(--green)}
 .tl-dot{width:8px;height:8px;border-radius:50%;background:var(--green);margin-top:5px;
-  flex-shrink:0;box-shadow:0 0 6px rgba(0,255,136,.5)}
-.tl-dot.pend{background:#f59e0b;box-shadow:0 0 6px rgba(245,158,11,.4)}
+  flex-shrink:0;box-shadow:0 0 6px rgba(0,255,136,.4)}
+.tl-dot.wpp{background:#25d366;box-shadow:0 0 5px rgba(37,211,102,.4)}
+.tl-dot.li{background:#0a66c2;box-shadow:0 0 5px rgba(10,102,194,.4)}
+.tl-dot.gm{background:#ea4335;box-shadow:0 0 5px rgba(234,67,53,.3)}
 .tl-body{flex:1;min-width:0}
 .tl-who{font-size:14px;font-weight:600}
 .tl-where{font-size:11px;color:var(--muted);margin:2px 0}
-.tl-sum{font-size:12px;color:rgba(255,255,255,.5);line-height:1.45;margin-top:3px;
+.tl-sum{font-size:12px;color:rgba(255,255,255,.45);line-height:1.45;margin-top:3px;
   display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.tl-time{font-size:10px;color:var(--muted);flex-shrink:0}
-.tl-empty{text-align:center;padding:48px 20px;color:var(--muted);font-size:13px;line-height:1.8}
-/* gravação */
+.tl-time{font-size:10px;color:var(--muted);flex-shrink:0;margin-top:2px}
+.tl-ch{font-size:9px;padding:1px 6px;border-radius:6px;background:rgba(255,255,255,.06);
+  color:var(--muted);margin-top:3px;display:inline-block}
+
+/* IMPORT */
+.import-sec{padding:14px}
+.import-card{background:var(--card);border:1px solid var(--border);border-radius:14px;
+  padding:16px;margin-bottom:12px}
+.import-card h3{font-size:14px;font-weight:600;margin-bottom:6px}
+.import-card p{font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6}
+.btn-imp{width:100%;padding:11px;border-radius:10px;border:1px solid var(--border);
+  background:rgba(255,255,255,.04);color:var(--text);font-size:14px;cursor:pointer;font-weight:500}
+.btn-imp.primary{background:rgba(0,255,136,.1);border-color:rgba(0,255,136,.25);
+  color:var(--green);font-weight:600}
+.btn-imp:active{opacity:.8}
+.import-preview{background:rgba(0,255,136,.05);border:1px solid rgba(0,255,136,.15);
+  border-radius:10px;padding:12px;margin:10px 0;font-size:13px;line-height:1.9}
+.prog-bar{height:4px;background:rgba(255,255,255,.08);border-radius:2px;
+  margin:10px 0;overflow:hidden}
+.prog-fill{height:100%;background:var(--green);border-radius:2px;transition:width .3s}
+
+/* MERGE LIST */
+.merge-pick{max-height:220px;overflow-y:auto;border:1px solid var(--border);
+  border-radius:10px;margin-top:6px}
+.merge-item{display:flex;gap:10px;padding:10px 12px;align-items:center;cursor:pointer;
+  border-bottom:1px solid var(--border)}
+.merge-item:last-child{border-bottom:none}
+.merge-item:active,.merge-item.sel{background:rgba(0,255,136,.07)}
+.merge-item.sel{border-left:3px solid var(--green)}
+
+/* REC */
 .rec-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;
   background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);
   border-radius:10px;margin-bottom:8px}
-.rdot{width:8px;height:8px;border-radius:50%;background:#ef4444;animation:blink2 .7s infinite}
-@keyframes blink2{0%,100%{opacity:1}50%{opacity:0}}
+.rdot{width:8px;height:8px;border-radius:50%;background:#ef4444;animation:blink .7s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 .rec-txt{font-size:12px;color:#ef4444;flex:1}
 .rec-dur{font-size:11px;color:#ef4444;font-variant-numeric:tabular-nums}
-.ai-sum-box{background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.18);
-  border-radius:10px;padding:10px 12px;font-size:13px;color:rgba(255,255,255,.8);
-  line-height:1.65;margin-bottom:8px;white-space:pre-wrap}
+.ai-box{background:rgba(0,255,136,.06);border:1px solid rgba(0,255,136,.18);
+  border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.65;
+  margin-bottom:8px;white-space:pre-wrap;color:rgba(255,255,255,.8)}
 
+/* TOAST */
+.toast{position:fixed;bottom:92px;left:50%;transform:translateX(-50%);
+  background:#1e2d40;color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;
+  z-index:200;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap;
+  max-width:88vw;text-align:center}
+.toast.show{opacity:1}
+.toast.ok{border-left:3px solid var(--green)}
+.toast.err{border-left:3px solid var(--red)}
 
-/* ── TIMELINE: item focado via teclado ── */
-.tl-item.tl-focused{
-  background:rgba(0,255,136,.07);
-  outline:none;
-}
-.tl-item.tl-focused .tl-dot{
-  box-shadow:0 0 0 3px rgba(0,255,136,.3), 0 0 8px rgba(0,255,136,.6);
-}
-.tl-item.tl-focused .tl-who{color:var(--green)}
-
-
-/* ── TIMELINE: cards de mensagem ── */
-.tl-msg-section{padding:4px 14px 2px;border-bottom:1px solid var(--border)}
-.tl-msg-header{font-size:9px;letter-spacing:2px;color:var(--muted);text-transform:uppercase;
-  margin-bottom:4px;display:flex;align-items:center;gap:6px}
-.tl-msg-item{display:flex;gap:8px;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04);
-  cursor:pointer;align-items:flex-start}
-.tl-msg-item:last-child{border-bottom:none}
-.tl-ch-icon{font-size:13px;flex-shrink:0;margin-top:1px;width:18px;text-align:center}
-.tl-msg-body{flex:1;min-width:0}
-.tl-msg-subj{font-size:12px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.tl-msg-snip{font-size:11px;color:var(--muted);line-height:1.4;
-  display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
-.tl-msg-date{font-size:9px;color:var(--muted);flex-shrink:0;white-space:nowrap}
-.tl-msg-loading{font-size:11px;color:var(--muted);padding:6px 0;font-style:italic}
-.tl-msg-empty{font-size:11px;color:rgba(255,255,255,.2);padding:4px 0}
-/* tag de canal */
-.ch-tag{font-size:8px;padding:1px 6px;border-radius:10px;font-weight:600;letter-spacing:.5px}
-.ch-tag.gmail{background:rgba(234,67,53,.15);color:#ea4335;border:1px solid rgba(234,67,53,.25)}
-.ch-tag.whatsapp{background:rgba(37,211,102,.12);color:#25d366;border:1px solid rgba(37,211,102,.2)}
-.ch-tag.linkedin{background:rgba(10,102,194,.15);color:#0a66c2;border:1px solid rgba(10,102,194,.25)}
-.ch-tag.manual{background:rgba(255,255,255,.06);color:var(--muted);border:1px solid var(--border)}
-/* botão add mensagem manual */
-.btn-add-msg{background:none;border:1px dashed var(--border);border-radius:8px;
-  color:var(--muted);font-size:11px;padding:5px 10px;cursor:pointer;width:100%;
-  margin-top:4px;text-align:left;-webkit-tap-highlight-color:transparent}
-.btn-add-msg:active{background:rgba(255,255,255,.03)}
-
-
-/* ── PENDING CARDS v2 ── */
-.pend-card{background:rgba(255,255,255,.03);border:1px solid var(--border);
-  border-radius:14px;margin:10px 14px;overflow:hidden}
-.pend-card-top{display:flex;gap:12px;padding:12px;align-items:center;cursor:pointer}
-.pend-card-top:active{background:rgba(255,255,255,.03)}
-.pend-photo{width:56px;height:56px;border-radius:12px;object-fit:cover;
-  background:rgba(255,255,255,.07);display:flex;align-items:center;
-  justify-content:center;font-size:20px;flex-shrink:0;border:2px solid rgba(245,158,11,.4)}
-.pend-photo img{width:100%;height:100%;object-fit:cover;border-radius:10px}
-.pend-info{flex:1;min-width:0}
-.pend-name{font-size:15px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pend-meta{font-size:11px;color:var(--muted);margin-top:2px}
-.pend-badge{font-size:9px;padding:2px 7px;border-radius:8px;background:rgba(245,158,11,.15);
-  color:#f59e0b;border:1px solid rgba(245,158,11,.25);font-weight:700;display:inline-block;margin-top:3px}
-.pend-actions{display:flex;gap:0;border-top:1px solid var(--border)}
-.pend-btn{flex:1;padding:10px 6px;background:none;border:none;color:var(--muted);
-  font-size:12px;cursor:pointer;text-align:center;-webkit-tap-highlight-color:transparent}
-.pend-btn:active{background:rgba(255,255,255,.04)}
-.pend-btn+.pend-btn{border-left:1px solid var(--border)}
-.pend-btn.green{color:var(--green)}
-.pend-btn.red{color:#ef4444}
-/* inline rename */
-.pend-rename{padding:10px 12px;border-top:1px solid var(--border);display:none}
-.pend-rename input{width:100%;padding:8px 10px;background:rgba(255,255,255,.06);
-  border:1px solid var(--border);border-radius:9px;color:#fff;font-size:14px;
-  box-sizing:border-box;margin-bottom:8px}
-.pend-rename .row2{display:flex;gap:8px}
-.pend-rename .btn-save{flex:1;padding:8px}
-
+/* EMPTY */
+.empty{text-align:center;padding:52px 20px;color:var(--muted)}
+.empty .ei{font-size:42px;margin-bottom:12px}
+.empty p{font-size:13px;line-height:1.9}
+.sec-title{font-size:11px;color:var(--muted);text-transform:uppercase;
+  letter-spacing:1px;padding:12px 14px 4px}
 </style>
 </head>
 <body>
+<div id="app">
 
-<!-- BOTTOM NAV -->
-<nav class="nav">
-  <button class="nav-btn active" data-page="contacts" onclick="showPage('contacts')">
-    <span class="icon">👥</span>Contatos
-  </button>
-  <button class="nav-btn" data-page="pending" onclick="showPage('pending')">
-    <span class="icon">⚠️</span>Pendentes
-  </button>
-  <button class="nav-btn" data-page="encounters" onclick="showPage('encounters')">
-    <span class="icon">💬</span>Encontros
-  </button>
-  <button class="nav-btn" data-page="merge" onclick="showPage('merge')">
-    <span class="icon">🔀</span>Mesclar
-  </button>
-</nav>
-
-<!-- ═══════════════ PAGE: CONTACTS ═══════════════ -->
+<!-- PAGE: CONTACTS -->
 <div class="page active" id="page-contacts">
   <div class="topbar">
-    <h2>👤 FaceContext</h2>
-    <span class="badge" id="cntBadge">…</span>
-    <button class="btn-icon" onclick="openAdd()">+</button>
+    <h1>👥 Contatos</h1>
+    <span style="font-size:11px;color:var(--muted)" id="contactCount"></span>
   </div>
-  <div id="statusBar" class="sbar offline"><div class="sdot"></div><span id="statusMsg">Conectando…</span></div>
-  <div class="search-bar">
+  <div class="search-wrap">
     <span class="si">🔍</span>
-    <input type="text" id="searchInput" placeholder="Buscar nome, empresa, tag…" oninput="applyFilters()">
+    <input class="search-input" type="search" id="contactSearch" placeholder="Buscar nome, empresa, tag…" oninput="filterContacts()">
   </div>
-  <div class="tabs">
-    <button class="tab active" onclick="setFilter('all',this)">Todos</button>
-    <button class="tab" onclick="setFilter('Identificado',this)">✅ Identificados</button>
-    <button class="tab" onclick="setFilter('Pendente',this)">⏳ Pendentes</button>
-    <button class="tab" onclick="setFilter('Arquivado',this)">📁 Arquivados</button>
-    <button class="tab" onclick="setFilter('Amigo',this)">🤝 Amigos</button>
-    <button class="tab" onclick="setFilter('Familiar',this)">👪 Família</button>
-    <button class="tab" onclick="setFilter('Colega de trabalho',this)">💼 Trabalho</button>
+  <div class="ftabs">
+    <button class="ftab active" onclick="setFilter('todos',this)">Todos</button>
+    <button class="ftab" onclick="setFilter('ativos',this)">Ativos</button>
+    <button class="ftab" onclick="setFilter('pendentes',this)">⚠ Pendentes</button>
+    <button class="ftab" onclick="setFilter('com-foto',this)">📷 Com foto</button>
+    <button class="ftab" onclick="setFilter('sem-foto',this)">Sem foto</button>
   </div>
-  <div class="clist" id="contactList"><div class="loader"><div class="spin"></div>Carregando…</div></div>
+  <div class="clist" id="contactList">
+    <div class="empty"><div class="ei">⏳</div><p>Carregando…</p></div>
+  </div>
 </div>
 
-<!-- ═══════════════ PAGE: PENDING ═══════════════ -->
+<!-- PAGE: PENDING -->
 <div class="page" id="page-pending">
-  <div class="topbar"><h2>⚠️ Rostos Pendentes</h2><span class="badge" id="pendBadge">0</span></div>
-  <div id="pendingList"><div class="empty"><div class="ei">👁</div><p>Nenhum rosto pendente.<br>Capturas não identificadas aparecem aqui.</p></div></div>
-</div>
-
-<!-- ═══════════════ PAGE: ENCOUNTERS ═══════════════ -->
-<div class="page" id="page-encounters">
   <div class="topbar">
-    <h2>💬 Encontros</h2>
-    <span class="badge" id="encBadge">0</span>
-    <button onclick="openAddEncounter(null,null)" style="margin-left:auto;background:var(--green);color:#000;border:none;border-radius:9px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer">+ Novo</button>
+    <h1>⚠️ Rostos</h1>
+    <span style="font-size:11px;color:var(--muted)" id="pendCount"></span>
   </div>
-  <div id="encList"><div class="loader"><div class="spin"></div>Carregando…</div></div>
-</div>
-
-<!-- ═══════════════ PAGE: MERGE ═══════════════ -->
-<div class="page" id="page-merge">
-  <div class="topbar"><h2>🔀 Mesclar Contatos</h2></div>
-  <div style="padding:0 16px 80px">
-    <p style="font-size:14px;color:var(--muted);margin-bottom:16px;line-height:1.6">
-      Encontrou duplicatas? Selecione dois contatos para mesclar. O perfil primário fica, o secundário é apagado e seus dados são copiados.
-    </p>
-    <div style="margin-bottom:10px"><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px">🔵 CONTATO PRINCIPAL (fica)</label>
-      <div class="search-bar" style="padding:0 0 6px"><span class="si">🔍</span><input type="text" id="mergeSearchA" placeholder="Buscar…" oninput="renderMergeList('A')"></div>
-      <div id="mergeListA" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:12px;padding:6px"></div>
-    </div>
-    <div style="margin-bottom:10px"><label style="font-size:12px;color:var(--muted);display:block;margin-bottom:6px">🔴 CONTATO SECUNDÁRIO (será absorvido)</label>
-      <div class="search-bar" style="padding:0 0 6px"><span class="si">🔍</span><input type="text" id="mergeSearchB" placeholder="Buscar…" oninput="renderMergeList('B')"></div>
-      <div id="mergeListB" style="max-height:220px;overflow-y:auto;border:1px solid var(--border);border-radius:12px;padding:6px"></div>
-    </div>
-    <div id="mergePreview" style="display:none;background:rgba(0,255,136,0.05);border:1px solid rgba(0,255,136,0.2);border-radius:12px;padding:14px;margin-bottom:12px">
-      <div style="font-size:13px;font-weight:600;color:var(--green);margin-bottom:6px">Prévia da mesclagem</div>
-      <div id="mergePreviewContent" style="font-size:13px;color:rgba(255,255,255,0.7);line-height:1.7"></div>
-    </div>
-    <button class="btn-save" id="btnDoMerge" style="display:none" onclick="doMerge()">🔀 Mesclar Contatos</button>
+  <div style="padding:0 14px" id="pendingList">
+    <div class="empty"><div class="ei">👁</div><p>Nenhum rosto pendente.<br>Capturas não identificadas<br>aparecem aqui.</p></div>
   </div>
 </div>
 
-<!-- ══════════ MODAL: ADD/EDIT ══════════ -->
-<div class="overlay" id="addOverlay">
+<!-- PAGE: HISTORY -->
+<div class="page" id="page-history">
+  <div class="topbar">
+    <h1>📅 Histórico</h1>
+    <button onclick="openNewEncounter()" style="background:var(--green);color:#0a0e1a;border:none;border-radius:9px;padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer">+ Novo</button>
+  </div>
+  <div id="historyList">
+    <div class="empty"><div class="ei">📭</div><p>Nenhum encontro ainda.</p></div>
+  </div>
+</div>
+
+<!-- PAGE: IMPORT -->
+<div class="page" id="page-import">
+  <div class="topbar"><h1>⬆️ Importar</h1></div>
+  <div class="import-sec">
+
+    <div class="import-card">
+      <h3>📄 Importar CSV</h3>
+      <p>LinkedIn Connections, Google Contacts ou CSV com colunas: <em>First Name, Last Name, Email, Company, Position</em></p>
+      <input type="file" id="csvFile" accept=".csv" style="display:none" onchange="handleCSV(this)">
+      <button class="btn-imp primary" onclick="document.getElementById('csvFile').click()">📂 Selecionar arquivo CSV</button>
+      <div id="csvPreview" style="display:none;margin-top:10px">
+        <div class="import-preview" id="csvPreviewText"></div>
+        <div class="prog-bar" id="csvProgress" style="display:none"><div class="prog-fill" id="csvFill" style="width:0%"></div></div>
+        <div style="display:flex;gap:8px;margin-top:8px">
+          <button class="btn-imp" onclick="cancelCSV()" style="flex:1">Cancelar</button>
+          <button class="btn-imp primary" onclick="confirmCSV()" style="flex:1" id="btnConfirmCSV">✅ Importar</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="import-card">
+      <h3>✉️ Sincronizar Gmail</h3>
+      <p>Importa contatos extraídos dos emails dos últimos 6 meses.</p>
+      <div class="prog-bar" id="gmailProgress" style="display:none"><div class="prog-fill" id="gmailFill" style="width:0%"></div></div>
+      <div id="gmailStatus" style="font-size:12px;color:var(--muted);margin-bottom:10px;display:none;line-height:1.6"></div>
+      <button class="btn-imp primary" id="btnGmailSync" onclick="syncGmail()">✉️ Sincronizar agora</button>
+    </div>
+
+    <div class="import-card" id="statsCard">
+      <h3>📊 Base de dados</h3>
+      <div id="statsContent" style="font-size:13px;color:var(--muted);line-height:2.1">Carregando…</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bnav">
+  <button class="bnav-btn active" id="nav-contacts" onclick="showPage('contacts')">
+    <span class="ic">👥</span>Contatos
+  </button>
+  <button class="bnav-btn" id="nav-pending" onclick="showPage('pending')">
+    <span class="ic">⚠️</span>Rostos
+    <span class="bnav-badge" id="pendBadge" style="display:none">0</span>
+  </button>
+  <button class="bnav-btn" id="nav-history" onclick="showPage('history')">
+    <span class="ic">📅</span>Histórico
+  </button>
+  <button class="bnav-btn" id="nav-import" onclick="showPage('import')">
+    <span class="ic">⬆️</span>Importar
+  </button>
+</nav>
+<button class="fab" id="fab" onclick="openNewContact()">+</button>
+
+<!-- MODAL: ADD/EDIT CONTACT -->
+<div class="overlay" id="contactModal">
   <div class="modal">
     <div class="mhandle"></div>
     <div class="mhead">
-      <span class="mtitle" id="addTitle">Novo Contato</span>
-      <button class="btn-x" onclick="closeModal('addOverlay')">✕</button>
+      <span class="mtitle" id="contactModalTitle">Novo Contato</span>
+      <button class="btn-x" onclick="closeModal('contactModal')">✕</button>
     </div>
     <div class="mbody">
-      <!-- CAPTURE TOOLS -->
-      <div style="display:flex;gap:8px;margin-bottom:14px">
-        <button class="btn-capture" style="flex:1" onclick="openOCR()">📷 OCR Crachá/Cartão</button>
-        <button class="btn-capture" style="flex:1" onclick="openMic()">🎙 Transcrever Fala</button>
-      </div>
-
-      <div class="photo-pick">
-        <div class="photo-circle" id="photoPreview" onclick="document.getElementById('photoInput').click()">📷</div>
-        <div><div style="font-size:14px;margin-bottom:2px">Foto do contato</div><div style="font-size:12px;color:var(--muted)">Toca para selecionar</div></div>
-        <input type="file" id="photoInput" accept="image/*">
-      </div>
-      <div class="field"><label>Nome *</label><input type="text" id="fName" placeholder="Nome completo"></div>
-      <div class="field"><label>Apelido</label><input type="text" id="fNickname" placeholder="Apelido / como chama"></div>
-      <div class="row2">
-        <div class="field"><label>Empresa</label><input type="text" id="fCompany" placeholder="Empresa"></div>
-        <div class="field"><label>Cargo</label><input type="text" id="fRole" placeholder="Cargo"></div>
+      <div style="text-align:center;margin-bottom:16px">
+        <div id="editPhotoPreview" onclick="document.getElementById('editPhotoFile').click()"
+          style="width:72px;height:72px;border-radius:16px;background:rgba(0,255,136,.1);
+          border:2px solid rgba(0,255,136,.2);display:flex;align-items:center;justify-content:center;
+          font-size:28px;margin:0 auto 8px;cursor:pointer;overflow:hidden">👤</div>
+        <input type="file" id="editPhotoFile" accept="image/*" style="display:none" onchange="handlePhotoUpload(this)">
+        <input type="hidden" id="editPhotoUrl">
+        <button onclick="document.getElementById('editPhotoFile').click()"
+          style="background:none;border:1px solid var(--border);border-radius:8px;
+          padding:5px 12px;color:var(--muted);font-size:12px;cursor:pointer">📷 Trocar foto</button>
       </div>
       <div class="row2">
+        <div class="field"><label>Nome *</label><input type="text" id="editName" placeholder="Nome completo"></div>
+        <div class="field"><label>Apelido</label><input type="text" id="editNickname" placeholder="Como chamam?"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Empresa</label><input type="text" id="editCompany" placeholder="Empresa"></div>
+        <div class="field"><label>Cargo</label><input type="text" id="editRole" placeholder="Cargo / função"></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>Email</label><input type="email" id="editEmail" placeholder="email@..."></div>
+        <div class="field"><label>WhatsApp</label><input type="tel" id="editWhatsapp" placeholder="+55 11..."></div>
+      </div>
+      <div class="row2">
+        <div class="field"><label>LinkedIn</label><input type="url" id="editLinkedin" placeholder="linkedin.com/in/..."></div>
         <div class="field"><label>Relação</label>
-          <select id="fRelation"><option value="">—</option><option>Amigo</option><option>Colega de trabalho</option><option>Cliente</option><option>Fornecedor</option><option>Familiar</option><option>Conhecido</option><option>Outro</option></select>
-        </div>
-        <div class="field"><label>Status</label>
-          <select id="fStatus"><option value="Identificado">✅ Identificado</option><option value="Pendente">⏳ Pendente</option><option value="Arquivado">📁 Arquivado</option></select>
-        </div>
-      </div>
-      <div class="field"><label>Contexto da relação</label><textarea id="fRelContext" placeholder="Onde se conheceram, como se relacionam…"></textarea></div>
-      <div class="field"><label>Tags</label>
-        <div class="tags-box" id="tagsBox" onclick="document.getElementById('tagInp').focus()">
-          <input class="tag-inp" id="tagInp" placeholder="Digite e Enter…">
+          <select id="editRelation">
+            <option value="">— selecione —</option>
+            <option>Colega</option><option>Cliente</option><option>Parceiro</option>
+            <option>Amigo</option><option>Familiar</option><option>Mentor</option><option>Outro</option>
+          </select>
         </div>
       </div>
-      <div class="field"><label>WhatsApp</label><input type="tel" id="fWA" placeholder="+55 11 99999-0000"></div>
-      <div class="field"><label>Email</label><input type="email" id="fEmail" placeholder="email@exemplo.com"></div>
-      <div class="field"><label>LinkedIn</label><input type="text" id="fLI" placeholder="URL ou username"></div>
-      <div class="field"><label>Notas / Resumo</label><textarea id="fNotes" placeholder="Informações extras, contexto, última conversa…"></textarea></div>
-      <button class="btn-save" id="btnSave" onclick="saveContact()">💾 Salvar</button>
+      <div class="field"><label>Tags (vírgula)</label><input type="text" id="editTags" placeholder="ex: tech, investidor, startup"></div>
+      <div class="field"><label>Contexto / Notas</label>
+        <textarea id="editNotes" placeholder="Como se conheceram? O que é importante lembrar?"></textarea>
+      </div>
+      <div class="field"><label>Status</label>
+        <select id="editStatus">
+          <option value="Ativo">Ativo</option>
+          <option value="Pendente">Pendente (rosto não identificado)</option>
+        </select>
+      </div>
+      <button class="btn-save" onclick="saveContact()">💾 Salvar</button>
+      <button class="btn-danger" id="btnDeleteContact" onclick="deleteContactCurrent()" style="display:none">🗑 Excluir contato</button>
     </div>
   </div>
 </div>
 
-<!-- ══════════ MODAL: DETAIL ══════════ -->
-<div class="overlay" id="detOverlay">
+<!-- MODAL: DETAIL -->
+<div class="overlay" id="detailModal">
   <div class="modal">
     <div class="mhandle"></div>
-    <div class="mhead"><span class="mtitle">Perfil</span><button class="btn-x" onclick="closeModal('detOverlay')">✕</button></div>
-    <div id="detContent"></div>
-  </div>
-</div>
-
-<!-- ══════════ MODAL: MERGE SUGGESTION ══════════ -->
-<div class="overlay" id="mergeOverlay">
-  <div class="modal">
-    <div class="mhandle"></div>
-    <div class="mhead"><span class="mtitle">🤔 Quem é essa pessoa?</span><button class="btn-x" onclick="closeModal('mergeOverlay')">✕</button></div>
-    <div class="mbody" id="mergeBody"></div>
-  </div>
-</div>
-
-<!-- ══════════ MODAL: OCR ══════════ -->
-<div class="overlay" id="ocrOverlay">
-  <div class="modal">
-    <div class="mhandle"></div>
-    <div class="mhead"><span class="mtitle">📷 OCR — Crachá / Cartão</span><button class="btn-x" onclick="closeOCR()">✕</button></div>
-    <div class="mbody">
-      <div class="ocr-area"><video id="ocrVideo" autoplay playsinline muted></video><canvas id="ocrCanvas"></canvas></div>
-      <button class="btn-capture" onclick="captureOCR()">📸 Capturar e Ler Texto</button>
-      <div class="ocr-result" id="ocrResult">Texto detectado aparecerá aqui…</div>
-      <div class="apply-row" id="applyRow" style="display:none">
-        <button class="btn-apply" onclick="applyOCR('name')">→ Nome</button>
-        <button class="btn-apply" onclick="applyOCR('company')">→ Empresa</button>
-        <button class="btn-apply" onclick="applyOCR('role')">→ Cargo</button>
-        <button class="btn-apply" onclick="applyOCR('all')">→ Preencher tudo</button>
-      </div>
+    <div class="mhead">
+      <span class="mtitle">Perfil</span>
+      <button class="btn-x" onclick="closeModal('detailModal')">✕</button>
     </div>
+    <div class="mbody" id="detailBody"></div>
   </div>
 </div>
 
-<!-- ══════════ MODAL: MIC / CONVERSA ══════════ -->
-<div class="overlay" id="micOverlay">
+<!-- MODAL: ENCOUNTER -->
+<div class="overlay" id="encounterModal">
   <div class="modal">
     <div class="mhandle"></div>
-    <div class="mhead"><span class="mtitle">🎙 Captura de Fala</span><button class="btn-x" onclick="closeMic()">✕</button></div>
-    <div class="mbody">
-      <div class="conv-section">
-        <h4>Transcrição em tempo real</h4>
-        <button class="mic-btn" id="micBtn" onclick="toggleMic()">🎙 Iniciar gravação</button>
-        <div class="transcript-box" id="transcriptBox">A transcrição aparecerá aqui enquanto você fala…</div>
-      </div>
-      <div class="conv-section" id="summarySection" style="display:none">
-        <h4>Resumo detectado</h4>
-        <div class="summary-box" id="summaryBox"></div>
-        <div class="apply-row" style="margin-top:8px">
-          <button class="btn-apply" onclick="applyTranscript('name')">→ Nome</button>
-          <button class="btn-apply" onclick="applyTranscript('notes')">→ Notas</button>
-          <button class="btn-apply" onclick="applyTranscript('all')">→ Aplicar tudo</button>
-        </div>
-      </div>
-      <button class="btn-save" onclick="closeMic();toast('Transcrição salva!','ok')">✅ Fechar</button>
+    <div class="mhead">
+      <span class="mtitle" id="encModalTitle">Novo Encontro</span>
+      <button class="btn-x" onclick="closeModal('encounterModal')">✕</button>
     </div>
-  </div>
-</div>
-
-<!-- ══════════ MODAL: ENCOUNTER ADD ══════════ -->
-<div class="overlay" id="encOverlay">
-  <div class="modal">
-    <div class="mhandle"></div>
-    <div class="mhead"><span class="mtitle" id="encTitle">Novo Encontro</span><button class="btn-x" onclick="closeModal('encOverlay')">✕</button></div>
     <div class="mbody">
-
-      <!-- pessoa -->
-      <div class="field" id="encPersonField">
+      <div class="field">
         <label>Pessoa</label>
-        <input type="text" id="encPersonSearch" placeholder="Buscar contato…" oninput="renderEncPersonList(this.value)" autocomplete="off">
-        <div id="encPersonList" style="max-height:130px;overflow-y:auto;border:1px solid var(--border);border-radius:9px;margin-top:4px;display:none"></div>
-        <div id="encPersonSelected" style="display:none;padding:7px 10px;background:rgba(0,255,136,.07);border:1px solid rgba(0,255,136,.2);border-radius:9px;font-size:13px;margin-top:4px;cursor:pointer" onclick="clearEncPerson()"></div>
+        <input type="text" id="encPersonSearch" placeholder="Buscar contato…"
+          oninput="renderEncDrop(this.value)" autocomplete="off">
+        <div id="encPersonDrop" style="max-height:130px;overflow-y:auto;border:1px solid var(--border);
+          border-radius:9px;margin-top:4px;display:none"></div>
+        <input type="hidden" id="encPersonId">
       </div>
-
       <div class="row2">
         <div class="field"><label>Local / Evento</label><input type="text" id="encLocation" placeholder="Onde?"></div>
-        <div class="field"><label>Data</label><input type="datetime-local" id="encDate"></div>
+        <div class="field"><label>Canal</label>
+          <select id="encChannel">
+            <option value="presencial">🤝 Presencial</option>
+            <option value="whatsapp">💬 WhatsApp</option>
+            <option value="linkedin">💼 LinkedIn</option>
+            <option value="gmail">✉️ Email</option>
+            <option value="outro">📝 Outro</option>
+          </select>
+        </div>
       </div>
-
-      <!-- GRAVAÇÃO DE ÁUDIO -->
+      <div class="field"><label>Data</label><input type="datetime-local" id="encDate"></div>
       <div class="field">
-        <label>🎙 Gravar Conversa</label>
+        <label>🎙 Gravar conversa</label>
         <div class="rec-bar" id="recBar" style="display:none">
           <div class="rdot"></div><span class="rec-txt">Gravando…</span>
           <span class="rec-dur" id="recDur">0:00</span>
         </div>
         <div style="display:flex;gap:8px;margin-bottom:8px">
-          <button class="btn-capture" style="flex:1" id="btnRecStart" onclick="startEncRec()">🎙 Iniciar</button>
-          <button class="btn-capture" style="flex:1;display:none;background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.3);color:#ef4444" id="btnRecStop" onclick="stopEncRec()">⏹ Parar</button>
+          <button class="btn-imp primary" style="flex:1" id="btnRecStart" onclick="startRec()">🎙 Iniciar</button>
+          <button class="btn-imp" style="flex:1;display:none;color:var(--red);border-color:rgba(239,68,68,.3)"
+            id="btnRecStop" onclick="stopRec()">⏹ Parar</button>
         </div>
-        <div id="encTranscript" style="display:none;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:9px;padding:9px;font-size:12px;color:var(--muted);line-height:1.5;margin-bottom:8px;min-height:44px;max-height:90px;overflow-y:auto"></div>
-        <div id="encAISummary" class="ai-sum-box" style="display:none"></div>
-        <button id="btnGenSum" onclick="generateEncSummary()" style="display:none;width:100%;padding:9px;background:rgba(0,255,136,.1);border:1px solid rgba(0,255,136,.2);border-radius:9px;color:var(--green);font-size:13px;cursor:pointer;margin-bottom:8px">✨ Gerar resumo com IA</button>
+        <div id="encTranscript" style="display:none;background:rgba(255,255,255,.04);border:1px solid var(--border);
+          border-radius:9px;padding:9px;font-size:12px;color:var(--muted);line-height:1.5;
+          min-height:44px;max-height:80px;overflow-y:auto;margin-bottom:8px"></div>
+        <div id="encAIBox" class="ai-box" style="display:none"></div>
+        <button id="btnGenSum" style="display:none;width:100%;padding:9px;background:rgba(0,255,136,.1);
+          border:1px solid rgba(0,255,136,.2);border-radius:9px;color:var(--green);
+          font-size:13px;cursor:pointer;margin-bottom:8px" onclick="genSummary()">✨ Gerar resumo com IA</button>
       </div>
-
-      <div class="field">
-        <label>Resumo / Notas</label>
+      <div class="field"><label>Resumo / Notas</label>
         <textarea id="encContext" placeholder="Do que vocês falaram? Decisões, próximos passos…" style="min-height:80px"></textarea>
       </div>
-
-      <div class="field">
-        <label>Modo de captura</label>
-        <select id="encMode">
-          <option value="manual">✍️ Manual</option>
-          <option value="audio">🎙 Áudio</option>
-          <option value="auto">🤖 Automático (óculos)</option>
-        </select>
-      </div>
-
-      <button class="btn-save" onclick="saveEncounterFull()">💾 Salvar Encontro</button>
+      <button class="btn-save" onclick="saveEncounter()">💾 Salvar Encontro</button>
     </div>
   </div>
 </div>
 
-
-<!-- ══════════ MODAL: MENSAGEM MANUAL ══════════ -->
-<div class="overlay" id="manualMsgOverlay">
+<!-- MODAL: MERGE -->
+<div class="overlay" id="mergeModal">
   <div class="modal">
     <div class="mhandle"></div>
-    <div class="mhead"><span class="mtitle" id="manualMsgTitle">Adicionar Mensagem</span><button class="btn-x" onclick="closeModal('manualMsgOverlay')">✕</button></div>
-    <div class="mbody">
-      <div class="field">
-        <label>Canal</label>
-        <select id="manualMsgChannel">
-          <option value="whatsapp">💬 WhatsApp</option>
-          <option value="linkedin">💼 LinkedIn</option>
-          <option value="manual">📝 Outro</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Data</label>
-        <input type="datetime-local" id="manualMsgDate">
-      </div>
-      <div class="field">
-        <label>Resumo da conversa</label>
-        <textarea id="manualMsgText" placeholder="Cole ou descreva o conteúdo da mensagem…" style="min-height:90px"></textarea>
-      </div>
-      <button class="btn-save" onclick="saveManualMsg()">💾 Salvar</button>
+    <div class="mhead">
+      <span class="mtitle">🔀 Mesclar rosto</span>
+      <button class="btn-x" onclick="closeModal('mergeModal')">✕</button>
     </div>
-  </div>
-</div>
-
-<!-- ══════════ CONFIRM DELETE ══════════ -->
-<div class="overlay" id="confirmOverlay">
-  <div class="modal">
-    <div class="cbox">
-      <h3>Excluir contato?</h3>
-      <p id="confirmName">Esta ação não pode ser desfeita.</p>
-      <div class="cbtns">
-        <button class="btn-no" onclick="closeModal('confirmOverlay')">Cancelar</button>
-        <button class="btn-yes" onclick="doDelete()">Excluir</button>
+    <div class="mbody">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">
+        Selecione o contato existente para vincular este rosto. O perfil pendente será removido.
+      </p>
+      <div class="field">
+        <label>Buscar contato existente</label>
+        <input type="text" id="mergeSearch" placeholder="Nome…" oninput="renderMergeList(this.value)">
       </div>
+      <div class="merge-pick" id="mergeList"></div>
+      <button class="btn-save" id="btnConfirmMerge" onclick="confirmMerge()" style="margin-top:12px" disabled>🔀 Confirmar mesclagem</button>
     </div>
   </div>
 </div>
 
 <div class="toast" id="toast"></div>
+</div>
 
 <script>
-const PROXY = "https://base44.app/api/apps/6a11083db49430b410a8c066/functions/fcProxy";
-const APP_ID = "6a11083db49430b410a8c066";
+// ─── CONFIG ─────────────────────────────────────────────────
+var PROXY = "https://base44.app/api/apps/6a11083db49430b410a8c066/functions/fcProxy";
 
-var contacts = [], encounters = [], filterStatus = "all", filterRelation = "all";
-var editingId = null, currentTags = [], photoFile = null, photoDataUrl = null;
-var deleteId = null;
-var mergeA = null, mergeB = null;
-var ocrStream = null, ocrText = "";
-var recognition = null, isRecording = false, transcript = "", encPersonId = null;
+// ─── STATE ──────────────────────────────────────────────────
+var contacts = [], encounters = [];
+var _filter = "todos";
+var _editingId = null;
+var _pendMergeId = null, _mergeTargetId = null;
+var _csvParsed = [];
+var _encPersonId = null, _encTranscript = "";
+var _recObj = null, _recTimer = null, _recSecs = 0;
+var _tlIdx = -1;
 
-// ── helpers ──────────────────────────────────────────────────
-function esc(s){return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;")}
-function initials(name){return (name||"?").split(" ").map(w=>w[0]).slice(0,2).join("").toUpperCase()}
-function relIcon(r){return {Amigo:"🤝",Familiar:"👪","Colega de trabalho":"💼",Cliente:"🛒",Fornecedor:"📦",Conhecido:"👋",Outro:"🔵"}[r]||"👤"}
-function fmtDate(d){if(!d)return "";try{return new Date(d).toLocaleDateString("pt-BR",{day:"2-digit",month:"short",year:"numeric"})}catch{return d}}
+// ─── UTILS ──────────────────────────────────────────────────
+function esc(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
-function toast(msg,type){
-  var el=document.getElementById("toast");
-  el.textContent=msg; el.className="toast "+(type||"");
-  el.classList.add("show"); setTimeout(()=>el.classList.remove("show"),3000);
-}
-function setStatus(online,msg){
-  var b=document.getElementById("statusBar"),s=document.getElementById("statusMsg");
-  b.className="sbar "+(online?"online":"offline"); s.textContent=msg;
+function toast(msg, type){
+  var el = document.getElementById("toast");
+  el.textContent = msg;
+  el.className = "toast show" + (type ? " "+type : "");
+  clearTimeout(el._t);
+  el._t = setTimeout(function(){ el.className = "toast"; }, 2800);
 }
 
-// ── pages ─────────────────────────────────────────────────────
+function initials(name){
+  return (name||"?").split(" ").filter(Boolean).slice(0,2).map(function(w){ return w[0].toUpperCase(); }).join("");
+}
+
+function fmtDate(d){
+  if(!d) return "";
+  var dt = new Date(d);
+  return isNaN(dt) ? d : dt.toLocaleDateString("pt-BR",{day:"2-digit",month:"short",year:"numeric"});
+}
+
+function fmtDayLabel(ds){
+  var d = new Date(ds+"T12:00:00");
+  var today = new Date(); today.setHours(0,0,0,0);
+  var yest = new Date(today); yest.setDate(yest.getDate()-1);
+  if(d>=today) return "Hoje";
+  if(d>=yest) return "Ontem";
+  return d.toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"});
+}
+
+function closeModal(id){ document.getElementById(id).classList.remove("open"); }
+
+function avHtml(c, size){
+  size = size||48;
+  var r = size>56?16:12;
+  if(c.photo_url && !c.photo_url.startsWith("data:")){
+    return '<div class="av" style="width:'+size+'px;height:'+size+'px;border-radius:'+r+'px"><img src="'+esc(c.photo_url)+'" onerror="this.parentElement.innerHTML=\''+initials(c.name)+'\'"></div>';
+  }
+  var cls = c.status==="Pendente" ? " pend" : "";
+  return '<div class="av'+cls+'" style="width:'+size+'px;height:'+size+'px;font-size:'+(size/2.8|0)+'px;border-radius:'+r+'px">'+initials(c.name)+'</div>';
+}
+
+// ─── NAV ────────────────────────────────────────────────────
 function showPage(id){
-  document.querySelectorAll(".page").forEach(p=>p.classList.remove("active"));
-  document.querySelectorAll(".nav-btn").forEach(b=>b.classList.remove("active"));
+  document.querySelectorAll(".page").forEach(function(p){ p.classList.remove("active"); });
+  document.querySelectorAll(".bnav-btn").forEach(function(b){ b.classList.remove("active"); });
   document.getElementById("page-"+id).classList.add("active");
-  document.querySelector('[data-page="'+id+'"]').classList.add("active");
-  if(id==="encounters"){ renderEncounters(); _tlFocusIdx=-1; initTLKeyboard(); }
-  if(id==="merge") renderMergeList("A"), renderMergeList("B");
+  document.getElementById("nav-"+id).classList.add("active");
+  document.getElementById("fab").style.display = id==="contacts" ? "flex" : "none";
+  if(id==="history") renderHistory();
+  if(id==="pending") renderPending();
+  if(id==="import") renderStats();
 }
-function closeModal(id){document.getElementById(id).classList.remove("open")}
 
-// ── load data ─────────────────────────────────────────────────
+// ─── LOAD DATA ───────────────────────────────────────────────
 async function loadAll(){
   try{
-    var r=await fetch(PROXY);
-    if(!r.ok) throw new Error(r.status);
-    contacts=await r.json();
-    localStorage.setItem("fc_c",JSON.stringify(contacts));
-    setStatus(true,"☁ "+contacts.length+" contatos sincronizados");
+    var [cr,er] = await Promise.all([
+      fetch(PROXY+"?entity=FaceContextPerson"),
+      fetch(PROXY+"?entity=FaceContextEncounter")
+    ]);
+    contacts  = cr.ok ? await cr.json() : [];
+    encounters = er.ok ? await er.json() : [];
+    if(!Array.isArray(contacts))   contacts=[];
+    if(!Array.isArray(encounters)) encounters=[];
   }catch(e){
-    var c=localStorage.getItem("fc_c");
-    contacts=c?JSON.parse(c):[];
-    setStatus(false,"⚠ Offline — "+contacts.length+" contatos locais");
+    contacts=[]; encounters=[];
+    toast("Sem conexão com o banco","err");
   }
-  renderContacts(); renderPending(); renderMergeList("A"); renderMergeList("B");
-  document.getElementById("cntBadge").textContent=contacts.length;
+  renderContacts();
+  updatePendBadge();
 }
 
-async function loadEncounters(){
-  try{
-    var r=await fetch("https://base44.app/api/apps/6a11083db49430b410a8c066/functions/fcProxy?entity=FaceContextEncounter");
-    encounters= r.ok ? await r.json() : [];
-  }catch{ encounters=[]; }
-  renderEncounters();
+// ─── CONTACTS PAGE ───────────────────────────────────────────
+function setFilter(f, el){
+  _filter = f;
+  document.querySelectorAll(".ftab").forEach(function(b){ b.classList.remove("active"); });
+  el.classList.add("active");
+  filterContacts();
 }
 
-// ── contacts page ─────────────────────────────────────────────
-function setFilter(f,el){
-  filterStatus=(f==="all"||f==="Amigo"||f==="Familiar"||f==="Colega de trabalho"||f==="Cliente"||f==="Fornecedor"||f==="Conhecido")
-    ? f : f;
-  document.querySelectorAll(".tab").forEach(t=>t.classList.remove("active"));
-  el.classList.add("active"); applyFilters();
-}
-function applyFilters(){
-  var q=document.getElementById("searchInput").value.toLowerCase();
-  var f=filterStatus;
-  var filtered=contacts.filter(c=>{
-    var matchStatus = f==="all" || c.status===f || c.relation===f;
-    var matchQ = !q || (c.name||"").toLowerCase().includes(q)||(c.company||"").toLowerCase().includes(q)||
-                 (c.role||"").toLowerCase().includes(q)||((c.tags||[]).join(" ")).toLowerCase().includes(q)||
-                 (c.contact_email||"").toLowerCase().includes(q);
-    return matchStatus && matchQ;
+function filterContacts(){
+  var q = (document.getElementById("contactSearch").value||"").toLowerCase();
+  var list = contacts.filter(function(c){
+    if(_filter==="ativos"    && c.status==="Pendente")  return false;
+    if(_filter==="pendentes" && c.status!=="Pendente")  return false;
+    if(_filter==="com-foto"  && !c.photo_url)           return false;
+    if(_filter==="sem-foto"  && c.photo_url)            return false;
+    if(!q) return true;
+    return (c.name||"").toLowerCase().includes(q) ||
+           (c.company||"").toLowerCase().includes(q) ||
+           (c.role||"").toLowerCase().includes(q) ||
+           (c.tags||"").toLowerCase().includes(q) ||
+           (c.contact_email||"").toLowerCase().includes(q);
   });
-  document.getElementById("cntBadge").textContent=filtered.length+"/"+contacts.length;
-  if(!filtered.length){
-    document.getElementById("contactList").innerHTML='<div class="empty"><div class="ei">🔍</div><p>Nenhum resultado.</p></div>';
+  renderContactList(list);
+}
+
+function renderContacts(){
+  filterContacts();
+  var n = contacts.filter(function(c){ return c.status!=="Pendente"; }).length;
+  document.getElementById("contactCount").textContent = n+" contatos";
+}
+
+function renderContactList(list){
+  var el = document.getElementById("contactList");
+  if(!list.length){
+    el.innerHTML='<div class="empty"><div class="ei">🔍</div><p>Nenhum contato encontrado.</p></div>';
     return;
   }
-  document.getElementById("contactList").innerHTML=filtered.map(c=>{
-    var av=c.photo_url?`<img src="${esc(c.photo_url)}" loading="lazy">`:(initials(c.name));
-    var sub=[c.role,c.company].filter(Boolean).join(" · ")||c.relation||"";
-    var tags=(c.tags||[]).filter(t=>t!=="gmail").slice(0,3).map(t=>`<span class="tag">${esc(t)}</span>`).join("");
-    var hasPhoto=c.photo_url&&c.photo_url.startsWith("http");
-    return `<div class="ccard" onclick="openDetail('${c.id}')">
-      <div class="av">${av}</div>
-      <div class="ci">
-        <div class="cn">${esc(c.name||"Sem nome")}</div>
-        ${sub?`<div class="cs">${esc(sub)}</div>`:""}
-        ${tags?`<div class="ctags">${tags}</div>`:""}
-      </div>
-      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
-        <div class="dot ${esc(c.status||"Pendente")}"></div>
-        ${!hasPhoto?`<button class="btn-fetch-photo" onclick="event.stopPropagation();fetchPhoto('${c.id}')" title="Buscar foto automaticamente">🔍</button>`:'<span style="font-size:9px;color:#006633">📸</span>'}
-      </div>
-    </div>`;
+  list = list.slice().sort(function(a,b){
+    if(a.status==="Pendente"&&b.status!=="Pendente") return 1;
+    if(b.status==="Pendente"&&a.status!=="Pendente") return -1;
+    return (a.name||"").localeCompare(b.name||"","pt-BR");
+  });
+  el.innerHTML = list.map(function(c){
+    var meta = [c.role,c.company].filter(Boolean).join(" · ");
+    var tags = (c.tags||"").split(",").map(function(t){return t.trim();}).filter(Boolean).slice(0,3);
+    var badge = c.status==="Pendente" ? '<span class="cbadge">⚠ Pendente</span>' : "";
+    var tagsHtml = tags.map(function(t){ return '<span class="ctag">'+esc(t)+'</span>'; }).join("");
+    return '<div class="ccard" onclick="openDetail(\''+c.id+'\')">'+
+      avHtml(c,48)+
+      '<div class="cinfo">'+
+        '<div class="cname">'+esc(c.name||"Desconhecido")+'</div>'+
+        (meta?'<div class="cmeta">'+esc(meta)+'</div>':'')+
+        '<div class="ctags">'+badge+tagsHtml+'</div>'+
+      '</div>'+
+      '<div class="cchev">›</div>'+
+    '</div>';
   }).join("");
 }
-function renderContacts(){ applyFilters(); }
 
-// ── pending page ─────────────────────────────────────────────
+// ─── DETAIL ─────────────────────────────────────────────────
+function openDetail(id){
+  var c = contacts.find(function(x){ return x.id===id; });
+  if(!c) return;
+  var photo = c.photo_url && !c.photo_url.startsWith("data:")
+    ? '<div class="det-photo"><img src="'+esc(c.photo_url)+'"></div>'
+    : '<div class="det-photo">'+initials(c.name)+'</div>';
+  var enc = encounters.filter(function(e){ return e.person_id===id; });
+  var tags = (c.tags||"").split(",").map(function(t){return t.trim();}).filter(Boolean);
+
+  var html = photo;
+  html += '<div class="det-name">'+esc(c.name||"Desconhecido")+'</div>';
+  html += '<div class="det-role">'+esc([c.role,c.company].filter(Boolean).join(" · ")||c.relation||"")+'</div>';
+  html += '<div class="det-actions">';
+  html += '<button class="det-btn primary" onclick="closeModal(\'detailModal\');openEditContact(\''+id+'\')">✏️ Editar</button>';
+  html += '<button class="det-btn" onclick="closeModal(\'detailModal\');openNewEncounterFor(\''+id+'\',\''+esc(c.name||"")+'\')">+ Encontro</button>';
+  if(c.contact_email) html += '<button class="det-btn" onclick="window.open(\'https://mail.google.com/mail/?view=cm&to='+encodeURIComponent(c.contact_email)+'\',\'_blank\')">✉️</button>';
+  if(c.contact_whatsapp) html += '<button class="det-btn" onclick="window.open(\'https://wa.me/'+esc(c.contact_whatsapp.replace(/\D/g,""))+'\',\'_blank\')">💬</button>';
+  html += '</div>';
+
+  html += '<div class="det-sec"><div class="det-sec-title">Contato</div>';
+  if(c.contact_email)    html += '<div class="det-row"><span>Email</span><span>'+esc(c.contact_email)+'</span></div>';
+  if(c.contact_whatsapp) html += '<div class="det-row"><span>WhatsApp</span><span>'+esc(c.contact_whatsapp)+'</span></div>';
+  if(c.contact_linkedin) html += '<div class="det-row"><span>LinkedIn</span><span><a href="'+esc(c.contact_linkedin)+'" target="_blank" style="color:var(--green)">Ver perfil</a></span></div>';
+  if(c.relation)         html += '<div class="det-row"><span>Relação</span><span>'+esc(c.relation)+'</span></div>';
+  if(c.last_seen_date)   html += '<div class="det-row"><span>Último visto</span><span>'+fmtDate(c.last_seen_date)+'</span></div>';
+  html += '</div>';
+
+  if(tags.length){
+    html += '<div class="det-sec"><div class="det-sec-title">Tags</div>';
+    html += '<div class="ctags" style="margin-top:6px">'+tags.map(function(t){ return '<span class="ctag">'+esc(t)+'</span>'; }).join("")+'</div></div>';
+  }
+  if(c.notes){
+    html += '<div class="det-sec"><div class="det-sec-title">Notas</div>';
+    html += '<div style="font-size:13px;line-height:1.7;color:rgba(255,255,255,.75);white-space:pre-wrap">'+esc(c.notes)+'</div></div>';
+  }
+  if(enc.length){
+    html += '<div class="det-sec"><div class="det-sec-title">Encontros ('+enc.length+')</div>';
+    enc.slice(0,5).forEach(function(e){
+      var ch = {presencial:"🤝",whatsapp:"💬",linkedin:"💼",gmail:"✉️",audio:"🎙"}[e.capture_mode]||"📝";
+      html += '<div class="det-row"><span>'+ch+' '+fmtDate(e.date)+'</span><span>'+esc((e.context||e.location||"").slice(0,45))+'</span></div>';
+    });
+    html += '</div>';
+  }
+  html += '<button class="btn-danger" onclick="deleteContactById(\''+id+'\',\''+esc(c.name||"")+'\')">🗑 Excluir contato</button>';
+
+  document.getElementById("detailBody").innerHTML = html;
+  document.getElementById("detailModal").classList.add("open");
+}
+
+// ─── ADD / EDIT CONTACT ──────────────────────────────────────
+function openNewContact(){
+  _editingId = null;
+  clearForm();
+  document.getElementById("contactModalTitle").textContent = "Novo Contato";
+  document.getElementById("btnDeleteContact").style.display = "none";
+  document.getElementById("contactModal").classList.add("open");
+}
+
+function openEditContact(id){
+  var c = contacts.find(function(x){ return x.id===id; });
+  if(!c) return;
+  _editingId = id;
+  clearForm();
+  document.getElementById("editName").value       = c.name||"";
+  document.getElementById("editNickname").value   = c.nickname||"";
+  document.getElementById("editCompany").value    = c.company||"";
+  document.getElementById("editRole").value       = c.role||"";
+  document.getElementById("editEmail").value      = c.contact_email||"";
+  document.getElementById("editWhatsapp").value   = c.contact_whatsapp||"";
+  document.getElementById("editLinkedin").value   = c.contact_linkedin||"";
+  document.getElementById("editRelation").value   = c.relation||"";
+  document.getElementById("editTags").value       = c.tags||"";
+  document.getElementById("editNotes").value      = c.notes||"";
+  document.getElementById("editStatus").value     = c.status||"Ativo";
+  document.getElementById("editPhotoUrl").value   = c.photo_url||"";
+  var prev = document.getElementById("editPhotoPreview");
+  if(c.photo_url && !c.photo_url.startsWith("data:")){
+    prev.innerHTML = '<img src="'+esc(c.photo_url)+'" style="width:72px;height:72px;object-fit:cover;border-radius:14px">';
+  } else {
+    prev.textContent = initials(c.name)||"👤";
+  }
+  document.getElementById("contactModalTitle").textContent = "Editar — "+(c.name||"Contato");
+  document.getElementById("btnDeleteContact").style.display = "block";
+  document.getElementById("contactModal").classList.add("open");
+}
+
+function clearForm(){
+  ["editName","editNickname","editCompany","editRole","editEmail","editWhatsapp","editLinkedin","editTags","editNotes"].forEach(function(id){
+    document.getElementById(id).value="";
+  });
+  document.getElementById("editRelation").value="";
+  document.getElementById("editStatus").value="Ativo";
+  document.getElementById("editPhotoUrl").value="";
+  document.getElementById("editPhotoPreview").innerHTML='<span style="font-size:28px">👤</span>';
+}
+
+function handlePhotoUpload(input){
+  var file = input.files[0];
+  if(!file) return;
+  var reader = new FileReader();
+  reader.onload = function(ev){
+    document.getElementById("editPhotoPreview").innerHTML =
+      '<img src="'+ev.target.result+'" style="width:72px;height:72px;object-fit:cover;border-radius:14px">';
+    document.getElementById("editPhotoUrl").value = ev.target.result;
+    toast("Foto carregada — salve o contato","ok");
+  };
+  reader.readAsDataURL(file);
+}
+
+async function saveContact(){
+  var name = document.getElementById("editName").value.trim();
+  if(!name){ toast("Nome é obrigatório","err"); return; }
+  var photoUrl = document.getElementById("editPhotoUrl").value;
+  var payload = {
+    name: name,
+    nickname: document.getElementById("editNickname").value.trim(),
+    company: document.getElementById("editCompany").value.trim(),
+    role: document.getElementById("editRole").value.trim(),
+    contact_email: document.getElementById("editEmail").value.trim(),
+    contact_whatsapp: document.getElementById("editWhatsapp").value.trim(),
+    contact_linkedin: document.getElementById("editLinkedin").value.trim(),
+    relation: document.getElementById("editRelation").value,
+    tags: document.getElementById("editTags").value.trim(),
+    notes: document.getElementById("editNotes").value.trim(),
+    status: document.getElementById("editStatus").value,
+    photo_url: photoUrl.startsWith("data:") ? "" : photoUrl
+  };
+  var btn = document.querySelector("#contactModal .btn-save");
+  btn.textContent="Salvando…"; btn.disabled=true;
+  try{
+    var r, saved;
+    if(_editingId){
+      r = await fetch(PROXY+"?id="+_editingId+"&entity=FaceContextPerson",{
+        method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)
+      });
+      saved = await r.json();
+      var idx = contacts.findIndex(function(x){ return x.id===_editingId; });
+      if(idx>=0) contacts[idx] = Object.assign({},contacts[idx],saved);
+    } else {
+      r = await fetch(PROXY+"?entity=FaceContextPerson",{
+        method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)
+      });
+      saved = await r.json();
+      contacts.unshift(saved);
+    }
+    renderContacts(); updatePendBadge();
+    closeModal("contactModal");
+    toast("✅ "+name+" salvo!","ok");
+  }catch(e){ toast("Erro: "+e.message,"err"); }
+  btn.textContent="💾 Salvar"; btn.disabled=false;
+}
+
+function deleteContactCurrent(){
+  if(_editingId) deleteContactById(_editingId, document.getElementById("editName").value);
+}
+
+async function deleteContactById(id, name){
+  if(!confirm("Excluir '"+name+"'? Esta ação não pode ser desfeita.")) return;
+  try{
+    await fetch(PROXY+"?id="+id+"&entity=FaceContextPerson",{method:"DELETE"});
+    contacts = contacts.filter(function(c){ return c.id!==id; });
+    renderContacts(); updatePendBadge();
+    closeModal("contactModal"); closeModal("detailModal");
+    toast("🗑 Contato excluído","");
+  }catch(e){ toast("Erro ao excluir","err"); }
+}
+
+// ─── PENDING PAGE ────────────────────────────────────────────
+function updatePendBadge(){
+  var n = contacts.filter(function(c){ return c.status==="Pendente"; }).length;
+  var b = document.getElementById("pendBadge");
+  b.textContent=n; b.style.display = n>0?"flex":"none";
+}
+
 function renderPending(){
-  var pending=contacts.filter(c=>c.status==="Pendente");
-  document.getElementById("pendBadge").textContent=pending.length;
-  var el=document.getElementById("pendingList");
+  var pending = contacts.filter(function(c){ return c.status==="Pendente"; });
+  document.getElementById("pendCount").textContent = pending.length+" pendentes";
+  var el = document.getElementById("pendingList");
   if(!pending.length){
-    el.innerHTML='<div class="empty"><div class="ei">✅</div><p>Nenhum rosto pendente!</p></div>';
+    el.innerHTML='<div class="empty"><div class="ei">✅</div><p>Nenhum rosto pendente!<br>Tudo identificado.</p></div>';
     return;
   }
-  el.innerHTML='<div class="section-title" style="padding:12px 14px 4px;font-size:11px;color:var(--muted)">'+pending.length+' rostos aguardando identificação</div>'+
-    pending.map(c=>{
-      var candidates=findSimilar(c,3);
-      var photoHtml = c.photo_url
-        ? `<div class="pend-photo"><img src="${c.photo_url}" onerror="this.parentElement.textContent='👤'"></div>`
-        : `<div class="pend-photo">👤</div>`;
-      var capDate = c.last_seen_date ? fmtDate(c.last_seen_date) : "data desconhecida";
-      var matchTxt = candidates.length
-        ? "Possível match: "+candidates.slice(0,2).map(x=>x.name).join(", ")
-        : "Sem matches sugeridos";
-      return `<div class="pend-card" id="pc-${c.id}">
-        <div class="pend-card-top" onclick="togglePendRename('${c.id}')">
-          ${photoHtml}
-          <div class="pend-info">
-            <div class="pend-name">${esc(c.name||"Desconhecido")}</div>
-            <div class="pend-meta">${matchTxt}</div>
-            <span class="pend-badge">⚠ Pendente · ${capDate}</span>
-          </div>
-        </div>
-        <div class="pend-rename" id="pr-${c.id}">
-          <input type="text" id="pn-${c.id}" placeholder="Nome completo…" value="${esc(c.name||"")}" onkeydown="if(event.key==='Enter')savePendingName('${c.id}')">
-          <div class="row2">
-            <button class="btn-save pend-btn green" onclick="savePendingName('${c.id}')">✅ Salvar nome</button>
-            <button class="btn-save pend-btn" onclick="openMergeSuggestion('${c.id}')" style="background:rgba(0,255,136,.08);border-color:rgba(0,255,136,.2);color:var(--green)">🔀 Mesclar</button>
-          </div>
-        </div>
-        <div class="pend-actions">
-          <button class="pend-btn green" onclick="editPending('${c.id}')">✏️ Editar perfil</button>
-          <button class="pend-btn" onclick="openMergeSuggestion('${c.id}')">🔀 Mesclar</button>
-          <button class="pend-btn red" onclick="deletePending('${c.id}','${esc(c.name||"?")}')">🗑</button>
-        </div>
-      </div>`;
+  el.innerHTML = '<div class="sec-title">'+pending.length+' rostos aguardando identificação</div>'+
+    pending.map(function(c){
+      var sim = findSimilar(c,2);
+      var matchTxt = sim.length ? "Possível: "+sim.map(function(x){return x.name;}).join(", ") : "Sem match sugerido";
+      var photo = c.photo_url
+        ? '<div class="pcard-photo"><img src="'+esc(c.photo_url)+'" onerror="this.parentElement.textContent=\'👤\'"></div>'
+        : '<div class="pcard-photo">👤</div>';
+      return '<div class="pcard" id="pc-'+c.id+'">'+
+        '<div class="pcard-top" onclick="toggleRename(\''+c.id+'\')">'+
+          photo+
+          '<div class="pcard-info">'+
+            '<div class="pcard-name">'+esc(c.name||"Desconhecido")+'</div>'+
+            '<div class="pcard-meta">'+esc(matchTxt)+'</div>'+
+            '<div class="pcard-date">Capturado: '+fmtDate(c.last_seen_date||c.created_date)+'</div>'+
+          '</div>'+
+        '</div>'+
+        '<div class="pcard-rename" id="pr-'+c.id+'">'+
+          '<input type="text" id="pn-'+c.id+'" placeholder="Nome completo…" value="'+esc(c.name||"")+
+          '" onkeydown="if(event.key===\'Enter\')saveName(\''+c.id+'\')">'+
+          '<div style="display:flex;gap:8px">'+
+            '<button class="btn-save" style="flex:1;padding:9px;font-size:13px" onclick="saveName(\''+c.id+'\')">✅ Salvar nome</button>'+
+            '<button class="btn-save" style="flex:1;padding:9px;font-size:13px;background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);color:#60a5fa" onclick="closeModal(\'contactModal\');openEditContact(\''+c.id+'\')">✏️ Editar</button>'+
+          '</div>'+
+        '</div>'+
+        '<div class="pcard-actions">'+
+          '<button class="pa-btn green" onclick="openEditContact(\''+c.id+'\')">✏️ Perfil completo</button>'+
+          '<button class="pa-btn" onclick="openMerge(\''+c.id+'\')">🔀 Mesclar</button>'+
+          '<button class="pa-btn red" onclick="deleteContactById(\''+c.id+'\',\''+esc(c.name||"?")+'\')">🗑</button>'+
+        '</div>'+
+      '</div>';
     }).join("");
 }
 
-function togglePendRename(id){
-  var el=document.getElementById("pr-"+id);
+function toggleRename(id){
+  var el = document.getElementById("pr-"+id);
   if(!el) return;
-  var open=el.style.display==="block";
-  el.style.display=open?"none":"block";
-  if(!open) setTimeout(function(){var inp=document.getElementById("pn-"+id);if(inp)inp.focus();},50);
+  var open = el.classList.contains("open");
+  document.querySelectorAll(".pcard-rename.open").forEach(function(r){ r.classList.remove("open"); });
+  if(!open){
+    el.classList.add("open");
+    setTimeout(function(){ var inp=document.getElementById("pn-"+id); if(inp) inp.focus(); }, 300);
+  }
 }
 
-async function savePendingName(id){
-  var inp=document.getElementById("pn-"+id);
-  if(!inp) return;
-  var name=inp.value.trim();
-  if(!name){toast("Nome não pode ser vazio","err");return;}
+async function saveName(id){
+  var inp = document.getElementById("pn-"+id);
+  var name = (inp?inp.value:"").trim();
+  if(!name){ toast("Nome não pode ser vazio","err"); return; }
   try{
     await fetch(PROXY+"?id="+id+"&entity=FaceContextPerson",{
       method:"PUT",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({name:name,status:"Ativo"})
     });
-    var c=contacts.find(x=>x.id===id);
-    if(c){c.name=name;c.status="Ativo";}
-    renderPending(); renderContacts();
+    var c = contacts.find(function(x){ return x.id===id; });
+    if(c){ c.name=name; c.status="Ativo"; }
+    renderPending(); renderContacts(); updatePendBadge();
     toast("✅ "+name+" identificado!","ok");
-  }catch(e){toast("Erro: "+e.message,"err");}
-}
-
-function editPending(id){
-  var c=contacts.find(x=>x.id===id);
-  if(!c) return;
-  editingId=id; fillForm(c);
-  document.getElementById("addTitle").textContent="Completar Perfil";
-  document.getElementById("addOverlay").classList.add("open");
-}
-
-async function deletePending(id,name){
-  if(!confirm("Excluir o rosto '"+name+"'? Esta ação é irreversível.")) return;
-  try{
-    await fetch(PROXY+"?id="+id+"&entity=FaceContextPerson",{method:"DELETE"});
-    contacts=contacts.filter(x=>x.id!==id);
-    renderPending(); renderContacts();
-    toast("🗑 Excluído","");
-  }catch(e){toast("Erro: "+e.message,"err");}
+  }catch(e){ toast("Erro: "+e.message,"err"); }
 }
 
 function findSimilar(c,n){
-  // Busca contatos com nome parecido ou mesma empresa
-  return contacts.filter(x=>x.id!==c.id && x.status!=="Pendente")
-    .map(x=>{
+  return contacts.filter(function(x){ return x.id!==c.id && x.status!=="Pendente"; })
+    .map(function(x){
       var score=0;
-      var aName=(c.name||"").toLowerCase().split(" ");
-      var bName=(x.name||"").toLowerCase().split(" ");
-      aName.forEach(w=>{ if(w.length>2&&bName.some(bw=>bw.includes(w)||w.includes(bw))) score+=2; });
+      var aW=(c.name||"").toLowerCase().split(" ");
+      var bW=(x.name||"").toLowerCase().split(" ");
+      aW.forEach(function(w){ if(w.length>2&&bW.some(function(b){ return b.includes(w)||w.includes(b); })) score+=2; });
       if(c.company&&x.company&&c.company.toLowerCase()===x.company.toLowerCase()) score+=3;
-      return {score,...x};
+      return Object.assign({score:score},x);
     })
-    .filter(x=>x.score>0)
-    .sort((a,b)=>b.score-a.score)
+    .filter(function(x){ return x.score>0; })
+    .sort(function(a,b){ return b.score-a.score; })
     .slice(0,n);
 }
 
-function openMergeSuggestion(pendingId){
-  var c=contacts.find(x=>x.id===pendingId);
-  if(!c) return;
-  var similar=findSimilar(c,5);
-  var html=`
-    <div style="text-align:center;margin-bottom:16px">
-      <div class="av" style="width:60px;height:60px;font-size:22px;margin:0 auto 10px">${initials(c.name||"?")}</div>
-      <div style="font-size:16px;font-weight:700">${esc(c.name||"Desconhecido")}</div>
-      <div style="font-size:13px;color:var(--muted)">Capturado em: ${fmtDate(c.last_seen_date)||"data desconhecida"}</div>
-    </div>
-    <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Isso é uma das pessoas abaixo, ou um novo contato?</p>`;
-
-  if(similar.length){
-    html+=similar.map(s=>`
-      <div class="merge-candidate" onclick="quickMerge('${pendingId}','${s.id}',this)">
-        <div class="av">${s.photo_url?`<img src="${esc(s.photo_url)}">`:(initials(s.name||"?"))}</div>
-        <div style="flex:1">
-          <div style="font-size:15px;font-weight:600">${esc(s.name||"?")}</div>
-          <div style="font-size:12px;color:var(--muted)">${esc([s.role,s.company].filter(Boolean).join(" · ")||s.relation||"")}</div>
-        </div>
-        <div class="dot ${esc(s.status||"Pendente")}"></div>
-      </div>`).join('<div class="merge-or">ou</div>');
-  } else {
-    html+='<div style="text-align:center;padding:16px;color:var(--muted);font-size:14px">Nenhum match sugerido encontrado.</div>';
-  }
-
-  html+=`<button class="btn-new-contact" onclick="createFromPending('${pendingId}')">➕ É um contato novo — preencher perfil</button>
-         <button class="btn-save" style="background:rgba(255,80,80,0.15);color:#ff6b6b;border:1px solid rgba(255,80,80,0.3)" onclick="closeModal('mergeOverlay')">Ignorar por agora</button>`;
-
-  document.getElementById("mergeBody").innerHTML=html;
-  document.getElementById("mergeOverlay").classList.add("open");
+function openMerge(pendingId){
+  _pendMergeId=pendingId; _mergeTargetId=null;
+  document.getElementById("mergeSearch").value="";
+  document.getElementById("btnConfirmMerge").disabled=true;
+  document.getElementById("btnConfirmMerge").textContent="🔀 Confirmar mesclagem";
+  renderMergeList("");
+  document.getElementById("mergeModal").classList.add("open");
 }
 
-async function quickMerge(fromId, toId, el){
-  document.querySelectorAll(".merge-candidate").forEach(e=>e.classList.remove("selected"));
-  el.classList.add("selected");
-  if(!confirm("Confirma: vincular este rosto pendente ao contato selecionado?")) return;
-  var from=contacts.find(x=>x.id===fromId);
-  var to=contacts.find(x=>x.id===toId);
-  if(!from||!to) return;
-  // Atualiza o contato principal com dados do pendente
-  var merged={
-    face_embedding: from.face_embedding||to.face_embedding,
-    last_seen_date: from.last_seen_date||to.last_seen_date,
-    last_seen_context: from.last_seen_context||to.last_seen_context,
-    notes: [to.notes, from.notes].filter(Boolean).join("\n---\n")||null,
-    photo_url: to.photo_url||from.photo_url,
-  };
+function renderMergeList(q){
+  var list = contacts.filter(function(c){
+    return c.id!==_pendMergeId && c.status!=="Pendente" &&
+      (c.name||"").toLowerCase().includes(q.toLowerCase());
+  }).slice(0,20);
+  document.getElementById("mergeList").innerHTML = list.map(function(c){
+    return '<div class="merge-item'+(c.id===_mergeTargetId?" sel":"")+'" onclick="selMerge(\''+c.id+'\',\''+esc(c.name||"")+'\')">'+
+      avHtml(c,36)+
+      '<div><div style="font-size:13px;font-weight:600">'+esc(c.name||"")+'</div>'+
+      '<div style="font-size:11px;color:var(--muted)">'+esc([c.role,c.company].filter(Boolean).join(" · "))+'</div></div>'+
+    '</div>';
+  }).join("") || '<div style="padding:14px;color:var(--muted);font-size:13px">Nenhum resultado</div>';
+}
+
+function selMerge(id,name){
+  _mergeTargetId=id;
+  renderMergeList(document.getElementById("mergeSearch").value||"");
+  var btn=document.getElementById("btnConfirmMerge");
+  btn.disabled=false; btn.textContent="🔀 Mesclar com "+name;
+}
+
+async function confirmMerge(){
+  if(!_pendMergeId||!_mergeTargetId) return;
+  var pend=contacts.find(function(c){return c.id===_pendMergeId;});
+  var target=contacts.find(function(c){return c.id===_mergeTargetId;});
+  if(!pend||!target) return;
   try{
-    await fetch(PROXY+"?id="+toId, {method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(merged)});
-    await fetch(PROXY+"?id="+fromId, {method:"DELETE"});
-    contacts=contacts.filter(x=>x.id!==fromId);
-    var idx=contacts.findIndex(x=>x.id===toId);
-    if(idx>=0) contacts[idx]={...contacts[idx],...merged};
-    localStorage.setItem("fc_c",JSON.stringify(contacts));
-    closeModal("mergeOverlay");
-    renderContacts(); renderPending();
-    toast("✅ Rosto vinculado a "+to.name,"ok");
-  }catch(e){ toast("Erro ao vincular","err"); }
+    var pendEnc=encounters.filter(function(e){return e.person_id===_pendMergeId;});
+    await Promise.all(pendEnc.map(function(e){
+      return fetch(PROXY+"?id="+e.id+"&entity=FaceContextEncounter",{
+        method:"PUT",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({person_id:_mergeTargetId,person_name:target.name})
+      });
+    }));
+    var upd={};
+    if(!target.photo_url&&pend.photo_url) upd.photo_url=pend.photo_url;
+    if(Object.keys(upd).length){
+      await fetch(PROXY+"?id="+_mergeTargetId+"&entity=FaceContextPerson",{
+        method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(upd)
+      });
+    }
+    await fetch(PROXY+"?id="+_pendMergeId+"&entity=FaceContextPerson",{method:"DELETE"});
+    contacts=contacts.filter(function(c){return c.id!==_pendMergeId;});
+    encounters.forEach(function(e){
+      if(e.person_id===_pendMergeId){e.person_id=_mergeTargetId;e.person_name=target.name;}
+    });
+    var ti=contacts.findIndex(function(c){return c.id===_mergeTargetId;});
+    if(ti>=0) Object.assign(contacts[ti],upd);
+    renderPending(); renderContacts(); updatePendBadge();
+    closeModal("mergeModal");
+    toast("✅ Mesclado com "+target.name,"ok");
+  }catch(e){ toast("Erro ao mesclar: "+e.message,"err"); }
 }
 
-function createFromPending(id){
-  var c=contacts.find(x=>x.id===id);
-  if(!c) return;
-  closeModal("mergeOverlay");
-  editingId=id; fillForm(c);
-  document.getElementById("addTitle").textContent="Completar Perfil";
-  document.getElementById("addOverlay").classList.add("open");
-}
-
-// ── encounters ────────────────────────────────────────────────
-var encounters = [];
-var encRecognition = null, encRecording = false, encTranscript = "";
-var encRecTimer = null, encRecSecs = 0;
-var _encPersonId = null;
-
-async function loadEncounters(){
-  try{
-    var r = await fetch(PROXY+"?entity=FaceContextEncounter&_sort=-date&_limit=200");
-    encounters = r.ok ? await r.json() : [];
-    if(!Array.isArray(encounters)) encounters = [];
-  }catch{ encounters = []; }
-  renderEncounters();
-}
-
-function renderEncounters(){
-  document.getElementById("encBadge").textContent = encounters.length;
-  var el = document.getElementById("encList");
+// ─── HISTORY PAGE ────────────────────────────────────────────
+function renderHistory(){
+  var el=document.getElementById("historyList");
   if(!encounters.length){
-    el.innerHTML = `<div class="tl-empty">Nenhum encontro registrado.<br>Toque <strong>+ Novo</strong> para começar.</div>`;
+    el.innerHTML='<div class="empty"><div class="ei">📭</div><p>Nenhum encontro registrado.<br>Toque <strong>+ Novo</strong> para começar.</p></div>';
     return;
   }
-  // Agrupa por dia
-  var byDay = {};
+  var byDay={};
   encounters.forEach(function(e){
-    var d = e.date ? e.date.slice(0,10) : "sem-data";
-    if(!byDay[d]) byDay[d] = [];
+    var d=e.date?e.date.slice(0,10):"sem-data";
+    if(!byDay[d]) byDay[d]=[];
     byDay[d].push(e);
   });
-  var days = Object.keys(byDay).sort().reverse();
-  var html = "";
+  var days=Object.keys(byDay).sort().reverse();
+  var html="";
   days.forEach(function(day){
-    var label = day === "sem-data" ? "Sem data" : fmtDayLabel(day);
-    html += `<div class="tl-day">
-      <div class="tl-day-label">${label}</div>`;
+    html+='<div class="tl-day-hdr">'+fmtDayLabel(day)+'</div>';
     byDay[day].forEach(function(e){
-      var who = e.person_name || "Desconhecido";
-      var where = e.location ? "📍 "+esc(e.location) : "";
-      var sum = e.context ? esc(e.context.slice(0,120)) : "";
-      var timeStr = e.date ? new Date(e.date).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}) : "";
-      var pending = e.capture_mode === "auto" && !e.context;
-      html += `<div class="tl-item" data-encid="${e.id}" data-idx="${encounters.indexOf(e)}" tabindex="-1" onclick="showEncDetail('${e.id}')">
-        <div class="tl-dot${pending?" pend":""}"></div>
-        <div class="tl-body">
-          <div class="tl-who">${esc(who)}</div>
-          ${where?`<div class="tl-where">${where}</div>`:""}
-          ${sum?`<div class="tl-sum">${sum}${e.context&&e.context.length>120?"…":""}</div>`:""}
-        </div>
-        <div class="tl-time">${timeStr}</div>
-      </div>`;
+      var ch=e.capture_mode||"presencial";
+      var icon={presencial:"🤝",whatsapp:"💬",linkedin:"💼",gmail:"✉️",audio:"🎙",manual:"📝",auto:"🤖"}[ch]||"📝";
+      var dot={whatsapp:"wpp",linkedin:"li",gmail:"gm"}[ch]||"";
+      var time=e.date?new Date(e.date).toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"}):"";
+      html+='<div class="tl-item" data-id="'+e.id+'" onclick="openEncDetail(\''+e.id+'\')">'+
+        '<div class="tl-dot '+dot+'"></div>'+
+        '<div class="tl-body">'+
+          '<div class="tl-who">'+icon+' '+esc(e.person_name||"Desconhecido")+'</div>'+
+          (e.location?'<div class="tl-where">📍 '+esc(e.location)+'</div>':'')+
+          (e.context?'<div class="tl-sum">'+esc(e.context.slice(0,120))+'</div>':'')+
+          '<span class="tl-ch">'+ch+'</span>'+
+        '</div>'+
+        '<div class="tl-time">'+time+'</div>'+
+      '</div>';
     });
-    html += `</div>`;
   });
-  el.innerHTML = html;
+  el.innerHTML=html;
 }
 
-function fmtDayLabel(dateStr){
-  var d = new Date(dateStr+"T12:00:00");
-  var today = new Date(); today.setHours(0,0,0,0);
-  var yest = new Date(today); yest.setDate(yest.getDate()-1);
-  if(d >= today) return "Hoje";
-  if(d >= yest) return "Ontem";
-  return d.toLocaleDateString("pt-BR",{weekday:"long",day:"2-digit",month:"long"});
-}
-
-function showEncDetail(id){
-  var e = encounters.find(function(x){return x.id===id;});
+function openEncDetail(id){
+  var e=encounters.find(function(x){return x.id===id;});
   if(!e) return;
-  var c = contacts.find(function(x){return x.id===e.person_id;});
-  var html = "";
-  if(c && c.photo_url) html += `<div style="text-align:center;margin-bottom:12px"><img src="${c.photo_url}" style="width:56px;height:56px;border-radius:50%;object-fit:cover;border:2px solid var(--green)"></div>`;
-  html += `<h2 style="font-size:18px;margin-bottom:4px">${esc(e.person_name||"Desconhecido")}</h2>`;
-  if(e.date) html += `<div style="font-size:12px;color:var(--muted);margin-bottom:10px">${new Date(e.date).toLocaleString("pt-BR")}</div>`;
-  if(e.location) html += `<div style="font-size:13px;margin-bottom:8px">📍 ${esc(e.location)}</div>`;
-  if(e.context) html += `<div style="font-size:14px;line-height:1.65;margin-bottom:8px;white-space:pre-wrap">${esc(e.context)}</div>`;
-  if(e.speech_captured) html += `<details style="margin-top:8px"><summary style="font-size:11px;color:var(--muted);cursor:pointer">Ver transcrição completa</summary><div style="font-size:12px;color:var(--muted);margin-top:6px;line-height:1.6;white-space:pre-wrap">${esc(e.speech_captured)}</div></details>`;
-  html += `<div style="display:flex;gap:8px;margin-top:16px">
-    <button onclick="deleteEncounter('${e.id}')" style="flex:1;padding:10px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:9px;color:#ef4444;font-size:13px;cursor:pointer">🗑 Excluir</button>
-  </div>`;
-  document.getElementById("detailContent").innerHTML = html;
-  // Carrega mensagens do Gmail para esta pessoa
-  if(e.person_id){
-    var msgDiv = document.createElement("div");
-    document.getElementById("detailContent").appendChild(msgDiv);
-    msgDiv.innerHTML = `<div class="tl-msg-loading">Carregando mensagens…</div>`;
-    var c2 = contacts.find(function(x){return x.id===e.person_id;});
-    var pEmail = c2 && c2.contact_email ? c2.contact_email : "";
-    loadPersonMessages(e.person_id, e.person_name||"", pEmail).then(function(){
-      renderMsgSection(e.person_id, e.person_name||"", msgDiv);
-    });
-  }
-  document.getElementById("detOverlay").classList.add("open");
+  var c=contacts.find(function(x){return x.id===e.person_id;});
+  var ch=e.capture_mode||"presencial";
+  var icon={presencial:"🤝",whatsapp:"💬",linkedin:"💼",gmail:"✉️",audio:"🎙",manual:"📝",auto:"🤖"}[ch]||"📝";
+  var html="";
+  if(c&&c.photo_url&&!c.photo_url.startsWith("data:"))
+    html+='<div style="text-align:center;margin-bottom:10px">'+avHtml(c,64)+'</div>';
+  html+='<div class="det-name">'+icon+' '+esc(e.person_name||"Desconhecido")+'</div>';
+  html+='<div class="det-role">'+fmtDate(e.date)+(e.location?' · '+esc(e.location):'')+'</div>';
+  if(e.context) html+='<div style="font-size:14px;line-height:1.7;margin:14px 0;white-space:pre-wrap;color:rgba(255,255,255,.8)">'+esc(e.context)+'</div>';
+  if(e.speech_captured) html+='<details style="margin-top:8px"><summary style="font-size:12px;color:var(--muted);cursor:pointer">Ver transcrição completa</summary><div style="font-size:12px;color:var(--muted);margin-top:8px;line-height:1.65;white-space:pre-wrap">'+esc(e.speech_captured)+'</div></details>';
+  html+='<button class="btn-danger" style="margin-top:16px" onclick="deleteEncById(\''+e.id+'\')">🗑 Excluir</button>';
+  document.getElementById("detailBody").innerHTML=html;
+  document.getElementById("detailModal").classList.add("open");
 }
 
-async function deleteEncounter(id){
+async function deleteEncById(id){
   if(!confirm("Excluir este encontro?")) return;
   try{
-    await fetch(PROXY+"?id="+id+"&entity=FaceContextEncounter", {method:"DELETE"});
-    encounters = encounters.filter(function(e){return e.id!==id;});
-    renderEncounters();
-    closeModal("detOverlay");
+    await fetch(PROXY+"?id="+id+"&entity=FaceContextEncounter",{method:"DELETE"});
+    encounters=encounters.filter(function(e){return e.id!==id;});
+    renderHistory(); closeModal("detailModal");
     toast("Encontro excluído","");
-  }catch(e){ toast("Erro ao excluir","err"); }
+  }catch(e){ toast("Erro","err"); }
 }
 
-function openAddEncounter(personId, personName){
-  _encPersonId = personId;
-  // Reset campos
-  document.getElementById("encPersonSearch").value = personName||"";
-  document.getElementById("encPersonList").style.display = "none";
-  document.getElementById("encPersonList").innerHTML = "";
-  if(personId && personName){
-    document.getElementById("encPersonField").style.display = "none";
-    document.getElementById("encPersonSelected") && (document.getElementById("encPersonSelected").style.display="none");
-  } else {
-    document.getElementById("encPersonField").style.display = "block";
-    document.getElementById("encPersonSearch").value = "";
-    _encPersonId = null;
+// Teclado na timeline
+document.addEventListener("keydown",function(e){
+  if(!document.getElementById("page-history").classList.contains("active")) return;
+  if(document.querySelector(".overlay.open")) return;
+  var items=Array.from(document.querySelectorAll(".tl-item"));
+  if(!items.length) return;
+  if(e.key==="ArrowDown"||e.key==="ArrowUp"){
+    e.preventDefault();
+    if(_tlIdx<0) _tlIdx=0; else _tlIdx+=(e.key==="ArrowDown"?1:-1);
+    _tlIdx=Math.max(0,Math.min(_tlIdx,items.length-1));
+    items.forEach(function(el){el.classList.remove("focused");});
+    items[_tlIdx].classList.add("focused");
+    items[_tlIdx].scrollIntoView({block:"center",behavior:"smooth"});
   }
-  document.getElementById("encLocation").value = "";
-  var now = new Date(); now.setMinutes(now.getMinutes()-now.getTimezoneOffset());
-  document.getElementById("encDate").value = now.toISOString().slice(0,16);
-  document.getElementById("encContext").value = "";
-  document.getElementById("encTranscript").style.display = "none";
-  document.getElementById("encTranscript").textContent = "";
-  document.getElementById("encAISummary").style.display = "none";
-  document.getElementById("btnGenSum").style.display = "none";
-  document.getElementById("encMode").value = "manual";
-  document.getElementById("recBar").style.display = "none";
-  document.getElementById("btnRecStart").style.display = "";
-  document.getElementById("btnRecStop").style.display = "none";
-  encTranscript = "";
-  document.getElementById("encTitle").textContent = personName ? "Encontro — "+personName : "Novo Encontro";
-  document.getElementById("encOverlay").classList.add("open");
+  if(e.key==="Enter"&&_tlIdx>=0&&items[_tlIdx]){
+    e.preventDefault();
+    var id=items[_tlIdx].getAttribute("data-id");
+    if(id) openEncDetail(id);
+  }
+});
+
+// ─── ENCOUNTER MODAL ────────────────────────────────────────
+function openNewEncounter(){
+  _encPersonId=null; _encTranscript=""; _recSecs=0;
+  document.getElementById("encPersonSearch").value="";
+  document.getElementById("encPersonDrop").style.display="none";
+  document.getElementById("encPersonId").value="";
+  document.getElementById("encLocation").value="";
+  document.getElementById("encContext").value="";
+  document.getElementById("encTranscript").style.display="none";
+  document.getElementById("encAIBox").style.display="none";
+  document.getElementById("btnGenSum").style.display="none";
+  document.getElementById("recBar").style.display="none";
+  document.getElementById("btnRecStart").style.display="";
+  document.getElementById("btnRecStop").style.display="none";
+  document.getElementById("encChannel").value="presencial";
+  var now=new Date(); now.setMinutes(now.getMinutes()-now.getTimezoneOffset());
+  document.getElementById("encDate").value=now.toISOString().slice(0,16);
+  document.getElementById("encModalTitle").textContent="Novo Encontro";
+  document.getElementById("encounterModal").classList.add("open");
 }
 
-function renderEncPersonList(q){
-  var list = document.getElementById("encPersonList");
-  if(!q||q.length<1){ list.style.display="none"; return; }
-  var results = contacts.filter(function(c){
-    return (c.name||"").toLowerCase().includes(q.toLowerCase());
+function openNewEncounterFor(pid,pname){
+  openNewEncounter();
+  _encPersonId=pid;
+  document.getElementById("encPersonSearch").value=pname;
+  document.getElementById("encPersonId").value=pid;
+  document.getElementById("encModalTitle").textContent="Encontro — "+pname;
+}
+
+function renderEncDrop(q){
+  var dd=document.getElementById("encPersonDrop");
+  if(!q){dd.style.display="none";return;}
+  var res=contacts.filter(function(c){
+    return (c.name||"").toLowerCase().includes(q.toLowerCase())&&c.status!=="Pendente";
   }).slice(0,8);
-  if(!results.length){ list.style.display="none"; return; }
-  list.style.display = "block";
-  list.innerHTML = results.map(function(c){
-    return `<div onclick="selectEncPerson('${c.id}','${esc(c.name||"")}');event.stopPropagation()"
-      style="padding:8px 10px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border)">${esc(c.name||"")}</div>`;
+  if(!res.length){dd.style.display="none";return;}
+  dd.style.display="block";
+  dd.innerHTML=res.map(function(c){
+    return '<div onclick="selEncPerson(\''+c.id+'\',\''+esc(c.name||"")+'\');event.stopPropagation()" '+
+      'style="padding:9px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--border)">'+
+      esc(c.name||"")+(c.company?' <span style="color:var(--muted);font-size:11px">'+esc(c.company)+'</span>':'')+'</div>';
   }).join("");
 }
 
-function selectEncPerson(id, name){
-  _encPersonId = id;
-  document.getElementById("encPersonSearch").value = name;
-  document.getElementById("encPersonList").style.display = "none";
-  document.getElementById("encPersonList").innerHTML = "";
+function selEncPerson(id,name){
+  _encPersonId=id;
+  document.getElementById("encPersonSearch").value=name;
+  document.getElementById("encPersonId").value=id;
+  document.getElementById("encPersonDrop").style.display="none";
 }
 
-function clearEncPerson(){
-  _encPersonId = null;
-  document.getElementById("encPersonSearch").value = "";
-  document.getElementById("encPersonSelected").style.display = "none";
-}
-
-// ── GRAVAÇÃO DE ÁUDIO ────────────────────────────────────────
-function startEncRec(){
-  if(!("webkitSpeechRecognition" in window||"SpeechRecognition" in window)){
-    toast("Gravação não suportada neste browser","err"); return;
-  }
-  var SR = window.SpeechRecognition||window.webkitSpeechRecognition;
-  encRecognition = new SR();
-  encRecognition.lang = "pt-BR";
-  encRecognition.continuous = true;
-  encRecognition.interimResults = true;
-  encTranscript = "";
-  encRecSecs = 0;
-
-  document.getElementById("recBar").style.display = "flex";
-  document.getElementById("btnRecStart").style.display = "none";
-  document.getElementById("btnRecStop").style.display = "";
-  document.getElementById("encTranscript").style.display = "block";
-  document.getElementById("encTranscript").textContent = "Ouvindo…";
-
-  encRecTimer = setInterval(function(){
-    encRecSecs++;
-    var m = Math.floor(encRecSecs/60), s = encRecSecs%60;
-    document.getElementById("recDur").textContent = m+":"+(s<10?"0"+s:s);
-  }, 1000);
-
-  encRecognition.onresult = function(ev){
-    var final="", interim="";
-    for(var i=ev.resultIndex;i<ev.results.length;i++){
-      if(ev.results[i].isFinal) final += ev.results[i][0].transcript+" ";
-      else interim += ev.results[i][0].transcript;
-    }
-    encTranscript += final;
-    document.getElementById("encTranscript").textContent = encTranscript + interim;
-    document.getElementById("encTranscript").scrollTop = 9999;
-  };
-  encRecognition.onerror = function(e){ toast("Erro mic: "+e.error,"err"); stopEncRec(); };
-  encRecognition.onend = function(){ if(encRecording){ try{encRecognition.start();}catch(e){} } };
-  encRecording = true;
-  encRecognition.start();
-}
-
-function stopEncRec(){
-  encRecording = false;
-  if(encRecognition) encRecognition.stop();
-  if(encRecTimer){ clearInterval(encRecTimer); encRecTimer=null; }
-  document.getElementById("recBar").style.display = "none";
-  document.getElementById("btnRecStart").style.display = "";
-  document.getElementById("btnRecStop").style.display = "none";
-  if(encTranscript.trim()){
-    document.getElementById("encMode").value = "audio";
-    document.getElementById("btnGenSum").style.display = "block";
-    toast("Gravação finalizada — gere o resumo ✨","ok");
-  }
-}
-
-// ── RESUMO IA ────────────────────────────────────────────────
-async function generateEncSummary(){
-  var txt = encTranscript.trim();
-  if(!txt){ toast("Sem transcrição para resumir","err"); return; }
-  var btn = document.getElementById("btnGenSum");
-  btn.textContent = "⏳ Gerando…"; btn.disabled = true;
-  var personName = document.getElementById("encPersonSearch").value || "a pessoa";
-  // Usa o Base44 LLM endpoint se disponível, caso contrário formata o texto
-  try{
-    var r = await fetch("https://base44.app/api/apps/6a11083db49430b410a8c066/functions/fcProxy", {
-      method:"POST",
-      headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({
-        _action: "summarize",
-        person: personName,
-        transcript: txt.slice(0,3000)
-      })
-    });
-    var data = await r.json();
-    var summary = data.summary || data.result || makeFallbackSummary(txt, personName);
-    document.getElementById("encAISummary").textContent = summary;
-    document.getElementById("encAISummary").style.display = "block";
-    document.getElementById("encContext").value = summary;
-    toast("Resumo gerado ✅","ok");
-  }catch(e){
-    var summary = makeFallbackSummary(txt, personName);
-    document.getElementById("encAISummary").textContent = summary;
-    document.getElementById("encAISummary").style.display = "block";
-    document.getElementById("encContext").value = summary;
-  }
-  btn.textContent = "✨ Gerar resumo com IA"; btn.disabled = false;
-}
-
-function makeFallbackSummary(txt, person){
-  var sentences = txt.split(/[.!?]+/).map(function(s){return s.trim();}).filter(function(s){return s.length>20;});
-  var top = sentences.slice(0,5).join(". ");
-  return "Conversa com "+person+":
-
-"+(top||txt.slice(0,400));
-}
-
-async function saveEncounterFull(){
-  var personId = _encPersonId;
-  var personName = document.getElementById("encPersonSearch").value.trim();
-  var ctx = document.getElementById("encContext").value.trim();
-  var loc = document.getElementById("encLocation").value.trim();
-  var dateVal = document.getElementById("encDate").value;
-  var mode = document.getElementById("encMode").value;
-  if(!personName && !ctx && !loc){ toast("Preencha ao menos um campo","err"); return; }
-  var date = dateVal ? new Date(dateVal).toISOString() : new Date().toISOString();
-  var payload = {
-    person_id: personId||"",
-    person_name: personName,
-    date: date,
-    location: loc,
-    context: ctx,
-    speech_captured: encTranscript||"",
-    capture_mode: mode,
-    notes: ""
-  };
-  try{
-    var r = await fetch(PROXY+"?entity=FaceContextEncounter",{
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify(payload)
-    });
-    if(!r.ok) throw new Error("HTTP "+r.status);
-    var saved = await r.json();
-    encounters.unshift(saved);
-    // Atualiza last_seen no perfil
-    if(personId){
-      await fetch(PROXY+"?id="+personId+"&entity=FaceContextPerson",{
-        method:"PUT", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({last_seen_date:date, last_seen_context:loc||ctx})
-      });
-      var c = contacts.find(function(x){return x.id===personId;});
-      if(c){ c.last_seen_date=date; c.last_seen_context=loc||ctx; }
-    }
-    renderEncounters(); renderContacts();
-    closeModal("encOverlay");
-    toast("Encontro salvo! ✅","ok");
-    encTranscript="";
-  }catch(e){ toast("Erro: "+e.message,"err"); }
-}
-
-
-// ── TIMELINE: navegação por teclado ──────────────────────────────
-var _tlFocusIdx = -1;
-
-function getTLItems(){
-  return Array.from(document.querySelectorAll("#encList .tl-item"));
-}
-
-function focusTLItem(idx){
-  var items = getTLItems();
-  if(!items.length) return;
-  idx = Math.max(0, Math.min(idx, items.length-1));
-  items.forEach(function(el){ el.classList.remove("tl-focused"); });
-  items[idx].classList.add("tl-focused");
-  items[idx].scrollIntoView({block:"center", behavior:"smooth"});
-  _tlFocusIdx = idx;
-}
-
-function initTLKeyboard(){
-  // Toque em item → foca ele
-  document.getElementById("encList").addEventListener("click", function(e){
-    var item = e.target.closest(".tl-item");
-    if(!item) return;
-    var items = getTLItems();
-    _tlFocusIdx = items.indexOf(item);
-  }, true);
-}
-
-// Keyboard listener para timeline
-document.addEventListener("keydown", function(e){
-  var page = document.querySelector(".page.active");
-  if(!page || page.id !== "page-encounters") return;
-  if(document.querySelector(".overlay.open")) return; // modal aberto = ignora
-  if(e.key === "ArrowDown" || e.key === "ArrowUp"){
-    e.preventDefault();
-    if(_tlFocusIdx < 0 && getTLItems().length) _tlFocusIdx = 0;
-    focusTLItem(_tlFocusIdx + (e.key==="ArrowDown" ? 1 : -1));
-  }
-  if(e.key === "Enter"){
-    e.preventDefault();
-    var items = getTLItems();
-    if(_tlFocusIdx >= 0 && items[_tlFocusIdx]){
-      var id = items[_tlFocusIdx].getAttribute("data-encid");
-      if(id) showEncDetail(id);
-    }
-  }
-});
-
-
-// ── MENSAGENS NA TIMELINE ─────────────────────────────────────────────────
-var MSG_PROXY = "https://base44.app/api/apps/6a11083db49430b410a8c066/functions/fcMessages";
-var _manualMsgPersonId = null, _manualMsgPersonName = "";
-// cache: personId → {gmail:[...], manual:[...]}
-var _msgCache = {};
-
-async function loadPersonMessages(personId, personName, personEmail){
-  if(_msgCache[personId]) return _msgCache[personId];
-  var result = {gmail:[], manual:[]};
-  // Gmail
-  try{
-    var q = personEmail
-      ? "email="+encodeURIComponent(personEmail)
-      : "name="+encodeURIComponent(personName);
-    var r = await fetch(MSG_PROXY+"?"+q+"&limit=5");
-    if(r.ok){
-      var d = await r.json();
-      result.gmail = d.messages || [];
-    }
-  }catch(e){}
-  // Manual (do FaceContextEncounter com capture_mode whatsapp/linkedin/manual)
-  result.manual = encounters.filter(function(e){
-    return e.person_id === personId &&
-      ["whatsapp","linkedin","manual"].includes(e.capture_mode);
-  });
-  _msgCache[personId] = result;
-  return result;
-}
-
-function renderMsgSection(personId, personName, containerEl){
-  var msgs = _msgCache[personId];
-  if(!msgs || (!msgs.gmail.length && !msgs.manual.length)){
-    containerEl.innerHTML = "";
-    return;
-  }
-  var all = [];
-  msgs.gmail.forEach(function(m){
-    all.push({
-      channel:"gmail", icon:"✉️",
-      subject: m.subject,
-      snippet: m.snippet,
-      date: m.date ? new Date(m.date) : null,
-      id: m.id
-    });
-  });
-  msgs.manual.forEach(function(m){
-    all.push({
-      channel: m.capture_mode, icon: m.capture_mode==="whatsapp"?"💬":m.capture_mode==="linkedin"?"💼":"📝",
-      subject: m.location || m.capture_mode,
-      snippet: m.context || m.speech_captured || "",
-      date: m.date ? new Date(m.date) : null,
-      id: m.id
-    });
-  });
-  // Ordena por data desc
-  all.sort(function(a,b){return (b.date||0)-(a.date||0);});
-
-  var html = `<div class="tl-msg-section">
-    <div class="tl-msg-header">
-      <span>Mensagens recentes</span>
-      <span class="ch-tag gmail">Gmail</span>
-      ${msgs.manual.length?'<span class="ch-tag manual">+manual</span>':''}
-    </div>`;
-  all.slice(0,6).forEach(function(m){
-    var dateStr = m.date ? m.date.toLocaleDateString("pt-BR",{day:"2-digit",month:"short"}) : "";
-    html += `<div class="tl-msg-item" onclick="openGmailMsg('${m.id}','${m.channel}')">
-      <div class="tl-ch-icon">${m.icon}</div>
-      <div class="tl-msg-body">
-        <div class="tl-msg-subj">${esc(m.subject||"")}</div>
-        <div class="tl-msg-snip">${esc(m.snippet||"")}</div>
-      </div>
-      <div class="tl-msg-date">${dateStr}</div>
-    </div>`;
-  });
-  html += `<button class="btn-add-msg" onclick="event.stopPropagation();openManualMsg('${personId}','${esc(personName)}')">+ WhatsApp / LinkedIn / outro</button>`;
-  html += `</div>`;
-  containerEl.innerHTML = html;
-}
-
-function openGmailMsg(id, channel){
-  if(channel === "gmail"){
-    window.open("https://mail.google.com/mail/u/0/#inbox/"+id,"_blank");
-  }
-}
-
-function openManualMsg(personId, personName){
-  _manualMsgPersonId = personId;
-  _manualMsgPersonName = personName;
-  document.getElementById("manualMsgTitle").textContent = "Msg — "+personName;
-  var now = new Date(); now.setMinutes(now.getMinutes()-now.getTimezoneOffset());
-  document.getElementById("manualMsgDate").value = now.toISOString().slice(0,16);
-  document.getElementById("manualMsgText").value = "";
-  document.getElementById("manualMsgOverlay").classList.add("open");
-}
-
-async function saveManualMsg(){
-  var channel = document.getElementById("manualMsgChannel").value;
-  var txt = document.getElementById("manualMsgText").value.trim();
-  var dateVal = document.getElementById("manualMsgDate").value;
-  if(!txt){ toast("Escreva algo","err"); return; }
-  var date = dateVal ? new Date(dateVal).toISOString() : new Date().toISOString();
-  var icon = channel==="whatsapp"?"💬":channel==="linkedin"?"💼":"📝";
-  var payload = {
-    person_id: _manualMsgPersonId,
-    person_name: _manualMsgPersonName,
-    date: date,
-    context: txt,
-    capture_mode: channel,
-    location: icon+" "+channel,
-    speech_captured: ""
-  };
-  try{
-    var r = await fetch(PROXY+"?entity=FaceContextEncounter",{
-      method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify(payload)
-    });
-    if(!r.ok) throw new Error("HTTP "+r.status);
-    var saved = await r.json();
-    encounters.unshift(saved);
-    delete _msgCache[_manualMsgPersonId];
-    closeModal("manualMsgOverlay");
-    toast(icon+" Mensagem salva","ok");
-  }catch(e){ toast("Erro: "+e.message,"err"); }
-}
-
-// ── merge page ─────────────────────────────────────────────────
-function renderMergeList(ab){
-  var inp=document.getElementById("mergeSearch"+ab);
-  var q=(inp?.value||"").toLowerCase();
-  var list=document.getElementById("mergeList"+ab);
-  var filtered=contacts.filter(c=>!q||((c.name||"").toLowerCase().includes(q)||(c.company||"").toLowerCase().includes(q)));
-  list.innerHTML=filtered.slice(0,30).map(c=>{
-    var sel=(ab==="A"&&mergeA===c.id)||(ab==="B"&&mergeB===c.id);
-    return `<div class="ccard" style="${sel?"border-color:var(--green);background:rgba(0,255,136,0.06)":""}" onclick="selectMerge('${ab}','${c.id}')">
-      <div class="av" style="width:36px;height:36px;font-size:13px">${c.photo_url?`<img src="${esc(c.photo_url)}">`:(initials(c.name))}</div>
-      <div class="ci"><div class="cn" style="font-size:14px">${esc(c.name||"?")}</div><div class="cs">${esc([c.role,c.company].filter(Boolean).join(" · ")||"")}</div></div>
-      ${sel?'<span style="color:var(--green);font-size:18px">✓</span>':""}
-    </div>`;
-  }).join("")||'<div style="padding:12px;color:var(--muted);text-align:center">Nenhum resultado</div>';
-}
-
-function selectMerge(ab,id){
-  if(ab==="A") mergeA=id; else mergeB=id;
-  renderMergeList("A"); renderMergeList("B");
-  if(mergeA&&mergeB&&mergeA!==mergeB){
-    var a=contacts.find(x=>x.id===mergeA), b=contacts.find(x=>x.id===mergeB);
-    var merged=mergePreview(a,b);
-    document.getElementById("mergePreview").style.display="block";
-    document.getElementById("mergePreviewContent").innerHTML=
-      `<b>Nome:</b> ${esc(merged.name)}<br>`+
-      `<b>Empresa:</b> ${esc(merged.company||"—")}<br>`+
-      `<b>Email:</b> ${esc(merged.contact_email||"—")}<br>`+
-      `<b>Tags:</b> ${esc((merged.tags||[]).join(", ")||"—")}<br>`+
-      `<b>Notas:</b> ${esc((merged.notes||"").slice(0,100))}`;
-    document.getElementById("btnDoMerge").style.display="block";
-  } else {
-    document.getElementById("mergePreview").style.display="none";
-    document.getElementById("btnDoMerge").style.display="none";
-  }
-}
-
-function mergePreview(a,b){
-  return {
-    name: a.name||b.name,
-    nickname: a.nickname||b.nickname,
-    company: a.company||b.company,
-    role: a.role||b.role,
-    relation: a.relation||b.relation,
-    relation_context: a.relation_context||b.relation_context,
-    status: a.status==="Identificado"?"Identificado":b.status,
-    tags: [...new Set([...(a.tags||[]),...(b.tags||[])])],
-    contact_email: a.contact_email||b.contact_email,
-    contact_whatsapp: a.contact_whatsapp||b.contact_whatsapp,
-    contact_linkedin: a.contact_linkedin||b.contact_linkedin,
-    photo_url: a.photo_url||b.photo_url,
-    face_embedding: a.face_embedding||b.face_embedding,
-    last_seen_date: [a.last_seen_date,b.last_seen_date].filter(Boolean).sort().reverse()[0]||null,
-    notes: [a.notes,b.notes].filter(Boolean).join("\n---\n")||null,
-  };
-}
-
-async function doMerge(){
-  if(!mergeA||!mergeB||mergeA===mergeB){ toast("Selecione dois contatos diferentes","err"); return; }
-  var a=contacts.find(x=>x.id===mergeA), b=contacts.find(x=>x.id===mergeB);
-  var merged=mergePreview(a,b);
-  if(!confirm(`Mesclar "${b.name}" em "${a.name}"?\n\nO contato secundário será excluído.`)) return;
-  try{
-    await fetch(PROXY+"?id="+mergeA,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(merged)});
-    await fetch(PROXY+"?id="+mergeB,{method:"DELETE"});
-    contacts=contacts.filter(x=>x.id!==mergeB);
-    var idx=contacts.findIndex(x=>x.id===mergeA);
-    if(idx>=0) contacts[idx]={...contacts[idx],...merged};
-    localStorage.setItem("fc_c",JSON.stringify(contacts));
-    mergeA=null; mergeB=null;
-    renderMergeList("A"); renderMergeList("B"); renderContacts();
-    document.getElementById("mergePreview").style.display="none";
-    document.getElementById("btnDoMerge").style.display="none";
-    toast("✅ Contatos mesclados com sucesso!","ok");
-  }catch(e){ toast("Erro ao mesclar","err"); }
-}
-
-// ── detail ────────────────────────────────────────────────────
-function openDetail(id){
-  var c=contacts.find(x=>x.id===id); if(!c) return;
-  var av=c.photo_url?`<img src="${esc(c.photo_url)}">`:(initials(c.name||"?"));
-  var tags=(c.tags||[]).filter(t=>t!=="gmail");
-  var html=`
-    <div class="det-top">
-      <div class="det-av">${av}</div>
-      <div class="det-name">${esc(c.name||"Sem nome")}</div>
-      <div class="det-sub"><span class="sbadge ${esc(c.status||"Pendente")}">${esc(c.status||"Pendente")}</span></div>
-      ${tags.length?`<div style="display:flex;justify-content:center;flex-wrap:wrap;gap:5px;padding:8px 0">${tags.map(t=>`<span class="tag">${esc(t)}</span>`).join("")}</div>`:""}
-    </div>
-    <div class="det-actions">
-      <button class="btn-act" onclick="closeModal('detOverlay');openEdit('${id}')">✏️ Editar</button>
-      <button class="btn-act" onclick="closeModal('detOverlay');openAddEncounter('${id}','${esc(c.name||"")}')">💬 Encontro</button>
-      <button class="btn-act danger" onclick="closeModal('detOverlay');confirmDelete('${id}')">🗑 Excluir</button>
-    </div>
-    <div class="det-section">`;
-  if(c.relation) html+=`<h3>Relação</h3>`+dRow(relIcon(c.relation),c.relation+(c.relation_context?" · "+c.relation_context:""));
-  if(c.company||c.role){html+=`<h3>Profissional</h3>`;if(c.role)html+=dRow("💼",c.role);if(c.company)html+=dRow("🏢",c.company);}
-  if(c.contact_email||c.contact_whatsapp||c.contact_linkedin){
-    html+=`<h3>Contato</h3>`;
-    if(c.contact_whatsapp) html+=dRow("📱",`<a href="https://wa.me/${(c.contact_whatsapp).replace(/\D/g,"")}">${esc(c.contact_whatsapp)}</a>`);
-    if(c.contact_email) html+=dRow("✉️",`<a href="mailto:${esc(c.contact_email)}">${esc(c.contact_email)}</a>`);
-    if(c.contact_linkedin) html+=dRow("💼",`<a href="${esc(c.contact_linkedin)}" target="_blank">LinkedIn</a>`);
-  }
-  if(c.last_seen_date||c.last_seen_context){
-    html+=`<h3>Último encontro</h3>`;
-    if(c.last_seen_date) html+=dRow("📅",fmtDate(c.last_seen_date));
-    if(c.last_seen_context) html+=dRow("📍",c.last_seen_context);
-  }
-  if(c.notes) html+=`<h3>Notas / Resumo de conversa</h3>`+dRow("📝",c.notes);
-  html+="</div>";
-  document.getElementById("detContent").innerHTML=html;
-  document.getElementById("detOverlay").classList.add("open");
-}
-function dRow(icon,val){ return `<div class="det-row"><span class="det-icon">${icon}</span><span class="det-val">${val}</span></div>`; }
-
-// ── add / edit ────────────────────────────────────────────────
-function openAdd(){
-  editingId=null; currentTags=[]; photoFile=null; photoDataUrl=null;
-  ["fName","fNickname","fCompany","fRole","fRelContext","fWA","fEmail","fLI","fNotes"].forEach(id=>document.getElementById(id).value="");
-  document.getElementById("fRelation").value="";
-  document.getElementById("fStatus").value="Identificado";
-  document.getElementById("photoPreview").innerHTML="📷";
-  renderTags();
-  document.getElementById("addTitle").textContent="Novo Contato";
-  document.getElementById("addOverlay").classList.add("open");
-  setTimeout(()=>document.getElementById("fName").focus(),350);
-}
-function openEdit(id){
-  var c=contacts.find(x=>x.id===id); if(!c) return;
-  editingId=id; fillForm(c);
-  document.getElementById("addTitle").textContent="Editar — "+c.name;
-  document.getElementById("addOverlay").classList.add("open");
-}
-function fillForm(c){
-  document.getElementById("fName").value=c.name||"";
-  document.getElementById("fNickname").value=c.nickname||"";
-  document.getElementById("fCompany").value=c.company||"";
-  document.getElementById("fRole").value=c.role||"";
-  document.getElementById("fRelation").value=c.relation||"";
-  document.getElementById("fStatus").value=c.status||"Identificado";
-  document.getElementById("fRelContext").value=c.relation_context||"";
-  document.getElementById("fWA").value=c.contact_whatsapp||"";
-  document.getElementById("fEmail").value=c.contact_email||"";
-  document.getElementById("fLI").value=c.contact_linkedin||"";
-  document.getElementById("fNotes").value=c.notes||"";
-  currentTags=c.tags?[...c.tags.filter(t=>t!=="gmail")]:[];
-  photoFile=null; photoDataUrl=c.photo_url||null;
-  document.getElementById("photoPreview").innerHTML=photoDataUrl?`<img src="${esc(photoDataUrl)}">`:"📷";
-  renderTags();
-}
-
-// ── tags ──────────────────────────────────────────────────────
-function renderTags(){
-  var box=document.getElementById("tagsBox");
-  box.innerHTML="";
-  currentTags.forEach((t,i)=>{
-    var s=document.createElement("span"); s.className="tag-chip";
-    s.innerHTML=esc(t)+`<button onclick="removeTag(${i})">×</button>`; box.appendChild(s);
-  });
-  var inp=document.createElement("input"); inp.className="tag-inp"; inp.id="tagInp";
-  inp.placeholder=currentTags.length?"":"Digite e Enter…";
-  inp.addEventListener("keydown",e=>{
-    if(e.key==="Enter"||e.key===","){e.preventDefault();var v=inp.value.trim().replace(/,/g,"");if(v&&!currentTags.includes(v)){currentTags.push(v);renderTags();}else inp.value="";}
-    else if(e.key==="Backspace"&&!inp.value.length&&currentTags.length){currentTags.pop();renderTags();}
-  }); box.appendChild(inp);
-}
-function removeTag(i){ currentTags.splice(i,1); renderTags(); }
-
-// ── photo ─────────────────────────────────────────────────────
-document.getElementById("photoInput").addEventListener("change",function(e){
-  var f=e.target.files[0]; if(!f) return; photoFile=f;
-  var r=new FileReader(); r.onload=ev=>{
-    photoDataUrl=ev.target.result;
-    document.getElementById("photoPreview").innerHTML=`<img src="${photoDataUrl}">`;
-  }; r.readAsDataURL(f);
-});
-
-// ── save ──────────────────────────────────────────────────────
-async function saveContact(){
-  var name=document.getElementById("fName").value.trim();
-  if(!name){ toast("Nome é obrigatório","err"); return; }
-  var btn=document.getElementById("btnSave"); btn.disabled=true; btn.textContent="Salvando…";
-  try{
-    var pUrl=photoDataUrl;
-    if(photoFile&&photoDataUrl?.startsWith("data:")){
-      try{
-        var blob=await fetch(photoDataUrl).then(r=>r.blob());
-        var fd=new FormData(); fd.append("file",blob,photoFile.name);
-        var up=await fetch(`https://base44.app/api/apps/${APP_ID}/files/upload`,{method:"POST",body:fd});
-        if(up.ok){ var j=await up.json(); pUrl=j.file_url||j.url||pUrl; }
-      }catch(e){}
-    }
-    var payload={
-      name, nickname:document.getElementById("fNickname").value.trim()||null,
-      company:document.getElementById("fCompany").value.trim()||null,
-      role:document.getElementById("fRole").value.trim()||null,
-      relation:document.getElementById("fRelation").value||null,
-      relation_context:document.getElementById("fRelContext").value.trim()||null,
-      status:document.getElementById("fStatus").value||"Identificado",
-      tags:currentTags,
-      contact_whatsapp:document.getElementById("fWA").value.trim()||null,
-      contact_email:document.getElementById("fEmail").value.trim()||null,
-      contact_linkedin:document.getElementById("fLI").value.trim()||null,
-      notes:document.getElementById("fNotes").value.trim()||null,
-      photo_url:pUrl||null,
-    };
-    if(editingId){
-      var r=await fetch(PROXY+"?id="+editingId,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
-      if(!r.ok) throw new Error("Erro ao atualizar");
-      var updated=await r.json();
-      var idx=contacts.findIndex(x=>x.id===editingId);
-      if(idx>=0) contacts[idx]={...contacts[idx],...updated};
-      toast("Contato atualizado! ✅","ok");
-    } else {
-      var created=await fetch(PROXY,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}).then(r=>r.json());
-      contacts.unshift(created);
-      toast("Contato salvo! ✅","ok");
-    }
-    localStorage.setItem("fc_c",JSON.stringify(contacts));
-    closeModal("addOverlay"); renderContacts(); renderPending();
-  }catch(err){ toast("Erro: "+err.message,"err"); }
-  finally{ btn.disabled=false; btn.textContent="💾 Salvar"; }
-}
-
-// ── delete ────────────────────────────────────────────────────
-function confirmDelete(id){
-  deleteId=id;
-  var c=contacts.find(x=>x.id===id);
-  document.getElementById("confirmName").textContent=c?`"${c.name}"` :"Este contato";
-  document.getElementById("confirmOverlay").classList.add("open");
-}
-async function doDelete(){
-  closeModal("confirmOverlay");
-  if(!deleteId) return;
-  try{
-    await fetch(PROXY+"?id="+deleteId,{method:"DELETE"});
-    contacts=contacts.filter(x=>x.id!==deleteId);
-    localStorage.setItem("fc_c",JSON.stringify(contacts));
-    renderContacts(); renderPending();
-    toast("Contato excluído","");
-  }catch(e){ toast("Erro ao excluir","err"); }
-  deleteId=null;
-}
-
-// ── OCR ───────────────────────────────────────────────────────
-async function openOCR(){
-  document.getElementById("ocrOverlay").classList.add("open");
-  try{
-    ocrStream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}});
-    document.getElementById("ocrVideo").srcObject=ocrStream;
-  }catch(e){ document.getElementById("ocrResult").textContent="Câmera não disponível: "+e.message; }
-}
-function closeOCR(){
-  if(ocrStream) ocrStream.getTracks().forEach(t=>t.stop()); ocrStream=null;
-  closeModal("ocrOverlay");
-}
-async function captureOCR(){
-  var video=document.getElementById("ocrVideo");
-  var canvas=document.getElementById("ocrCanvas");
-  canvas.width=video.videoWidth||640; canvas.height=video.videoHeight||480;
-  canvas.getContext("2d").drawImage(video,0,0);
-  document.getElementById("ocrResult").textContent="🔄 Processando…";
-  // Web-based OCR via Tesseract (CDN lazy load)
-  if(!window.Tesseract){
-    var s=document.createElement("script");
-    s.src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js";
-    document.head.appendChild(s); await new Promise(res=>s.onload=res);
-  }
-  try{
-    var result=await Tesseract.recognize(canvas,"por+eng",{logger:m=>{
-      if(m.status==="recognizing text") document.getElementById("ocrResult").textContent=`🔄 ${Math.round(m.progress*100)}%…`;
-    }});
-    ocrText=result.data.text.trim();
-    document.getElementById("ocrResult").textContent=ocrText||"Nenhum texto detectado.";
-    if(ocrText) document.getElementById("applyRow").style.display="flex";
-  }catch(e){ document.getElementById("ocrResult").textContent="Erro: "+e.message; }
-}
-function applyOCR(field){
-  if(!ocrText) return;
-  var lines=ocrText.split("\n").filter(l=>l.trim().length>2);
-  if(field==="all"||field==="name") document.getElementById("fName").value=lines[0]||"";
-  if(field==="all"||field==="company") document.getElementById("fCompany").value=lines[1]||"";
-  if(field==="all"||field==="role") document.getElementById("fRole").value=lines[2]||"";
-  closeOCR();
-  toast("Texto aplicado ao formulário ✅","ok");
-}
-
-// ── MIC / SPEECH ──────────────────────────────────────────────
-function openMic(){ document.getElementById("micOverlay").classList.add("open"); }
-function closeMic(){
-  if(recognition&&isRecording){recognition.stop();isRecording=false;}
-  closeModal("micOverlay");
-}
-function toggleMic(){
-  if(!("webkitSpeechRecognition" in window||"SpeechRecognition" in window)){
-    toast("Reconhecimento de fala não suportado neste browser","err"); return;
-  }
-  if(isRecording){ recognition.stop(); isRecording=false;
-    document.getElementById("micBtn").textContent="🎙 Iniciar gravação";
-    document.getElementById("micBtn").classList.remove("recording");
-    processSpeech(transcript); return;
-  }
+function startRec(){
+  if(!("webkitSpeechRecognition"in window||"SpeechRecognition"in window)){toast("Gravação não suportada","err");return;}
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  recognition=new SR(); recognition.lang="pt-BR"; recognition.continuous=true; recognition.interimResults=true;
-  transcript="";
-  recognition.onresult=e=>{
-    var interim="",final="";
-    for(var i=e.resultIndex;i<e.results.length;i++){
-      if(e.results[i].isFinal) final+=e.results[i][0].transcript+" ";
-      else interim+=e.results[i][0].transcript;
+  _recObj=new SR(); _recObj.lang="pt-BR"; _recObj.continuous=true; _recObj.interimResults=true;
+  _encTranscript=""; _recSecs=0;
+  document.getElementById("recBar").style.display="flex";
+  document.getElementById("btnRecStart").style.display="none";
+  document.getElementById("btnRecStop").style.display="";
+  document.getElementById("encTranscript").style.display="block";
+  document.getElementById("encTranscript").textContent="Ouvindo…";
+  _recTimer=setInterval(function(){
+    _recSecs++;
+    var m=Math.floor(_recSecs/60),s=_recSecs%60;
+    document.getElementById("recDur").textContent=m+":"+(s<10?"0"+s:s);
+  },1000);
+  _recObj.onresult=function(ev){
+    var fin="",int="";
+    for(var i=ev.resultIndex;i<ev.results.length;i++){
+      if(ev.results[i].isFinal) fin+=ev.results[i][0].transcript+" ";
+      else int+=ev.results[i][0].transcript;
     }
-    transcript+=final;
-    document.getElementById("transcriptBox").textContent=(transcript+interim)||"Ouvindo…";
+    _encTranscript+=fin;
+    var el=document.getElementById("encTranscript");
+    el.textContent=_encTranscript+int;
+    el.scrollTop=9999;
   };
-  recognition.onerror=e=>{ toast("Erro no microfone: "+e.error,"err"); isRecording=false; };
-  recognition.onend=()=>{ if(isRecording){ recognition.start(); } };
-  recognition.start(); isRecording=true;
-  document.getElementById("micBtn").textContent="⏹ Parar gravação";
-  document.getElementById("micBtn").classList.add("recording");
-}
-function processSpeech(text){
-  if(!text.trim()) return;
-  // Detecta padrões: nome, empresa, cargo
-  var summary={name:null,company:null,role:null,raw:text.trim()};
-  var nameMatch=text.match(/(?:(?:me chamo|meu nome[eé]|sou[ao]?)\s+)([A-ZÀ-Ú][a-zà-ú]+(?:\s+[A-ZÀ-Ú][a-zà-ú]+){1,3})/i);
-  if(nameMatch) summary.name=nameMatch[1];
-  var compMatch=text.match(/(?:trabalho na|da empresa|sou da)\s+([A-ZÀ-Ú][^\s,\.]+(?:\s+[A-ZÀ-Ú][^\s,\.]+)?)/i);
-  if(compMatch) summary.company=compMatch[1];
-  var roleMatch=text.match(/(?:sou\s+|trabalho como\s+)([A-ZÀ-Úa-zà-ú]+(?:\s+[a-zà-ú]+)?)/i);
-  if(roleMatch&&!nameMatch) summary.role=roleMatch[1];
-
-  var summaryText=[
-    summary.name?"👤 Nome: "+summary.name:"",
-    summary.company?"🏢 Empresa: "+summary.company:"",
-    summary.role?"💼 Cargo: "+summary.role:"",
-  ].filter(Boolean).join("\n")||(text.slice(0,200));
-
-  document.getElementById("summaryBox").textContent=summaryText;
-  document.getElementById("summarySection").style.display="block";
-  window._speechData=summary;
-}
-function applyTranscript(field){
-  var d=window._speechData||{};
-  if(field==="all"||field==="name") if(d.name) document.getElementById("fName").value=d.name;
-  if(field==="all"||field==="notes") document.getElementById("fNotes").value=(document.getElementById("fNotes").value?"\n\n":"")+d.raw;
-  if(field==="all") if(d.company) document.getElementById("fCompany").value=d.company;
-  closeMic();
-  toast("Dados aplicados ao formulário ✅","ok");
+  _recObj.onerror=function(e){toast("Mic: "+e.error,"err");stopRec();};
+  _recObj.onend=function(){if(_recObj._on){try{_recObj.start();}catch(e){}}};
+  _recObj._on=true; _recObj.start();
 }
 
+function stopRec(){
+  if(_recObj){_recObj._on=false;_recObj.stop();}
+  if(_recTimer){clearInterval(_recTimer);_recTimer=null;}
+  document.getElementById("recBar").style.display="none";
+  document.getElementById("btnRecStart").style.display="";
+  document.getElementById("btnRecStop").style.display="none";
+  if(_encTranscript.trim()){
+    document.getElementById("btnGenSum").style.display="block";
+    toast("Gravação finalizada ✨","ok");
+  }
+}
 
-// ── close on backdrop ─────────────────────────────────────────
-document.querySelectorAll(".overlay").forEach(o=>{
-  o.addEventListener("click",e=>{ if(e.target===o) o.classList.remove("open"); });
+function genSummary(){
+  var txt=_encTranscript.trim();
+  if(!txt){toast("Sem transcrição","err");return;}
+  var name=document.getElementById("encPersonSearch").value||"a pessoa";
+  var sentences=txt.split(/[.!?]+/).map(function(s){return s.trim();}).filter(function(s){return s.length>15;});
+  var summary="Conversa com "+name+":\n\n"+sentences.slice(0,6).join(". ");
+  document.getElementById("encAIBox").textContent=summary;
+  document.getElementById("encAIBox").style.display="block";
+  document.getElementById("encContext").value=summary;
+  toast("Resumo gerado","ok");
+}
+
+async function saveEncounter(){
+  var name=document.getElementById("encPersonSearch").value.trim();
+  var ctx=document.getElementById("encContext").value.trim();
+  var loc=document.getElementById("encLocation").value.trim();
+  var ch=document.getElementById("encChannel").value;
+  var dateVal=document.getElementById("encDate").value;
+  if(!name){toast("Selecione uma pessoa","err");return;}
+  var date=dateVal?new Date(dateVal).toISOString():new Date().toISOString();
+  try{
+    var r=await fetch(PROXY+"?entity=FaceContextEncounter",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({person_id:_encPersonId||"",person_name:name,date:date,
+        location:loc,context:ctx,speech_captured:_encTranscript||"",capture_mode:ch,notes:""})
+    });
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    var saved=await r.json();
+    encounters.unshift(saved);
+    if(_encPersonId){
+      await fetch(PROXY+"?id="+_encPersonId+"&entity=FaceContextPerson",{
+        method:"PUT",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({last_seen_date:date,last_seen_context:loc||ctx})
+      });
+      var c=contacts.find(function(x){return x.id===_encPersonId;});
+      if(c){c.last_seen_date=date;c.last_seen_context=loc||ctx;}
+    }
+    closeModal("encounterModal");
+    renderHistory(); renderContacts();
+    toast("✅ Encontro salvo!","ok");
+    _encTranscript="";
+  }catch(e){toast("Erro: "+e.message,"err");}
+}
+
+// ─── IMPORT PAGE ─────────────────────────────────────────────
+function renderStats(){
+  var total=contacts.length;
+  var ativos=contacts.filter(function(c){return c.status!=="Pendente";}).length;
+  var pend=contacts.filter(function(c){return c.status==="Pendente";}).length;
+  var foto=contacts.filter(function(c){return c.photo_url&&!c.photo_url.startsWith("data:");}).length;
+  document.getElementById("statsContent").innerHTML=
+    '👥 <strong>'+total+'</strong> contatos totais<br>'+
+    '✅ <strong>'+ativos+'</strong> identificados<br>'+
+    '⚠️ <strong>'+pend+'</strong> pendentes<br>'+
+    '📷 <strong>'+foto+'</strong> com foto<br>'+
+    '📅 <strong>'+encounters.length+'</strong> encontros registrados';
+}
+
+// CSV
+function handleCSV(input){
+  var file=input.files[0];
+  if(!file) return;
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    try{
+      _csvParsed=parseCSV(ev.target.result);
+      if(!_csvParsed.length){toast("CSV vazio ou formato inválido","err");return;}
+      var dupes=_csvParsed.filter(function(r){
+        return contacts.some(function(c){
+          return (r.email&&c.contact_email&&r.email.toLowerCase()===c.contact_email.toLowerCase())||
+                 (r.name&&c.name&&r.name.toLowerCase()===c.name.toLowerCase());
+        });
+      }).length;
+      document.getElementById("csvPreviewText").innerHTML=
+        '📄 <strong>'+_csvParsed.length+'</strong> registros encontrados<br>'+
+        '✅ <strong>'+(_csvParsed.length-dupes)+'</strong> novos · ⚠️ <strong>'+dupes+'</strong> possíveis duplicatas';
+      document.getElementById("csvPreview").style.display="block";
+    }catch(e){toast("Erro ao ler CSV","err");}
+  };
+  reader.readAsText(file,"UTF-8");
+}
+
+function parseCSV(text){
+  var lines=text.split(/\r?\n/).filter(function(l){return l.trim();});
+  if(lines.length<2) return [];
+  var hdr=lines[0].split(",").map(function(h){return h.trim().replace(/^"|"$/g,"").toLowerCase();});
+  return lines.slice(1).map(function(line){
+    var cols=line.match(/(".*?"|[^,]+)(?=,|$)/g)||[];
+    var row={};
+    hdr.forEach(function(h,i){row[h]=(cols[i]||"").replace(/^"|"$/g,"").trim();});
+    var fn=row["first name"]||row["firstname"]||row["nome"]||"";
+    var ln=row["last name"]||row["lastname"]||row["sobrenome"]||"";
+    var name=(fn+" "+ln).trim()||row["name"]||row["nome completo"]||"";
+    return{
+      name:name,
+      email:row["email address"]||row["e-mail address"]||row["email"]||row["e-mail"]||"",
+      company:row["company"]||row["empresa"]||"",
+      role:row["position"]||row["title"]||row["cargo"]||"",
+      linkedin:row["profile url"]||row["linkedin"]||""
+    };
+  }).filter(function(r){return r.name;});
+}
+
+function cancelCSV(){
+  _csvParsed=[];
+  document.getElementById("csvPreview").style.display="none";
+  document.getElementById("csvFile").value="";
+}
+
+async function confirmCSV(){
+  if(!_csvParsed.length) return;
+  var btn=document.getElementById("btnConfirmCSV");
+  btn.disabled=true; btn.textContent="Importando…";
+  document.getElementById("csvProgress").style.display="block";
+  var created=0,skipped=0;
+  for(var i=0;i<_csvParsed.length;i++){
+    var r=_csvParsed[i];
+    document.getElementById("csvFill").style.width=((i+1)/_csvParsed.length*100)+"%";
+    var isDupe=contacts.some(function(c){
+      return (r.email&&c.contact_email&&r.email.toLowerCase()===c.contact_email.toLowerCase())||
+             (r.name&&c.name&&r.name.toLowerCase()===c.name.toLowerCase());
+    });
+    if(isDupe){skipped++;continue;}
+    try{
+      var res=await fetch(PROXY+"?entity=FaceContextPerson",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({name:r.name,contact_email:r.email,company:r.company,role:r.role,contact_linkedin:r.linkedin,status:"Ativo"})
+      });
+      if(res.ok){var s=await res.json();contacts.push(s);created++;}
+    }catch(e){}
+  }
+  document.getElementById("csvProgress").style.display="none";
+  document.getElementById("csvPreview").style.display="none";
+  document.getElementById("csvFile").value="";
+  btn.disabled=false; btn.textContent="✅ Importar";
+  _csvParsed=[];
+  renderContacts(); updatePendBadge(); renderStats();
+  toast("✅ "+created+" importados, "+skipped+" duplicatas ignoradas","ok");
+}
+
+async function syncGmail(){
+  var btn=document.getElementById("btnGmailSync");
+  btn.disabled=true; btn.textContent="Sincronizando…";
+  document.getElementById("gmailProgress").style.display="block";
+  document.getElementById("gmailStatus").style.display="block";
+  document.getElementById("gmailStatus").textContent="Buscando contatos do Gmail…";
+  document.getElementById("gmailFill").style.width="20%";
+  try{
+    var r=await fetch(PROXY+"?_action=gmailSync",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({})});
+    document.getElementById("gmailFill").style.width="100%";
+    if(!r.ok) throw new Error("HTTP "+r.status);
+    var data=await r.json();
+    var created=data.created||0,skipped=data.skipped||0;
+    document.getElementById("gmailStatus").textContent="✅ "+created+" novos contatos importados, "+skipped+" já existiam";
+    if(created>0) await loadAll();
+    toast("Gmail sincronizado: +"+created,"ok");
+  }catch(e){
+    document.getElementById("gmailStatus").textContent="Erro: "+e.message;
+    toast("Erro ao sincronizar Gmail","err");
+  }
+  btn.disabled=false; btn.textContent="✉️ Sincronizar novamente";
+  document.getElementById("gmailProgress").style.display="none";
+}
+
+// ─── INIT ────────────────────────────────────────────────────
+document.querySelectorAll(".overlay").forEach(function(ov){
+  ov.addEventListener("click",function(e){ if(e.target===ov) ov.classList.remove("open"); });
 });
 
-
-// ── FETCH PHOTO AUTO ─────────────────────────────────────────
-var fetchingPhoto = {};
-async function fetchPhoto(id){
-  if(fetchingPhoto[id]) return;
-  fetchingPhoto[id]=true;
-  var c=contacts.find(x=>x.id===id); if(!c){ fetchingPhoto[id]=false; return; }
-  toast("🔍 Buscando foto de "+c.name+"…","ok");
-
-  var found=null;
-
-  // 1. Gravatar por email
-  if(c.contact_email && !found){
-    try{
-      var hash=await md5(c.contact_email.trim().toLowerCase());
-      var url="https://www.gravatar.com/avatar/"+hash+"?d=404&s=200";
-      var r=await fetch(url,{method:"HEAD"});
-      if(r.ok) found=url;
-    }catch(e){}
-  }
-
-  // 2. Clearbit logo por domínio do email (avatar de empresa como fallback)
-  if(c.contact_email && !found){
-    try{
-      var domain=c.contact_email.split("@")[1];
-      if(domain&&!domain.includes("gmail")&&!domain.includes("hotmail")&&!domain.includes("yahoo")){
-        var url="https://logo.clearbit.com/"+domain+"?size=200";
-        var r=await fetch(url,{method:"HEAD"});
-        if(r.ok) found=url;
-      }
-    }catch(e){}
-  }
-
-  // 3. UI Avatars (gerado por nome — fallback visual sempre funciona)
-  if(!found){
-    var nm=encodeURIComponent((c.name||"?").slice(0,2));
-    found="https://ui-avatars.com/api/?name="+encodeURIComponent(c.name||"?")+"&background=0a2a18&color=00ff88&size=200&bold=true&format=png";
-  }
-
-  if(found){
-    try{
-      var r=await fetch(PROXY+"?id="+id,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({photo_url:found})});
-      if(r.ok){
-        var updated=await r.json();
-        var idx=contacts.findIndex(x=>x.id===id);
-        if(idx>=0) contacts[idx]={...contacts[idx],photo_url:found};
-        localStorage.setItem("fc_c",JSON.stringify(contacts));
-        toast("✅ Foto atualizada: "+c.name,"ok");
-        renderContacts(); renderPending();
-      }
-    }catch(e){ toast("Erro ao salvar foto","err"); }
-  }
-  fetchingPhoto[id]=false;
-}
-
-// Buscar foto de TODOS sem foto
-async function fetchAllPhotos(){
-  var sem=contacts.filter(c=>!c.photo_url||!c.photo_url.startsWith("http"));
-  if(!sem.length){ toast("Todos já têm foto! 🎉","ok"); return; }
-  toast("🔍 Buscando fotos de "+sem.length+" contatos…","ok");
-  for(var c of sem){
-    await fetchPhoto(c.id);
-    await new Promise(r=>setTimeout(r,300)); // delay gentil
-  }
-  toast("✅ Busca concluída!","ok");
-}
-
-// MD5 simples para Gravatar
-async function md5(str){
-  var buf=await crypto.subtle.digest("MD5",new TextEncoder().encode(str)).catch(()=>null);
-  if(!buf) return fallbackMd5(str);
-  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
-}
-function fallbackMd5(str){
-  // Sem suporte nativo — retorna hash simples (não MD5 real, só para evitar crash)
-  var h=0;for(var i=0;i<str.length;i++){h=((h<<5)-h)+str.charCodeAt(i);h|=0;}
-  return Math.abs(h).toString(16).padStart(32,"0");
-}
-
-// ── INIT ─────────────────────────────────────────────────────
 loadAll();
-setInterval(()=>{ if(navigator.onLine) loadAll(); },60000);
 </script>
 </body>
 </html>
