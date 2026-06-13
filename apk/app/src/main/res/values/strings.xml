@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Nome exibido no menu do Rokid — curto, sem acento -->
+    <string name="app_name">FaceContext</string>
+</resources>
