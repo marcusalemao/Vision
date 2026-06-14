@@ -1,0 +1,20 @@
+pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        // Rokid CXR SDK — repositório Maven oficial Rokid
+        maven { url 'https://maven.rokid.com/repository/maven-public/' }
+    }
+}
+
+rootProject.name = "FaceContext"
+include ':app'
