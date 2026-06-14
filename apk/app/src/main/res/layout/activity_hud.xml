@@ -1,131 +1,211 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Rokid waveguide canvas: 480 x 640 px portrait
-  #000000 background = fully transparent on the physical prism
-  All UI elements rendered in green (#00FF88 and variants)
-  NO touch listeners — interaction is 100% via physical temple buttons
+    FaceContext HUD Layout
+    ══════════════════════
+    Fundo: #000000 = 100% transparente no waveguide Rokid (JBD Micro-LED)
+    Preto = o usuário vê o mundo real passando pelo prisma
+    Texto verde (#00FF88) flutua sobre a realidade
+
+    Display: 640×480px landscape fixo (JBD4020 Micro-LED, olho direito)
 -->
 <FrameLayout
     xmlns:android="http://schemas.android.com/apk/res/android"
-    android:id="@+id/root_layout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#000000"
-    android:focusable="true"
-    android:focusableInTouchMode="false">
+    android:background="#000000">
 
-    <!-- ── PROFILE HUD OVERLAY ─────────────────────────────── -->
+    <!-- ══ IDLE — aguardando captura ══ -->
     <LinearLayout
-        android:id="@+id/hud_profile"
-        android:layout_width="match_parent"
+        android:id="@+id/hud_idle"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_marginStart="16dp"
+        android:layout_marginBottom="12dp"
+        android:orientation="horizontal"
+        android:alpha="0.5"
+        android:visibility="visible">
+
+        <TextView
+            android:id="@+id/tv_idle_hint"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="⬡ POWER → identificar"
+            android:textColor="#00FF88"
+            android:textSize="10sp"
+            android:fontFamily="monospace"/>
+    </LinearLayout>
+
+    <!-- ══ CAPTURING — animação de identificação ══ -->
+    <LinearLayout
+        android:id="@+id/hud_capturing"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_marginStart="14dp"
+        android:layout_marginTop="14dp"
         android:orientation="vertical"
-        android:padding="16dp"
         android:visibility="gone">
 
-        <!-- Name — bright green, bold -->
         <TextView
-            android:id="@+id/hud_name"
-            android:layout_width="match_parent"
+            android:id="@+id/tv_capturing_status"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:text="● Identificando..."
+            android:textColor="#00FF88"
+            android:textSize="13sp"
+            android:fontFamily="monospace"/>
+    </LinearLayout>
+
+    <!-- ══ PROFILE — card de perfil identificado ══ -->
+    <!--
+        Canto superior esquerdo — área mais visível no waveguide
+        Fundo semi-transparente escuro para legibilidade
+    -->
+    <LinearLayout
+        android:id="@+id/hud_profile"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_marginStart="14dp"
+        android:layout_marginTop="14dp"
+        android:orientation="vertical"
+        android:background="#88000000"
+        android:padding="10dp"
+        android:minWidth="180dp"
+        android:visibility="gone">
+
+        <!-- Nome — destaque principal -->
+        <TextView
+            android:id="@+id/tv_name"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text=""
             android:textColor="#00FF88"
             android:textSize="20sp"
             android:textStyle="bold"
-            android:text="Nome" />
+            android:fontFamily="monospace"/>
 
-        <!-- Role -->
+        <!-- Cargo -->
         <TextView
-            android:id="@+id/hud_role"
-            android:layout_width="match_parent"
+            android:id="@+id/tv_role"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:text=""
             android:textColor="#00CC6E"
-            android:textSize="13sp"
-            android:layout_marginTop="4dp"
-            android:text="Cargo" />
+            android:textSize="11sp"
+            android:fontFamily="monospace"/>
 
-        <!-- Company -->
+        <!-- Empresa -->
         <TextView
-            android:id="@+id/hud_company"
-            android:layout_width="match_parent"
+            android:id="@+id/tv_company"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:text=""
             android:textColor="#00AA5A"
-            android:textSize="13sp"
-            android:layout_marginTop="2dp"
-            android:text="Empresa" />
+            android:textSize="11sp"
+            android:fontFamily="monospace"/>
 
-        <!-- Relation context -->
+        <!-- Contexto / como se conheceram -->
         <TextView
-            android:id="@+id/hud_context"
-            android:layout_width="match_parent"
+            android:id="@+id/tv_relation"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:text=""
             android:textColor="#008844"
-            android:textSize="11sp"
-            android:layout_marginTop="6dp"
-            android:text="Contexto da relação" />
+            android:textSize="10sp"
+            android:fontFamily="monospace"
+            android:fontFeatureSettings="italic"/>
 
-    </LinearLayout>
-
-    <!-- ── STATUS BAR (bottom) ─────────────────────────────── -->
-    <LinearLayout
-        android:id="@+id/hud_statusbar"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="12dp"
-        android:layout_gravity="bottom">
-
-        <!-- Last seen -->
+        <!-- Último encontro -->
         <TextView
-            android:id="@+id/hud_last_seen"
-            android:layout_width="match_parent"
+            android:id="@+id/tv_last_seen"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textColor="#00CC6E"
-            android:textSize="11sp"
-            android:text="" />
+            android:layout_marginTop="4dp"
+            android:text=""
+            android:textColor="#005533"
+            android:textSize="9sp"
+            android:fontFamily="monospace"/>
 
-        <!-- Contacts shortcut -->
+        <!-- Match score — canto superior direito do card -->
         <TextView
-            android:id="@+id/hud_contacts"
-            android:layout_width="match_parent"
+            android:id="@+id/tv_match_score"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text=""
             android:textColor="#00FF88"
-            android:textSize="11sp"
-            android:layout_marginTop="2dp"
-            android:text="" />
-
+            android:textSize="9sp"
+            android:fontFamily="monospace"
+            android:visibility="gone"/>
     </LinearLayout>
 
-    <!-- ── CAPTURE MODE INDICATOR (top right) ──────────────── -->
-    <TextView
-        android:id="@+id/hud_capture_indicator"
+    <!-- ══ ERROR — rosto não identificado ══ -->
+    <LinearLayout
+        android:id="@+id/hud_error"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="top|end"
-        android:layout_margin="12dp"
-        android:textColor="#00FF88"
-        android:textSize="10sp"
-        android:text="● CAP"
-        android:visibility="gone" />
+        android:layout_gravity="top|start"
+        android:layout_marginStart="14dp"
+        android:layout_marginTop="14dp"
+        android:orientation="vertical"
+        android:visibility="gone">
 
-    <!-- ── KEY HINT BAR (bottom right, shown on menu press) ── -->
+        <TextView
+            android:id="@+id/tv_error_msg"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Não identificado"
+            android:textColor="#FF6600"
+            android:textSize="12sp"
+            android:fontFamily="monospace"/>
+    </LinearLayout>
+
+    <!-- ══ HINTS — dicas de botões (toggle com MENU longo) ══ -->
     <LinearLayout
-        android:id="@+id/hud_keyhints"
+        android:id="@+id/hud_hints"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
+        android:layout_marginEnd="14dp"
+        android:layout_marginBottom="14dp"
         android:orientation="vertical"
-        android:padding="10dp"
+        android:background="#AA000000"
+        android:padding="8dp"
         android:visibility="gone">
 
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:textColor="#007733" android:textSize="9sp" android:text="▲ Próximo" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:textColor="#007733" android:textSize="9sp" android:text="▼ Anterior" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:textColor="#007733" android:textSize="9sp" android:text="⏻ Capturar" />
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:textColor="#007733" android:textSize="9sp" android:text="← Sair" />
-
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="POWER  → capturar"
+            android:textColor="#00AA55"
+            android:textSize="9sp"
+            android:fontFamily="monospace"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="BACK   → dispensar"
+            android:textColor="#00AA55"
+            android:textSize="9sp"
+            android:fontFamily="monospace"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="VOL+/- → navegar"
+            android:textColor="#00AA55"
+            android:textSize="9sp"
+            android:fontFamily="monospace"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="MENU ≥ → este menu"
+            android:textColor="#004422"
+            android:textSize="9sp"
+            android:fontFamily="monospace"/>
     </LinearLayout>
 
 </FrameLayout>
