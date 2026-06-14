@@ -1,0 +1,1159 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>FaceContext Manager</title>
+<script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0e1a;--card:#111827;--border:#1f2937;
+  --green:#00ff88;--green2:#00cc6e;--green3:#009944;
+  --text:#e5e7eb;--muted:#6b7280;--danger:#ef4444;
+  --orange:#f97316;--blue:#3b82f6;
+}
+html,body{background:var(--bg);color:var(--text);font-family:-apple-system,sans-serif;min-height:100vh;overscroll-behavior:none}
+#app{max-width:480px;margin:0 auto;min-height:100vh;position:relative;padding-bottom:72px}
+
+/* ── TOPBAR ── */
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 16px 8px;position:sticky;top:0;background:var(--bg);z-index:10;border-bottom:1px solid var(--border)}
+.topbar h1{font-size:17px;font-weight:700;color:var(--green)}
+.topbar-right{display:flex;gap:8px;align-items:center}
+.badge-sync{font-size:9px;padding:2px 7px;border-radius:10px;background:#0a2a18;color:var(--green3);border:1px solid #0f3a20}
+.badge-sync.err{background:#1a0a0a;color:#ff4444;border-color:#3a1010}
+.badge-sync.ok{color:var(--green);border-color:#1a5030;background:#061208}
+
+/* ── PAGES ── */
+.page{display:none}.page.active{display:block}
+
+/* ── SEARCH ── */
+.search-wrap{padding:10px 14px 4px}
+.search-input{width:100%;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:10px;color:var(--text);font-size:14px;outline:none}
+.search-input:focus{border-color:var(--green3)}
+
+/* ── TABS ── */
+.ftabs{display:flex;gap:6px;padding:8px 14px 4px;overflow-x:auto;scrollbar-width:none}
+.ftab{padding:5px 12px;border-radius:20px;border:1px solid var(--border);font-size:12px;color:var(--muted);background:none;white-space:nowrap;cursor:pointer}
+.ftab.on{background:var(--green);color:#0a0e1a;border-color:var(--green);font-weight:600}
+
+/* ── CARDS CONTATO ── */
+.clist{padding:8px 14px 0}
+.pcard{display:flex;align-items:center;gap:12px;padding:12px;background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:8px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.pcard:active{opacity:.75}
+.pcard-avatar{width:46px;height:46px;border-radius:50%;background:var(--border);object-fit:cover;flex-shrink:0;border:2px solid var(--border)}
+.pcard-avatar.fc-green{border-color:var(--green3)}
+.pcard-info{flex:1;min-width:0}
+.pcard-name{font-size:14px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pcard-sub{font-size:12px;color:var(--muted);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.pcard-date{font-size:10px;color:#374151;margin-top:4px}
+.pcard-emb{width:8px;height:8px;border-radius:50%;background:#374151;flex-shrink:0}
+.pcard-emb.ok{background:var(--green)}
+.empty{text-align:center;padding:48px 20px;color:var(--muted);font-size:14px}
+
+/* ── MODAL ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:100;display:none;align-items:flex-end;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:var(--card);border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:92vh;overflow-y:auto;padding:20px 18px 32px}
+.modal-handle{width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:16px;color:var(--green)}
+.field-label{font-size:11px;color:var(--muted);margin-bottom:4px;display:block;margin-top:14px}
+.field-input{width:100%;padding:10px 12px;background:#0d1117;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;outline:none}
+.field-input:focus{border-color:var(--green3)}
+.field-input[type=file]{padding:8px}
+select.field-input option{background:#0d1117}
+.btn-row{display:flex;gap:10px;margin-top:18px}
+.btn{flex:1;padding:12px;border:none;border-radius:10px;font-size:14px;font-weight:600;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.btn-primary{background:var(--green);color:#0a0e1a}
+.btn-primary:active{opacity:.8}
+.btn-secondary{background:var(--border);color:var(--text)}
+.btn-danger{background:rgba(239,68,68,.15);color:var(--danger);border:1px solid rgba(239,68,68,.3)}
+
+/* ── FOTO UPLOAD ── */
+.photo-preview-wrap{position:relative;width:80px;height:80px;margin:8px 0}
+.photo-preview{width:80px;height:80px;border-radius:50%;object-fit:cover;background:var(--border);border:2px solid var(--border);display:block}
+.photo-preview.has-photo{border-color:var(--green3)}
+.photo-clear{position:absolute;top:-4px;right:-4px;width:20px;height:20px;border-radius:50%;background:var(--danger);color:#fff;border:none;font-size:11px;cursor:pointer;display:flex;align-items:center;justify-content:center}
+
+/* ── AVATAR INICIAL ── */
+.av-init{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:17px;font-weight:700;color:#fff;flex-shrink:0}
+
+/* ── PENDING ── */
+.pend-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin:8px 14px}
+.pend-img{width:60px;height:60px;border-radius:8px;object-fit:cover;background:var(--border);float:left;margin-right:12px}
+.pend-actions{display:flex;gap:6px;margin-top:10px;clear:both}
+.pend-btn{flex:1;padding:8px;border-radius:8px;border:1px solid var(--border);background:none;color:var(--muted);font-size:12px;cursor:pointer}
+.pend-btn.ok{border-color:var(--green3);color:var(--green)}
+.pend-btn.del{border-color:rgba(239,68,68,.3);color:var(--danger)}
+.name-input{width:100%;padding:8px 10px;background:#0d1117;border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;margin-top:8px;outline:none}
+.name-input:focus{border-color:var(--green3)}
+
+/* ── HISTORY / TIMELINE ── */
+.hist-item{padding:14px;border-bottom:1px solid var(--border)}
+.hist-who{font-size:13px;font-weight:600;color:var(--text)}
+.hist-ctx{font-size:12px;color:var(--muted);margin-top:2px}
+.hist-date{font-size:10px;color:#374151;margin-top:4px}
+.hist-transcript{font-size:11px;color:#4b5563;margin-top:6px;padding:6px 8px;background:#0d1117;border-radius:6px;border-left:2px solid var(--green3);line-height:1.5}
+.hist-summary{font-size:11px;color:var(--green3);margin-top:5px;padding:5px 8px;background:#061208;border-radius:6px;line-height:1.5}
+.hist-tag{display:inline-block;font-size:9px;padding:2px 6px;border-radius:10px;border:1px solid var(--border);color:var(--muted);margin-top:4px;margin-right:3px}
+.hist-tag.audio{border-color:#1d4ed8;color:#3b82f6}
+.hist-tag.ocr{border-color:#7c3aed;color:#a78bfa}
+
+/* ── ENCOUNTER RECORDING ── */
+.rec-bar{display:flex;align-items:center;gap:10px;padding:10px 12px;background:#061208;border:1px solid #0f3a20;border-radius:10px;margin-top:12px}
+.rec-dot{width:9px;height:9px;border-radius:50%;background:var(--danger);animation:blink .8s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+.rec-label{font-size:12px;color:var(--green);flex:1}
+.rec-stop{padding:6px 12px;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.3);border-radius:7px;color:var(--danger);font-size:12px;cursor:pointer}
+
+/* ── AI SUMMARY BADGE ── */
+.ai-thinking{font-size:11px;color:var(--muted);padding:6px 8px;background:#0d1117;border-radius:6px;margin-top:6px;animation:pulse .8s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* ── IMPORT ── */
+.import-sec{padding:14px}
+.import-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px}
+.import-card h2{font-size:14px;font-weight:600;margin-bottom:8px}
+.import-card p{font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6}
+.import-btn{width:100%;padding:11px;background:var(--border);border:none;border-radius:8px;color:var(--text);font-size:13px;cursor:pointer}
+.import-btn:active{opacity:.8}
+.import-status{font-size:11px;color:var(--green3);margin-top:8px}
+
+/* ── BOTTOM NAV ── */
+.bnav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;display:flex;background:var(--card);border-top:1px solid var(--border);z-index:50}
+.bnav-btn{flex:1;padding:10px 4px 8px;background:none;border:none;color:var(--muted);font-size:9px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;-webkit-tap-highlight-color:transparent}
+.bnav-btn .ic{font-size:20px;line-height:1}
+.bnav-btn.active{color:var(--green)}
+.bnav-badge{font-size:8px;background:var(--orange);color:#fff;border-radius:8px;padding:1px 5px;min-width:15px;text-align:center;display:none}
+.bnav-badge.show{display:inline-block}
+
+/* ── FAB ── */
+.fab{position:fixed;bottom:82px;right:calc(50% - 240px + 14px);width:50px;height:50px;border-radius:50%;background:var(--green);color:#0a0e1a;font-size:26px;font-weight:300;border:none;cursor:pointer;z-index:51;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 20px rgba(0,255,136,.3)}
+@media(max-width:480px){.fab{right:14px}}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1f2937;color:var(--text);padding:10px 18px;border-radius:10px;font-size:13px;z-index:200;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+.toast.ok{border-left:3px solid var(--green)}
+.toast.err{border-left:3px solid var(--danger)}
+.toast.show{opacity:1}
+
+/* ── DETAIL MODAL ── */
+.detail-avatar{width:80px;height:80px;border-radius:50%;object-fit:cover;background:var(--border);margin-bottom:12px;border:2px solid var(--green3)}
+.detail-name{font-size:22px;font-weight:700;color:var(--green)}
+.detail-sub{font-size:13px;color:var(--muted);margin-top:2px}
+.detail-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px}
+.detail-row:last-child{border:none}
+.detail-label{color:var(--muted)}
+.detail-val{color:var(--text);text-align:right;max-width:60%}
+.detail-enc-item{padding:10px 0;border-bottom:1px solid var(--border);font-size:12px;color:var(--muted);line-height:1.5}
+.detail-enc-date{font-size:10px;color:#374151}
+
+/* ── ENCOUNTER MODAL ── */
+.person-chip{display:flex;align-items:center;gap:8px;padding:8px 10px;background:#061208;border:1px solid #0f3a20;border-radius:8px;margin-bottom:12px}
+.person-chip-name{font-size:13px;font-weight:600;color:var(--green)}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- PAGE: CONTACTS -->
+<div class="page active" id="page-contacts">
+  <div class="topbar">
+    <h1>👥 Contatos</h1>
+    <div class="topbar-right">
+      <span class="badge-sync" id="syncBadge">⟳ sync</span>
+    </div>
+  </div>
+  <div class="search-wrap">
+    <input class="search-input" id="searchInput" type="search" placeholder="🔍 Buscar contato..." oninput="renderContacts()">
+  </div>
+  <div class="ftabs" id="filterTabs">
+    <button class="ftab on" onclick="setFilter('')">Todos</button>
+    <button class="ftab" onclick="setFilter('Amigo')">Amigos</button>
+    <button class="ftab" onclick="setFilter('Colega')">Colegas</button>
+    <button class="ftab" onclick="setFilter('Cliente')">Clientes</button>
+    <button class="ftab" onclick="setFilter('Família')">Família</button>
+    <button class="ftab" onclick="setFilter('Outro')">Outros</button>
+  </div>
+  <div class="clist" id="contactList"></div>
+</div>
+
+<!-- PAGE: PENDING -->
+<div class="page" id="page-pending">
+  <div class="topbar">
+    <h1>🔍 Rostos pendentes</h1>
+  </div>
+  <div id="pendingList" style="padding:0 0 8px"></div>
+</div>
+
+<!-- PAGE: HISTORY (Timeline) -->
+<div class="page" id="page-history">
+  <div class="topbar">
+    <h1>📋 Timeline</h1>
+    <button onclick="openNewEncounter(null)" style="background:var(--green3);color:#fff;border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer">+ Registrar</button>
+  </div>
+  <div id="historyList"></div>
+</div>
+
+<!-- PAGE: IMPORT -->
+<div class="page" id="page-import">
+  <div class="topbar"><h1>⬆️ Importar / Sync</h1></div>
+  <div class="import-sec">
+    <div class="import-card">
+      <h2>📧 Gmail Contacts</h2>
+      <p>Importa contatos do Gmail automaticamente, incluindo nome, empresa e email.</p>
+      <button class="import-btn" onclick="syncGmail()">🔄 Sincronizar Gmail</button>
+      <div class="import-status" id="gmailStatus"></div>
+    </div>
+    <div class="import-card">
+      <h2>📄 CSV / VCF</h2>
+      <p>Importe de arquivo CSV com colunas: nome, empresa, cargo, email, telefone, relação</p>
+      <input type="file" accept=".csv,.vcf,.txt" class="import-btn" id="csvFile" onchange="importCSV(this)">
+      <div class="import-status" id="csvStatus"></div>
+    </div>
+    <div class="import-card">
+      <h2>🧠 Reconhecimento facial</h2>
+      <p id="faceApiStatus">Carregando modelos de IA...</p>
+      <div id="embeddingProgress"></div>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bnav">
+  <button class="bnav-btn active" id="nav-contacts" onclick="showPage('contacts')">
+    <span class="ic">👥</span><span>Contatos</span>
+  </button>
+  <button class="bnav-btn" id="nav-pending" onclick="showPage('pending')">
+    <span class="ic">🔍</span><span>Rostos</span>
+    <span class="bnav-badge" id="pendBadge">0</span>
+  </button>
+  <button class="bnav-btn" id="nav-history" onclick="showPage('history')">
+    <span class="ic">📋</span><span>Timeline</span>
+  </button>
+  <button class="bnav-btn" id="nav-import" onclick="showPage('import')">
+    <span class="ic">⬆️</span><span>Importar</span>
+  </button>
+</nav>
+<button class="fab" id="fab" onclick="openNewContact()">+</button>
+
+<!-- MODAL: ADD/EDIT CONTACT -->
+<div class="overlay" id="contactModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="modal-title" id="contactModalTitle">Novo Contato</div>
+      <button onclick="closeModal('contactModal')" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer">×</button>
+    </div>
+
+    <!-- Foto -->
+    <label class="field-label">Foto (para reconhecimento facial)</label>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div class="photo-preview-wrap">
+        <img id="photoPreview" class="photo-preview" src="" alt="">
+        <button class="photo-clear" id="photoClear" onclick="clearPhoto()" style="display:none">×</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <button onclick="document.getElementById('photoFile').click()" style="padding:7px 12px;background:var(--border);border:none;border-radius:7px;color:var(--text);font-size:12px;cursor:pointer">📷 Upload foto</button>
+        <input type="file" id="photoFile" accept="image/*" style="display:none" onchange="previewPhoto(this)">
+        <input id="editPhotoUrl" class="field-input" placeholder="ou URL da foto" style="font-size:12px;padding:7px 10px" oninput="updatePhotoFromUrl(this.value)">
+      </div>
+    </div>
+
+    <label class="field-label">Nome *</label>
+    <input id="editName" class="field-input" placeholder="Nome completo">
+    <label class="field-label">Apelido</label>
+    <input id="editNickname" class="field-input" placeholder="Como você o chama">
+    <label class="field-label">Empresa</label>
+    <input id="editCompany" class="field-input" placeholder="Empresa ou organização">
+    <label class="field-label">Cargo</label>
+    <input id="editRole" class="field-input" placeholder="Cargo ou função">
+    <label class="field-label">Como se conheceram</label>
+    <input id="editRelContext" class="field-input" placeholder="Ex: Nos conhecemos no evento X em 2024">
+    <label class="field-label">Relação</label>
+    <select id="editRelation" class="field-input">
+      <option value="">— selecione —</option>
+      <option>Amigo</option><option>Colega</option><option>Cliente</option>
+      <option>Parceiro</option><option>Familiar</option><option>Outro</option>
+    </select>
+    <label class="field-label">Email</label>
+    <input id="editEmail" class="field-input" type="email" placeholder="email@exemplo.com">
+    <label class="field-label">WhatsApp</label>
+    <input id="editWhatsapp" class="field-input" placeholder="+55 11 99999-9999">
+    <label class="field-label">LinkedIn</label>
+    <input id="editLinkedin" class="field-input" placeholder="linkedin.com/in/...">
+    <label class="field-label">Tags (separadas por vírgula)</label>
+    <input id="editTags" class="field-input" placeholder="Ex: investidor, tech, parceiro">
+    <label class="field-label">Notas</label>
+    <textarea id="editNotes" class="field-input" rows="3" placeholder="Notas sobre essa pessoa..."></textarea>
+    <label class="field-label">Status</label>
+    <select id="editStatus" class="field-input">
+      <option value="Ativo">Ativo</option>
+      <option value="Pendente">Pendente</option>
+      <option value="Arquivado">Arquivado</option>
+    </select>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btnSaveContact" onclick="saveContact()">💾 Salvar</button>
+      <button class="btn btn-danger" id="btnDeleteContact" onclick="deleteContactCurrent()" style="display:none">🗑</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: DETAIL -->
+<div class="overlay" id="detailModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <img id="detailAvatar" class="detail-avatar" src="" onerror="this.style.display='none'">
+        <div class="detail-name" id="detailName"></div>
+        <div class="detail-sub" id="detailSub"></div>
+      </div>
+      <button onclick="closeModal('detailModal')" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;margin-top:-4px">×</button>
+    </div>
+    <div id="detailFields" style="margin-top:14px"></div>
+    <div style="margin-top:16px">
+      <div style="font-size:11px;color:var(--muted);margin-bottom:8px">ÚLTIMOS ENCONTROS</div>
+      <div id="detailEncounters"></div>
+    </div>
+    <div class="btn-row" style="margin-top:16px">
+      <button class="btn btn-secondary" onclick="editFromDetail()">✏️ Editar</button>
+      <button class="btn btn-primary" onclick="newEncounterFromDetail()">📝 Registrar encontro</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: ENCOUNTER (com transcrição de áudio) -->
+<div class="overlay" id="encounterModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div class="modal-title">Registrar encontro</div>
+      <button onclick="closeModal('encounterModal')" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer">×</button>
+    </div>
+    <div class="person-chip" id="encPersonChip" style="display:none">
+      <span style="font-size:18px">👤</span>
+      <div>
+        <div class="person-chip-name" id="encPersonName">—</div>
+        <div style="font-size:10px;color:var(--muted)">Clique para trocar</div>
+      </div>
+    </div>
+    <label class="field-label">Contexto / local</label>
+    <input id="encContext" class="field-input" placeholder="Ex: Reunião de negócios, café, evento...">
+    <label class="field-label">Data</label>
+    <input id="encDate" class="field-input" type="datetime-local">
+
+    <!-- TRANSCRIÇÃO DE ÁUDIO -->
+    <label class="field-label">🎙️ Gravar conversa (transcrição automática)</label>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:4px">
+      <button id="btnRecord" onclick="toggleRecording()" style="padding:9px 16px;background:#061208;border:1px solid var(--green3);border-radius:8px;color:var(--green);font-size:13px;cursor:pointer">
+        🎙️ Gravar
+      </button>
+      <span id="recTimer" style="font-size:12px;color:var(--muted)"></span>
+    </div>
+    <div class="rec-bar" id="recBar" style="display:none">
+      <div class="rec-dot"></div>
+      <span class="rec-label">Gravando conversa...</span>
+      <button class="rec-stop" onclick="stopRecording()">⏹ Parar</button>
+    </div>
+    <div id="aiThinking" class="ai-thinking" style="display:none">⟳ Gerando resumo com IA...</div>
+
+    <label class="field-label" style="margin-top:12px">Transcrição capturada</label>
+    <textarea id="encTranscript" class="field-input" rows="4" placeholder="A transcrição da conversa aparecerá aqui automaticamente, ou escreva manualmente..."></textarea>
+
+    <label class="field-label">Resumo / contexto (gerado pela IA ou manual)</label>
+    <textarea id="encNotes" class="field-input" rows="3" placeholder="Resumo dos pontos principais, o que foi combinado..."></textarea>
+
+    <label class="field-label">Modo de captura</label>
+    <select id="encMode" class="field-input">
+      <option value="manual">Manual</option>
+      <option value="audio">Áudio transcrito</option>
+      <option value="ocr">OCR</option>
+      <option value="emulador">Emulador</option>
+    </select>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btnSaveEncounter" onclick="saveEncounter()">💾 Salvar</button>
+      <button class="btn btn-secondary" onclick="closeModal('encounterModal')">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: MERGE -->
+<div class="overlay" id="mergeModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">🔀 Mesclar rosto</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px">Com qual contato esse rosto corresponde?</p>
+    <input class="field-input" id="mergeSearch" placeholder="Buscar contato..." oninput="renderMergeList()">
+    <div id="mergeList" style="margin-top:10px;max-height:240px;overflow-y:auto"></div>
+    <button class="btn btn-primary" id="btnConfirmMerge" onclick="confirmMerge()" style="margin-top:12px;width:100%" disabled>🔀 Confirmar mesclagem</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+</div>
+
+<script>
+// ─── CONFIG ─────────────────────────────────────────────────
+var PROXY = "https://base44.app/api/apps/6a11083db49430b410a8c066/functions/fcProxy";
+var MODELS_URL = "https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights";
+var FACE_THRESHOLD = 0.45;
+
+// ─── STATE ──────────────────────────────────────────────────
+var contacts = [], encounters = [], pendingFaces = [];
+var currentFilter = "", _editingId = null, _detailId = null;
+var _encPersonId = null, _pendMergeId = null, _mergeTargetId = null;
+var aiReady = false, faceEmbeddings = [];
+
+// ─── GRAVAÇÃO ───────────────────────────────────────────────
+var mediaRecorder = null, audioChunks = [], recInterval = null, recSeconds = 0;
+var speechRecognition = null;
+
+// ─── INIT ────────────────────────────────────────────────────
+document.addEventListener("DOMContentLoaded", function(){
+  var now = new Date();
+  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+  document.getElementById("encDate").value = now.toISOString().slice(0,16);
+  loadAll();
+  loadFaceModels();
+});
+
+// ─── API ──────────────────────────────────────────────────────
+async function api(entity, method, id, body){
+  var url = PROXY + "?entity=" + entity + (id ? "&id=" + id : "");
+  var opts = { method: method || "GET", headers: {} };
+  if(body){ opts.headers["Content-Type"] = "application/json"; opts.body = JSON.stringify(body); }
+  var r = await fetch(url, opts);
+  if(!r.ok){
+    var err = await r.text();
+    throw new Error("API " + r.status + ": " + err);
+  }
+  var text = await r.text();
+  return text ? JSON.parse(text) : {};
+}
+
+async function loadAll(){
+  setSyncBadge("⟳ carregando...", "");
+  try {
+    var results = await Promise.all([
+      api("FaceContextPerson"),
+      api("FaceContextEncounter")
+    ]);
+    contacts   = results[0] || [];
+    encounters = results[1] || [];
+    pendingFaces = contacts.filter(function(c){ return c.status === "Pendente"; });
+    renderContacts();
+    renderPending();
+    renderHistory();
+    updatePendBadge();
+    setSyncBadge("☁ " + contacts.length + " contatos", "ok");
+    if(aiReady) buildEmbeddings();
+  } catch(e){
+    setSyncBadge("⚠ offline", "err");
+    toast("Erro de conexão: " + e.message, "err");
+  }
+}
+
+// ─── FACE-API ─────────────────────────────────────────────────
+async function loadFaceModels(){
+  document.getElementById("faceApiStatus").textContent = "⟳ Carregando modelos de IA...";
+  try {
+    await Promise.all([
+      faceapi.nets.tinyFaceDetector.loadFromUri(MODELS_URL),
+      faceapi.nets.faceLandmark68Net.loadFromUri(MODELS_URL),
+      faceapi.nets.faceRecognitionNet.loadFromUri(MODELS_URL)
+    ]);
+    aiReady = true;
+    document.getElementById("faceApiStatus").textContent = "✅ IA pronta — modelos carregados";
+    if(contacts.length > 0) buildEmbeddings();
+  } catch(e){
+    document.getElementById("faceApiStatus").textContent = "⚠ IA indisponível: " + e.message;
+  }
+}
+
+async function buildEmbeddings(){
+  var withPhoto = contacts.filter(function(c){ return c.photo_url && c.photo_url.startsWith("http"); });
+  document.getElementById("embeddingProgress").textContent = "Gerando embeddings: " + withPhoto.length + " fotos...";
+  faceEmbeddings = [];
+  var ok = 0;
+  for(var i = 0; i < withPhoto.length; i++){
+    var p = withPhoto[i];
+    try {
+      var img = await loadImg(p.photo_url);
+      var det = await faceapi
+        .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks().withFaceDescriptor();
+      if(det){
+        faceEmbeddings.push({ id: p.id, name: p.name, descriptor: det.descriptor });
+        ok++;
+        // Salva embedding no banco se ainda não tem
+        if(!p.face_embedding){
+          var embStr = JSON.stringify(Array.from(det.descriptor));
+          api("FaceContextPerson", "PUT", p.id, { face_embedding: embStr }).catch(function(){});
+        }
+      }
+    } catch(e){}
+  }
+  document.getElementById("embeddingProgress").textContent = "✅ " + ok + " rostos reconhecíveis de " + withPhoto.length + " fotos";
+  // Atualiza badge de embedding nos cards
+  renderContacts();
+}
+
+function loadImg(url){
+  return new Promise(function(res, rej){
+    var img = new Image(); img.crossOrigin = "anonymous";
+    img.onload = function(){ res(img); };
+    img.onerror = function(){ rej(new Error("img load failed")); };
+    img.src = url;
+  });
+}
+
+// ─── RENDER CONTACTS ─────────────────────────────────────────
+var COLORS = ["#4f46e5","#0891b2","#059669","#d97706","#dc2626","#7c3aed","#db2777"];
+function avatarColor(name){
+  var h = 0;
+  for(var i = 0; i < name.length; i++) h = name.charCodeAt(i) + ((h<<5)-h);
+  return COLORS[Math.abs(h) % COLORS.length];
+}
+function initials(name){
+  var parts = name.trim().split(" ");
+  return (parts[0][0] + (parts[1] ? parts[1][0] : "")).toUpperCase();
+}
+
+function renderContacts(){
+  var q = (document.getElementById("searchInput").value || "").toLowerCase();
+  var list = contacts.filter(function(c){ return c.status !== "Pendente"; });
+  if(currentFilter) list = list.filter(function(c){ return c.relation === currentFilter; });
+  if(q) list = list.filter(function(c){
+    return (c.name||"").toLowerCase().includes(q) ||
+           (c.company||"").toLowerCase().includes(q) ||
+           (c.role||"").toLowerCase().includes(q) ||
+           (c.tags||"").toLowerCase().includes(q);
+  });
+  var html = "";
+  if(!list.length){
+    html = '<div class="empty">Nenhum contato encontrado.<br><small>Toque + para adicionar</small></div>';
+  } else {
+    list.forEach(function(c){
+      var hasEmb = faceEmbeddings.some(function(e){ return e.id === c.id; });
+      var sub = [c.role, c.company].filter(Boolean).join(" · ") || c.relation || "";
+      var lastEnc = encounters.filter(function(e){ return e.person_id === c.id; })
+                              .sort(function(a,b){ return (b.date||"") > (a.date||"") ? 1 : -1; })[0];
+      html += '<div class="pcard" onclick="openDetail(\''+c.id+'\')">'+
+        (c.photo_url && c.photo_url.startsWith("http") ?
+          '<img class="pcard-avatar fc-green" src="'+c.photo_url+'" onerror="this.outerHTML=\'<div class=av-init style=background:'+avatarColor(c.name)+'>'+initials(c.name)+'</div>\'">' :
+          '<div class="av-init" style="background:'+avatarColor(c.name)+'">'+initials(c.name)+'</div>') +
+        '<div class="pcard-info">'+
+          '<div class="pcard-name">'+c.name+'</div>'+
+          '<div class="pcard-sub">'+sub+'</div>'+
+          (lastEnc ? '<div class="pcard-date">Último: '+(lastEnc.context||lastEnc.date||"")+'</div>' : '')+
+        '</div>'+
+        '<div class="pcard-emb'+(hasEmb?" ok":"")+'"></div>'+
+        '</div>';
+    });
+  }
+  document.getElementById("contactList").innerHTML = html;
+}
+
+function setFilter(f){
+  currentFilter = f;
+  document.querySelectorAll(".ftab").forEach(function(b){
+    b.classList.toggle("on", b.textContent.trim() === (f||"Todos"));
+  });
+  renderContacts();
+}
+
+// ─── PENDING FACES ────────────────────────────────────────────
+function renderPending(){
+  pendingFaces = contacts.filter(function(c){ return c.status === "Pendente"; });
+  var html = "";
+  if(!pendingFaces.length){
+    html = '<div class="empty">Nenhum rosto pendente 🎉</div>';
+  } else {
+    pendingFaces.forEach(function(c){
+      html += '<div class="pend-card">'+
+        (c.photo_url ? '<img class="pend-img" src="'+c.photo_url+'">' : '<div class="pend-img" style="display:flex;align-items:center;justify-content:center;font-size:22px">❓</div>')+
+        '<div>'+
+          '<div style="font-size:13px;color:var(--text);font-weight:600">'+(c.name||"Desconhecido")+'</div>'+
+          '<div style="font-size:11px;color:var(--muted)">Capturado: '+fmtDate(c.last_seen_date||c.created_date)+'</div>'+
+          '<input class="name-input" placeholder="Digite o nome da pessoa..." id="pendName_'+c.id+'" value="'+(c.name && c.name !== "Desconhecido" ? c.name : "")+'">'+
+        '</div>'+
+        '<div class="pend-actions">'+
+          '<button class="pend-btn ok" onclick="savePendingName(\''+c.id+'\')">✅ Salvar</button>'+
+          '<button class="pend-btn" onclick="openMerge(\''+c.id+'\')">🔀 Mesclar</button>'+
+          '<button class="pend-btn" onclick="openEditContact(\''+c.id+'\')">✏️ Editar</button>'+
+          '<button class="pend-btn del" onclick="deletePending(\''+c.id+'\')">🗑</button>'+
+        '</div>'+
+        '</div>';
+    });
+  }
+  document.getElementById("pendingList").innerHTML = html;
+  updatePendBadge();
+}
+
+async function savePendingName(id){
+  var inp = document.getElementById("pendName_"+id);
+  var name = inp ? inp.value.trim() : "";
+  if(!name){ toast("Digite um nome","err"); return; }
+  try {
+    var updated = await api("FaceContextPerson","PUT",id,{name:name, status:"Ativo"});
+    var idx = contacts.findIndex(function(c){ return c.id===id; });
+    if(idx>=0) contacts[idx] = Object.assign({},contacts[idx],updated);
+    renderContacts(); renderPending();
+    toast("✅ "+name+" salvo!","ok");
+    if(aiReady) buildEmbeddings();
+  } catch(e){ toast("Erro: "+e.message,"err"); }
+}
+
+async function deletePending(id){
+  if(!confirm("Apagar este rosto?")) return;
+  try {
+    await api("FaceContextPerson","DELETE",id);
+    contacts = contacts.filter(function(c){ return c.id!==id; });
+    renderContacts(); renderPending();
+    toast("Rosto removido","ok");
+  } catch(e){ toast("Erro: "+e.message,"err"); }
+}
+
+// ─── HISTORY / TIMELINE ──────────────────────────────────────
+function renderHistory(){
+  var sorted = encounters.slice().sort(function(a,b){ return (b.date||b.created_date||"") > (a.date||a.created_date||"") ? 1 : -1; });
+  var html = "";
+  if(!sorted.length){
+    html = '<div class="empty">Nenhum encontro registrado ainda.</div>';
+  } else {
+    sorted.forEach(function(e){
+      var person = contacts.find(function(c){ return c.id===e.person_id; });
+      var personName = person ? person.name : (e.person_name||"Pessoa desconhecida");
+      var tags = [];
+      if(e.speech_captured) tags.push('<span class="hist-tag audio">🎙 áudio</span>');
+      if(e.ocr_captured) tags.push('<span class="hist-tag ocr">🔍 OCR</span>');
+
+      html += '<div class="hist-item">'+
+        '<div style="display:flex;justify-content:space-between;align-items:flex-start">'+
+          '<div class="hist-who">'+personName+'</div>'+
+          '<button onclick="deleteEncounter(\''+e.id+'\')" style="background:none;border:none;color:var(--muted);font-size:14px;cursor:pointer">×</button>'+
+        '</div>'+
+        (e.context ? '<div class="hist-ctx">📍 '+e.context+'</div>' : '')+
+        '<div class="hist-date">'+fmtDate(e.date||e.created_date)+'</div>'+
+        (tags.length ? '<div style="margin-top:4px">'+tags.join("")+'</div>' : '')+
+        (e.speech_captured ? '<div class="hist-transcript">'+e.speech_captured.substring(0,300)+(e.speech_captured.length>300?"...":"")+'</div>' : '')+
+        (e.notes ? '<div class="hist-summary">💡 '+e.notes+'</div>' : '')+
+        '</div>';
+    });
+  }
+  document.getElementById("historyList").innerHTML = html;
+}
+
+async function deleteEncounter(id){
+  try {
+    await api("FaceContextEncounter","DELETE",id);
+    encounters = encounters.filter(function(e){ return e.id!==id; });
+    renderHistory();
+    toast("Encontro removido","ok");
+  } catch(e){ toast("Erro: "+e.message,"err"); }
+}
+
+// ─── SAVE CONTACT ─────────────────────────────────────────────
+async function saveContact(){
+  var name = document.getElementById("editName").value.trim();
+  if(!name){ toast("Nome é obrigatório","err"); return; }
+
+  var photoUrl = document.getElementById("editPhotoUrl").value.trim();
+  // Se tem data URI (upload local), não salva no campo (sem storage binário aqui)
+  if(photoUrl.startsWith("data:")) photoUrl = "";
+
+  var payload = {
+    name: name,
+    nickname: document.getElementById("editNickname").value.trim(),
+    company: document.getElementById("editCompany").value.trim(),
+    role: document.getElementById("editRole").value.trim(),
+    relation_context: document.getElementById("editRelContext").value.trim(),
+    relation: document.getElementById("editRelation").value,
+    contact_email: document.getElementById("editEmail").value.trim(),
+    contact_whatsapp: document.getElementById("editWhatsapp").value.trim(),
+    contact_linkedin: document.getElementById("editLinkedin").value.trim(),
+    tags: document.getElementById("editTags").value.trim(),
+    notes: document.getElementById("editNotes").value.trim(),
+    status: document.getElementById("editStatus").value,
+    photo_url: photoUrl
+  };
+
+  var btn = document.getElementById("btnSaveContact");
+  btn.textContent = "Salvando…"; btn.disabled = true;
+  try {
+    var saved;
+    if(_editingId){
+      saved = await api("FaceContextPerson","PUT",_editingId,payload);
+      var idx = contacts.findIndex(function(c){ return c.id===_editingId; });
+      if(idx>=0) contacts[idx] = Object.assign({},contacts[idx],saved);
+    } else {
+      saved = await api("FaceContextPerson","POST",null,payload);
+      contacts.unshift(saved);
+    }
+    renderContacts(); renderPending(); updatePendBadge();
+    closeModal("contactModal");
+    toast("✅ "+name+" salvo!","ok");
+    if(aiReady && photoUrl) buildEmbeddings();
+  } catch(e){
+    toast("Erro ao salvar: "+e.message,"err");
+    console.error(e);
+  }
+  btn.textContent = "💾 Salvar"; btn.disabled = false;
+}
+
+// ─── SAVE ENCOUNTER ──────────────────────────────────────────
+async function saveEncounter(){
+  var ctx  = document.getElementById("encContext").value.trim();
+  var date = document.getElementById("encDate").value;
+  var transcript = document.getElementById("encTranscript").value.trim();
+  var notes = document.getElementById("encNotes").value.trim();
+  var mode = document.getElementById("encMode").value;
+  if(!_encPersonId && !ctx){ toast("Informe pelo menos o contexto","err"); return; }
+
+  var person = contacts.find(function(c){ return c.id===_encPersonId; });
+
+  var payload = {
+    person_id: _encPersonId || "",
+    person_name: person ? person.name : "Desconhecido",
+    date: date || new Date().toISOString(),
+    context: ctx,
+    speech_captured: transcript,
+    notes: notes,
+    capture_mode: transcript ? "audio" : mode
+  };
+
+  var btn = document.getElementById("btnSaveEncounter");
+  btn.textContent = "Salvando…"; btn.disabled = true;
+  try {
+    var saved = await api("FaceContextEncounter","POST",null,payload);
+    encounters.unshift(saved);
+    // Atualiza last_seen no contato
+    if(_encPersonId){
+      await api("FaceContextPerson","PUT",_encPersonId,{
+        last_seen_date: date || new Date().toISOString(),
+        last_seen_context: ctx
+      }).catch(function(){});
+      var idx = contacts.findIndex(function(c){ return c.id===_encPersonId; });
+      if(idx>=0){
+        contacts[idx].last_seen_date = date || new Date().toISOString();
+        contacts[idx].last_seen_context = ctx;
+      }
+    }
+    renderHistory(); renderContacts();
+    closeModal("encounterModal");
+    toast("✅ Encontro salvo!","ok");
+  } catch(e){
+    toast("Erro ao salvar: "+e.message,"err");
+    console.error(e);
+  }
+  btn.textContent = "💾 Salvar"; btn.disabled = false;
+}
+
+// ─── GRAVAÇÃO DE ÁUDIO + TRANSCRIÇÃO ─────────────────────────
+async function toggleRecording(){
+  if(mediaRecorder && mediaRecorder.state === "recording"){
+    stopRecording(); return;
+  }
+  // Tenta Speech Recognition (Web Speech API — mais rápido, sem upload)
+  if('webkitSpeechRecognition' in window || 'SpeechRecognition' in window){
+    startSpeechRecognition(); return;
+  }
+  // Fallback: MediaRecorder → whisper (se disponível)
+  try {
+    var stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    audioChunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = function(e){ if(e.data.size>0) audioChunks.push(e.data); };
+    mediaRecorder.onstop = processAudioChunks;
+    mediaRecorder.start(1000);
+    startRecordingUI();
+  } catch(e){
+    toast("Microfone não disponível: "+e.message,"err");
+  }
+}
+
+function startSpeechRecognition(){
+  var SR = window.webkitSpeechRecognition || window.SpeechRecognition;
+  speechRecognition = new SR();
+  speechRecognition.lang = "pt-BR";
+  speechRecognition.continuous = true;
+  speechRecognition.interimResults = true;
+  speechRecognition.maxAlternatives = 1;
+
+  var finalTranscript = "";
+  document.getElementById("encTranscript").value = "";
+  document.getElementById("encMode").value = "audio";
+
+  speechRecognition.onresult = function(event){
+    var interim = "";
+    for(var i = event.resultIndex; i < event.results.length; i++){
+      if(event.results[i].isFinal) finalTranscript += event.results[i][0].transcript + " ";
+      else interim += event.results[i][0].transcript;
+    }
+    document.getElementById("encTranscript").value = finalTranscript + interim;
+  };
+  speechRecognition.onerror = function(e){
+    toast("Erro de reconhecimento: "+e.error,"err");
+    stopRecordingUI();
+  };
+  speechRecognition.onend = function(){
+    stopRecordingUI();
+    if(finalTranscript.trim()) generateAISummary(finalTranscript);
+  };
+
+  speechRecognition.start();
+  startRecordingUI();
+}
+
+function stopRecording(){
+  if(speechRecognition){
+    speechRecognition.stop(); speechRecognition = null;
+  }
+  if(mediaRecorder && mediaRecorder.state === "recording"){
+    mediaRecorder.stop();
+    mediaRecorder.stream.getTracks().forEach(function(t){ t.stop(); });
+  }
+  stopRecordingUI();
+}
+
+function startRecordingUI(){
+  document.getElementById("recBar").style.display = "flex";
+  document.getElementById("btnRecord").textContent = "⏹ Parar";
+  recSeconds = 0;
+  recInterval = setInterval(function(){
+    recSeconds++;
+    var m = Math.floor(recSeconds/60), s = recSeconds%60;
+    document.getElementById("recTimer").textContent = m+":"+(s<10?"0":"")+s;
+  }, 1000);
+}
+
+function stopRecordingUI(){
+  document.getElementById("recBar").style.display = "none";
+  document.getElementById("btnRecord").textContent = "🎙️ Gravar";
+  clearInterval(recInterval);
+  recInterval = null;
+}
+
+async function processAudioChunks(){
+  // Fallback para quando não tem Web Speech API
+  // Aqui futuramente integraria Whisper API
+  stopRecordingUI();
+  toast("Áudio gravado — transcreva manualmente ou conecte Whisper","err");
+}
+
+// ─── AI SUMMARY ──────────────────────────────────────────────
+async function generateAISummary(transcript){
+  if(!transcript || transcript.length < 20) return;
+  document.getElementById("aiThinking").style.display = "block";
+  try {
+    // Usa o próprio Base44 fcMessages (agente) para gerar resumo
+    var r = await fetch(PROXY.replace("fcProxy","fcMessages"), {
+      method: "POST",
+      headers: {"Content-Type":"application/json"},
+      body: JSON.stringify({
+        action: "summarize",
+        text: transcript,
+        prompt: "Resuma em 2-3 frases o que foi discutido nessa conversa. Destaque: o que foi combinado, pontos importantes, próximos passos. Seja direto e em português."
+      })
+    });
+    if(r.ok){
+      var data = await r.json();
+      var summary = data.summary || data.text || data.result || "";
+      if(summary) document.getElementById("encNotes").value = summary;
+    }
+  } catch(e){
+    // Se API de resumo não disponível, faz resumo local simples
+    var sentences = transcript.split(/[.!?]+/).filter(function(s){ return s.trim().length > 10; });
+    if(sentences.length > 3){
+      document.getElementById("encNotes").value = sentences.slice(0,3).join(". ").trim() + ".";
+    }
+  }
+  document.getElementById("aiThinking").style.display = "none";
+}
+
+// ─── OPEN MODALS ─────────────────────────────────────────────
+function openNewContact(){
+  _editingId = null;
+  document.getElementById("contactModalTitle").textContent = "Novo Contato";
+  document.getElementById("btnDeleteContact").style.display = "none";
+  clearContactForm();
+  openModal("contactModal");
+}
+
+function openEditContact(id){
+  var c = contacts.find(function(c){ return c.id===id; });
+  if(!c) return;
+  _editingId = id;
+  document.getElementById("contactModalTitle").textContent = "Editar Contato";
+  document.getElementById("btnDeleteContact").style.display = "block";
+  document.getElementById("editName").value         = c.name||"";
+  document.getElementById("editNickname").value     = c.nickname||"";
+  document.getElementById("editCompany").value      = c.company||"";
+  document.getElementById("editRole").value         = c.role||"";
+  document.getElementById("editRelContext").value   = c.relation_context||"";
+  document.getElementById("editRelation").value     = c.relation||"";
+  document.getElementById("editEmail").value        = c.contact_email||"";
+  document.getElementById("editWhatsapp").value     = c.contact_whatsapp||"";
+  document.getElementById("editLinkedin").value     = c.contact_linkedin||"";
+  document.getElementById("editTags").value         = c.tags||"";
+  document.getElementById("editNotes").value        = c.notes||"";
+  document.getElementById("editStatus").value       = c.status||"Ativo";
+  document.getElementById("editPhotoUrl").value     = c.photo_url||"";
+  var prev = document.getElementById("photoPreview");
+  if(c.photo_url){ prev.src=c.photo_url; prev.classList.add("has-photo"); document.getElementById("photoClear").style.display="flex"; }
+  else { prev.src=""; prev.classList.remove("has-photo"); document.getElementById("photoClear").style.display="none"; }
+  openModal("contactModal");
+}
+
+function openDetail(id){
+  var c = contacts.find(function(x){ return x.id===id; });
+  if(!c) return;
+  _detailId = id;
+  document.getElementById("detailAvatar").src = c.photo_url||"";
+  document.getElementById("detailName").textContent = c.name;
+  document.getElementById("detailSub").textContent = [c.role,c.company].filter(Boolean).join(" · ")||"";
+  var fields = [
+    ["Relação",c.relation||"—"],["Como se conheceram",c.relation_context||"—"],
+    ["Email",c.contact_email||"—"],["WhatsApp",c.contact_whatsapp||"—"],
+    ["Tags",c.tags||"—"],["Notas",c.notes||"—"],
+    ["Último encontro",fmtDate(c.last_seen_date)||"—"]
+  ];
+  document.getElementById("detailFields").innerHTML = fields.map(function(f){
+    return '<div class="detail-row"><span class="detail-label">'+f[0]+'</span><span class="detail-val">'+f[1]+'</span></div>';
+  }).join("");
+  var encs = encounters.filter(function(e){ return e.person_id===id; })
+                       .sort(function(a,b){ return (b.date||"")>(a.date||"") ? 1 : -1; })
+                       .slice(0,5);
+  document.getElementById("detailEncounters").innerHTML = encs.length ?
+    encs.map(function(e){
+      return '<div class="detail-enc-item">'+
+        '<div class="detail-enc-date">'+fmtDate(e.date||e.created_date)+'</div>'+
+        (e.context?'📍 '+e.context+'<br>':'')+
+        (e.notes?'💡 '+e.notes:'')+'</div>';
+    }).join("") :
+    '<div style="color:var(--muted);font-size:12px;padding:8px 0">Nenhum encontro registrado</div>';
+  openModal("detailModal");
+}
+
+function editFromDetail(){ closeModal("detailModal"); if(_detailId) openEditContact(_detailId); }
+function newEncounterFromDetail(){ closeModal("detailModal"); openNewEncounter(_detailId); }
+
+function openNewEncounter(personId){
+  _encPersonId = personId;
+  document.getElementById("encTranscript").value = "";
+  document.getElementById("encNotes").value = "";
+  document.getElementById("encContext").value = "";
+  document.getElementById("encMode").value = "manual";
+  document.getElementById("aiThinking").style.display = "none";
+  var now = new Date(); now.setMinutes(now.getMinutes()-now.getTimezoneOffset());
+  document.getElementById("encDate").value = now.toISOString().slice(0,16);
+  var chip = document.getElementById("encPersonChip");
+  var p = personId ? contacts.find(function(c){ return c.id===personId; }) : null;
+  if(p){ chip.style.display="flex"; document.getElementById("encPersonName").textContent=p.name; }
+  else { chip.style.display="none"; }
+  openModal("encounterModal");
+}
+
+function openMerge(pendId){
+  _pendMergeId = pendId; _mergeTargetId = null;
+  document.getElementById("mergeSearch").value = "";
+  renderMergeList();
+  document.getElementById("btnConfirmMerge").disabled = true;
+  openModal("mergeModal");
+}
+
+function renderMergeList(){
+  var q = document.getElementById("mergeSearch").value.toLowerCase();
+  var list = contacts.filter(function(c){ return c.status!=="Pendente" && c.id!==_pendMergeId; });
+  if(q) list = list.filter(function(c){ return c.name.toLowerCase().includes(q); });
+  document.getElementById("mergeList").innerHTML = list.slice(0,10).map(function(c){
+    var sel = c.id===_mergeTargetId;
+    return '<div onclick="selectMergeTarget(\''+c.id+'\')" style="padding:9px 10px;border-radius:8px;border:1px solid '+(sel?"var(--green3)":"var(--border)")+';background:'+(sel?"#061208":"none")+';cursor:pointer;margin-bottom:6px">'+
+      '<div style="font-size:13px;font-weight:'+(sel?"700":"400")+';color:'+(sel?"var(--green)":"var(--text)")+'">'+c.name+'</div>'+
+      '<div style="font-size:11px;color:var(--muted)">'+(c.company||"")+'</div></div>';
+  }).join("");
+}
+
+function selectMergeTarget(id){
+  _mergeTargetId = id;
+  renderMergeList();
+  document.getElementById("btnConfirmMerge").disabled = false;
+}
+
+async function confirmMerge(){
+  if(!_pendMergeId || !_mergeTargetId) return;
+  try {
+    var pend = contacts.find(function(c){ return c.id===_pendMergeId; });
+    // Atualiza encontros que apontavam pro pendente
+    var pendEncs = encounters.filter(function(e){ return e.person_id===_pendMergeId; });
+    await Promise.all(pendEncs.map(function(e){
+      return api("FaceContextEncounter","PUT",e.id,{person_id:_mergeTargetId}).catch(function(){});
+    }));
+    // Se pendente tinha foto, copia pra contato alvo se não tiver
+    var target = contacts.find(function(c){ return c.id===_mergeTargetId; });
+    if(pend && pend.photo_url && target && !target.photo_url){
+      await api("FaceContextPerson","PUT",_mergeTargetId,{photo_url:pend.photo_url}).catch(function(){});
+    }
+    await api("FaceContextPerson","DELETE",_pendMergeId);
+    contacts = contacts.filter(function(c){ return c.id!==_pendMergeId; });
+    await loadAll();
+    closeModal("mergeModal");
+    toast("🔀 Mesclagem concluída!","ok");
+  } catch(e){ toast("Erro: "+e.message,"err"); }
+}
+
+// ─── PHOTO HANDLING ───────────────────────────────────────────
+function previewPhoto(input){
+  if(!input.files || !input.files[0]) return;
+  var file = input.files[0];
+  var reader = new FileReader();
+  reader.onload = function(e){
+    var src = e.target.result;
+    var prev = document.getElementById("photoPreview");
+    prev.src = src; prev.classList.add("has-photo");
+    document.getElementById("editPhotoUrl").value = src;
+    document.getElementById("photoClear").style.display = "flex";
+  };
+  reader.readAsDataURL(file);
+}
+
+function updatePhotoFromUrl(url){
+  var prev = document.getElementById("photoPreview");
+  if(url && url.startsWith("http")){ prev.src=url; prev.classList.add("has-photo"); document.getElementById("photoClear").style.display="flex"; }
+  else if(!url){ clearPhoto(); }
+}
+
+function clearPhoto(){
+  document.getElementById("photoPreview").src="";
+  document.getElementById("photoPreview").classList.remove("has-photo");
+  document.getElementById("editPhotoUrl").value="";
+  document.getElementById("photoClear").style.display="none";
+  document.getElementById("photoFile").value="";
+}
+
+// ─── DELETE CONTACT ───────────────────────────────────────────
+function deleteContactCurrent(){
+  if(!_editingId) return;
+  var c = contacts.find(function(x){ return x.id===_editingId; });
+  if(!confirm("Apagar "+( c ? c.name : "este contato")+"?")) return;
+  api("FaceContextPerson","DELETE",_editingId).then(function(){
+    contacts = contacts.filter(function(c){ return c.id!==_editingId; });
+    renderContacts(); renderPending(); updatePendBadge();
+    closeModal("contactModal");
+    toast("Contato removido","ok");
+  }).catch(function(e){ toast("Erro: "+e.message,"err"); });
+}
+
+// ─── IMPORT ───────────────────────────────────────────────────
+async function syncGmail(){
+  document.getElementById("gmailStatus").textContent = "⟳ Sincronizando...";
+  try {
+    var r = await fetch(PROXY+"?_action=gmailSync",{method:"POST",headers:{"Content-Type":"application/json"},body:"{}"});
+    var data = await r.json();
+    var created = data.created||0, skipped = data.skipped||0;
+    document.getElementById("gmailStatus").textContent = "✅ "+created+" novos, "+skipped+" já existiam";
+    if(created>0) await loadAll();
+    toast("Gmail: +"+created+" contatos","ok");
+  } catch(e){
+    document.getElementById("gmailStatus").textContent = "⚠ Erro: "+e.message;
+    toast("Erro Gmail: "+e.message,"err");
+  }
+}
+
+async function importCSV(input){
+  if(!input.files || !input.files[0]) return;
+  document.getElementById("csvStatus").textContent = "⟳ Processando...";
+  var text = await input.files[0].text();
+  var lines = text.split("\n").map(function(l){ return l.trim(); }).filter(Boolean);
+  if(!lines.length){ document.getElementById("csvStatus").textContent="Arquivo vazio"; return; }
+  var headers = lines[0].toLowerCase().split(",").map(function(h){ return h.trim().replace(/"/g,""); });
+  var col = function(row, name){
+    var idx = headers.indexOf(name);
+    return idx>=0 ? (row[idx]||"").replace(/^"|"$/g,"").trim() : "";
+  };
+  var created=0, skipped=0;
+  for(var i=1; i<lines.length; i++){
+    var row = lines[i].split(",");
+    var name = col(row,"nome")||col(row,"name")||col(row,"full_name");
+    if(!name) continue;
+    var exists = contacts.find(function(c){ return c.name.toLowerCase()===name.toLowerCase(); });
+    if(exists){ skipped++; continue; }
+    try {
+      var payload = {
+        name: name,
+        company: col(row,"empresa")||col(row,"company"),
+        role: col(row,"cargo")||col(row,"role"),
+        contact_email: col(row,"email"),
+        contact_phone: col(row,"telefone")||col(row,"phone"),
+        relation: col(row,"relacao")||col(row,"relation")||"Outro",
+        status: "Ativo"
+      };
+      var saved = await api("FaceContextPerson","POST",null,payload);
+      contacts.push(saved); created++;
+    } catch(e){ skipped++; }
+  }
+  document.getElementById("csvStatus").textContent = "✅ "+created+" importados, "+skipped+" ignorados";
+  renderContacts(); updatePendBadge();
+  toast("CSV: +"+created+" contatos","ok");
+}
+
+// ─── UTILS ────────────────────────────────────────────────────
+function updatePendBadge(){
+  var pend = contacts.filter(function(c){ return c.status==="Pendente"; }).length;
+  var badge = document.getElementById("pendBadge");
+  badge.textContent = pend;
+  badge.classList.toggle("show", pend>0);
+}
+
+function clearContactForm(){
+  ["editName","editNickname","editCompany","editRole","editRelContext","editEmail","editWhatsapp","editLinkedin","editTags","editNotes","editPhotoUrl"].forEach(function(id){
+    var el = document.getElementById(id); if(el) el.value="";
+  });
+  document.getElementById("editRelation").value="";
+  document.getElementById("editStatus").value="Ativo";
+  clearPhoto();
+}
+
+function showPage(p){
+  document.querySelectorAll(".page").forEach(function(el){ el.classList.remove("active"); });
+  document.getElementById("page-"+p).classList.add("active");
+  document.querySelectorAll(".bnav-btn").forEach(function(b){ b.classList.remove("active"); });
+  var nb = document.getElementById("nav-"+p);
+  if(nb) nb.classList.add("active");
+  document.getElementById("fab").style.display = p==="contacts" ? "flex" : "none";
+}
+
+function openModal(id){ document.getElementById(id).classList.add("open"); }
+function closeModal(id){
+  document.getElementById(id).classList.remove("open");
+  if(id==="encounterModal") stopRecording();
+}
+
+function fmtDate(d){
+  if(!d) return "";
+  var dt = new Date(d);
+  return dt.toLocaleDateString("pt-BR",{day:"2-digit",month:"short",year:"numeric"});
+}
+
+function setSyncBadge(txt, cls){
+  var b = document.getElementById("syncBadge");
+  b.textContent = txt;
+  b.className = "badge-sync" + (cls ? " "+cls : "");
+}
+
+var _toastTimer = null;
+function toast(msg, type){
+  var el = document.getElementById("toast");
+  el.textContent = msg;
+  el.className = "toast show" + (type ? " "+type : "");
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(function(){ el.classList.remove("show"); }, 3000);
+}
+</script>
+</body>
+</html>
