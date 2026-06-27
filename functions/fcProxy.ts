@@ -4,6 +4,7 @@ const ENTITIES: Record<string, string> = {
   FaceContextPerson:     'FaceContextPerson',
   FaceContextEncounter:  'FaceContextEncounter',
   FaceContextHUDLayout:  'FaceContextHUDLayout',
+  AIUsageLog:            'AIUsageLog',
   persons:    'FaceContextPerson',
   encounters: 'FaceContextEncounter',
   layouts:    'FaceContextHUDLayout',
@@ -12,7 +13,34 @@ const ENTITIES: Record<string, string> = {
 const GEMINI_API_KEY = Deno.env.get("GEMINI_API_KEY") || "";
 const GEMINI_MODEL   = "gemini-2.5-flash";
 
-async function callGemini(prompt: string, maxTokens = 150): Promise<string> {
+// ── Preços Gemini 2.5 Flash (por 1M tokens, em USD) ──
+const PRICE_INPUT_PER_M  = 0.30;
+const PRICE_OUTPUT_PER_M = 2.50;
+const USD_TO_BRL         = 5.70;   // atualizar periodicamente
+const BUDGET_USD         = 18.00;  // ~R$100 convertido
+const ALERT_THRESHOLD    = 0.80;   // alerta em 80% do budget
+
+// ── Estimativa de tokens (sem chamar API de contagem) ──
+function estimateTokens(text: string): number {
+  // ~1 token por 4 chars em português/inglês
+  return Math.ceil(text.length / 4);
+}
+
+function calcCost(inputTokens: number, outputTokens: number) {
+  const usd = (inputTokens / 1_000_000) * PRICE_INPUT_PER_M
+            + (outputTokens / 1_000_000) * PRICE_OUTPUT_PER_M;
+  return { usd, brl: usd * USD_TO_BRL };
+}
+
+// ── Caching simples: evita resumo duplicado da mesma transcrição ──
+const recentCache = new Map<string, string>();
+
+function cacheKey(text: string): string {
+  // hash leve: primeiros 60 chars + tamanho
+  return text.substring(0, 60).trim() + "|" + text.length;
+}
+
+async function callGemini(prompt: string, maxTokens = 150): Promise<{ text: string; inputTokens: number; outputTokens: number }> {
   const res = await fetch(
     `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`,
     {
@@ -25,17 +53,44 @@ async function callGemini(prompt: string, maxTokens = 150): Promise<string> {
     }
   );
   const d = await res.json();
-  return d?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
+  if (d.error) throw new Error(d.error.message || "Gemini error");
+
+  const text = d?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || "";
+  // Usa contagem real se disponível, senão estima
+  const inputTokens  = d?.usageMetadata?.promptTokenCount     || estimateTokens(prompt);
+  const outputTokens = d?.usageMetadata?.candidatesTokenCount || estimateTokens(text);
+
+  return { text, inputTokens, outputTokens };
 }
 
-// Detecta idioma da transcrição e retorna código (pt, en, es, fr, etc)
 async function detectLang(text: string): Promise<string> {
   if (!text || text.length < 10) return "pt";
+  // Heurística rápida antes de chamar a API (economiza tokens)
+  const ptWords = /\b(que|você|para|com|uma|não|mais|por|isso|como|mas)\b/i;
+  const enWords = /\b(the|and|for|you|that|with|this|from|have|are)\b/i;
+  if (ptWords.test(text)) return "pt";
+  if (enWords.test(text)) return "en";
+  // Só chama Gemini se realmente não dá pra detectar localmente
   const r = await callGemini(
-    `Qual o idioma deste texto? Responda APENAS com o código ISO 639-1 (ex: pt, en, es, fr, de, ja, zh).\nTexto: "${text.substring(0,200)}"`,
-    5
+    `Language code only (ISO 639-1, 2 chars): "${text.substring(0,100)}"`, 3
   );
-  return r.replace(/[^a-z]/g,"").substring(0,2) || "pt";
+  return r.text.replace(/[^a-z]/g,"").substring(0,2) || "pt";
+}
+
+// ── Verifica budget mensal e dispara alerta ──
+async function checkBudgetAlert(db: any, newCostUsd: number) {
+  const monthKey = new Date().toISOString().substring(0, 7);
+  const logs = await db["AIUsageLog"].filter({ month_key: monthKey }, { limit: 500 });
+  const totalUsd = (logs || []).reduce((sum: number, l: any) => sum + (l.cost_usd || 0), 0) + newCostUsd;
+  const pct = (totalUsd / BUDGET_USD) * 100;
+
+  return {
+    month_total_usd: totalUsd,
+    month_total_brl: totalUsd * USD_TO_BRL,
+    budget_pct: Math.round(pct),
+    alert: pct >= ALERT_THRESHOLD * 100,
+    exhausted: totalUsd >= BUDGET_USD
+  };
 }
 
 Deno.serve(async (req) => {
@@ -44,10 +99,7 @@ Deno.serve(async (req) => {
     "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
   };
-
-  if (req.method === "OPTIONS") {
-    return new Response(null, { status: 204, headers: CORS });
-  }
+  if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
 
   try {
     const base44 = createClientFromRequest(req);
@@ -55,18 +107,44 @@ Deno.serve(async (req) => {
     const id     = url.searchParams.get("id");
     const entityParam = url.searchParams.get("entity") || "FaceContextPerson";
     const entityName  = ENTITIES[entityParam] || "FaceContextPerson";
-    const db = base44.asServiceRole.entities[entityName];
+
+    // Proxy para entidades genéricas
+    const db: Record<string, any> = {};
+    for (const key of Object.keys(ENTITIES)) {
+      db[key] = base44.asServiceRole.entities[ENTITIES[key]];
+    }
+    const entityDb = db[entityParam] || db["FaceContextPerson"];
 
     // ── GET ──
     if (req.method === "GET") {
-      if (id) {
-        const record = await db.get(id);
-        return Response.json(record, { headers: CORS });
+      // Rota especial: /usage — retorna resumo de gastos
+      if (url.searchParams.get("action") === "usage") {
+        const monthKey = url.searchParams.get("month") || new Date().toISOString().substring(0, 7);
+        const logs = await db["AIUsageLog"].filter({ month_key: monthKey }, { limit: 500 });
+        const totalUsd = (logs || []).reduce((s: number, l: any) => s + (l.cost_usd || 0), 0);
+        const totalCalls = (logs || []).length;
+        const byAction: Record<string, number> = {};
+        for (const l of (logs || [])) {
+          byAction[l.action] = (byAction[l.action] || 0) + 1;
+        }
+        return Response.json({
+          month: monthKey,
+          total_calls: totalCalls,
+          total_usd:   +totalUsd.toFixed(4),
+          total_brl:   +(totalUsd * USD_TO_BRL).toFixed(2),
+          budget_usd:  BUDGET_USD,
+          budget_pct:  Math.round((totalUsd / BUDGET_USD) * 100),
+          budget_remaining_brl: +((BUDGET_USD - totalUsd) * USD_TO_BRL).toFixed(2),
+          by_action:   byAction,
+          model:       GEMINI_MODEL
+        }, { headers: CORS });
       }
+
+      if (id) return Response.json(await entityDb.get(id), { headers: CORS });
       const all: unknown[] = [];
       let skip = 0;
       while (true) {
-        const batch = await db.filter({}, { limit: 100, skip });
+        const batch = await entityDb.filter({}, { limit: 100, skip });
         if (!batch || batch.length === 0) break;
         all.push(...batch);
         if (batch.length < 100) break;
@@ -79,92 +157,119 @@ Deno.serve(async (req) => {
     if (req.method === "POST") {
       const body = await req.json().catch(() => ({}));
 
-      // ── ai_summary — gera resumo do encontro via Gemini ──
+      // ── ai_summary ──
       if (body.action === "ai_summary") {
-        const transcript: string  = body.transcript  || "";
-        const personName: string  = body.person_name || "desconhecido";
-        const userLang: string    = body.lang        || "";   // idioma preferido do usuário
+        const transcript: string = body.transcript  || "";
+        const personName: string = body.person_name || "desconhecido";
+        const userLang: string   = body.lang        || "";
 
         if (!transcript.trim()) {
-          return Response.json({ summary: "Encontro registrado", lang: "pt" }, { headers: CORS });
+          return Response.json({ summary: "Encontro registrado", lang: "pt", cost_usd: 0 }, { headers: CORS });
         }
 
-        // Detecta idioma da conversa
-        const lang = userLang || await detectLang(transcript);
+        // Cache: evita chamar Gemini para a mesma conversa
+        const ck = cacheKey(transcript);
+        if (recentCache.has(ck)) {
+          return Response.json({ summary: recentCache.get(ck), lang: userLang||"pt", cost_usd: 0, cached: true }, { headers: CORS });
+        }
 
+        // Trunca input pra economizar tokens (máx 600 chars ~ 150 tokens)
+        const truncated = transcript.length > 600 ? transcript.substring(0, 600) + "…" : transcript;
+
+        const lang = userLang || await detectLang(truncated);
         const langNames: Record<string,string> = {
-          pt:"português", en:"English", es:"español",
-          fr:"français", de:"Deutsch", ja:"日本語", zh:"中文", it:"italiano"
+          pt:"português", en:"English", es:"español", fr:"français",
+          de:"Deutsch", ja:"日本語", zh:"中文", it:"italiano"
         };
         const langLabel = langNames[lang] || lang;
 
+        // Prompt enxuto (menos tokens)
         const prompt =
-          `Você é um assistente de memória social discreto.\n` +
-          `Responda SEMPRE em ${langLabel}.\n` +
-          `Resuma em UMA linha curtíssima (máx 80 caracteres) o que foi conversado ou o contexto do encontro.\n` +
-          `Seja direto, sem verbosidade. Use linguagem natural.\n\n` +
+          `Assistente de memória. Responda em ${langLabel}. ` +
+          `1 linha, máx 80 chars, sem verbosidade.\n` +
           `Pessoa: ${personName}\n` +
-          `Conversa:\n${transcript.substring(0, 1000)}\n\n` +
-          `Resumo (1 linha, em ${langLabel}):`;
+          `"${truncated}"\nResumo:`;
 
         try {
-          const summary = (await callGemini(prompt, 80))
-            .replace(/^["'`]|["'`]$/g,"")
-            .substring(0, 120);
+          const { text, inputTokens, outputTokens } = await callGemini(prompt, 80);
+          const summary = text.replace(/^["'`]|["'`]$/g,"").substring(0, 120);
+          const { usd, brl } = calcCost(inputTokens, outputTokens);
+          const monthKey = new Date().toISOString().substring(0, 7);
 
-          return Response.json({
-            summary: summary || transcript.substring(0,80),
-            lang,
-            model: GEMINI_MODEL
-          }, { headers: CORS });
+          // Salva log assincronamente
+          db["AIUsageLog"].create({
+            action: "ai_summary", model: GEMINI_MODEL,
+            input_tokens: inputTokens, output_tokens: outputTokens,
+            cost_usd: usd, cost_brl: brl,
+            person_name: personName, success: true, month_key: monthKey
+          }).catch(() => {});
 
-        } catch (e) {
-          return Response.json({
-            summary: transcript.substring(0,80),
-            lang: "pt",
-            model: "fallback"
-          }, { headers: CORS });
+          // Cache por 5 min
+          recentCache.set(ck, summary);
+          setTimeout(() => recentCache.delete(ck), 5 * 60 * 1000);
+
+          return Response.json({ summary: summary || truncated.substring(0,80), lang, model: GEMINI_MODEL, cost_usd: +usd.toFixed(6) }, { headers: CORS });
+        } catch (e: any) {
+          return Response.json({ summary: transcript.substring(0,80), lang: "pt", model: "fallback", error: e.message }, { headers: CORS });
         }
       }
 
-      // ── ai_detect_name — extrai nome de uma frase via Gemini ──
+      // ── ai_detect_name ──
       if (body.action === "ai_detect_name") {
         const text: string = body.text || "";
         if (!text.trim()) return Response.json({ name: null }, { headers: CORS });
 
-        const prompt =
-          `Extraia APENAS o nome próprio de uma pessoa desta frase de apresentação.\n` +
-          `Se não houver nome próprio claro, responda: null\n` +
-          `Responda APENAS com o nome, sem mais nada.\n\n` +
-          `Frase: "${text}"`;
+        // Tenta regex primeiro (zero custo)
+        const regexPatterns = [
+          /(?:me chamo|meu nome é|sou (?:a |o |))([\w\s]{2,25})/i,
+          /(?:pode me chamar de|me chamam de)\s+([\w\s]{2,20})/i,
+          /(?:i(?:'m| am)|my name(?:'s| is))\s+([\w\s]{2,25})/i,
+          /(?:soy|me llamo)\s+([\w\s]{2,25})/i,
+        ];
+        for (const rx of regexPatterns) {
+          const m = text.match(rx);
+          if (m?.[1]) return Response.json({ name: m[1].trim(), source: "regex" }, { headers: CORS });
+        }
 
-        const name = (await callGemini(prompt, 20)).replace(/[^a-zA-ZÀ-ú\s]/g,"").trim();
-        return Response.json({ name: name && name !== "null" ? name : null }, { headers: CORS });
+        // Só chama Gemini se regex falhar
+        const prompt = `Nome próprio de pessoa nesta frase (só o nome, ou "null"):\n"${text.substring(0,200)}"`;
+        try {
+          const { text: result, inputTokens, outputTokens } = await callGemini(prompt, 15);
+          const name = result.replace(/[^a-zA-ZÀ-ú\s]/g,"").trim();
+          const { usd, brl } = calcCost(inputTokens, outputTokens);
+          const monthKey = new Date().toISOString().substring(0, 7);
+          db["AIUsageLog"].create({
+            action: "ai_detect_name", model: GEMINI_MODEL,
+            input_tokens: inputTokens, output_tokens: outputTokens,
+            cost_usd: usd, cost_brl: brl, success: true, month_key: monthKey
+          }).catch(() => {});
+          return Response.json({ name: name && name !== "null" ? name : null, source: "gemini" }, { headers: CORS });
+        } catch (e: any) {
+          return Response.json({ name: null, error: e.message }, { headers: CORS });
+        }
       }
 
       // ── CRUD normal ──
-      const created = await db.create(body);
+      const created = await entityDb.create(body);
       return Response.json(created, { status: 201, headers: CORS });
     }
 
     // ── PUT ──
     if (req.method === "PUT") {
       if (!id) return Response.json({ error: "id required" }, { status: 400, headers: CORS });
-      const body    = await req.json().catch(() => ({}));
-      const updated = await db.update(id, body);
+      const updated = await entityDb.update(id, await req.json().catch(() => ({})));
       return Response.json(updated, { headers: CORS });
     }
 
     // ── DELETE ──
     if (req.method === "DELETE") {
       if (!id) return Response.json({ error: "id required" }, { status: 400, headers: CORS });
-      await db.delete(id);
+      await entityDb.delete(id);
       return Response.json({ ok: true }, { headers: CORS });
     }
 
     return Response.json({ error: "method_not_supported" }, { status: 405, headers: CORS });
-
-  } catch (error) {
+  } catch (error: any) {
     return Response.json({ error: error.message }, { status: 500, headers: CORS });
   }
 });
