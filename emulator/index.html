@@ -205,6 +205,26 @@ html,body{
 .ocr-preview{width:100%;max-height:120px;object-fit:contain;border-radius:6px;border:1px solid #224400;margin-bottom:10px;background:#000}
 .ocr-result{width:100%;padding:8px 10px;background:#050c07;border:1px solid #0a2a18;border-radius:6px;color:#00aa55;font-size:11px;line-height:1.6;min-height:60px;margin-bottom:10px;white-space:pre-wrap}
 .ocr-note{font-size:9px;color:#446600;margin-bottom:10px}
+
+/* ── mic indicator ── */
+.hud-mic{
+  position:absolute;top:9px;left:50%;transform:translateX(-50%);
+  font-size:8px;color:#ff4444;letter-spacing:1px;
+  display:none;animation:micpulse .6s infinite;
+}
+.hud-mic.on{display:block}
+@keyframes micpulse{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── speech bubble — transcrição ao vivo ── */
+.hud-speech{
+  position:absolute;top:26px;left:50%;transform:translateX(-50%);
+  max-width:80%;background:rgba(0,0,0,.65);border:1px solid #ff444444;
+  border-radius:8px;padding:4px 10px;font-size:9px;color:#ff8888;
+  display:none;text-align:center;white-space:nowrap;overflow:hidden;
+  text-overflow:ellipsis;pointer-events:none;
+}
+.hud-speech.on{display:block}
+
 </style>
 </head>
 <body>
@@ -229,6 +249,10 @@ html,body{
 
   <div class="hud" id="hud">
     <div class="rec-dot" id="recDot"></div>
+
+    <div class="hud-mic" id="hudMic">⏺ REC</div>
+    <div class="hud-speech" id="hudSpeech"></div>
+
     <div class="hud-conf" id="hudConf"></div>
     <div class="hud-clock" id="hudClock"></div>
     <div class="scan-ring" id="scanRing"><div class="scan-ring-inner"></div></div>
@@ -341,6 +365,24 @@ var isOnline=false, aiReady=false;
 var lastMatchId=null, liveMode=false;
 var unknownCD=false, pendingUnknownBlob=null;
 
+// ── Speech / microfone ──
+var recognition=null, speechActive=false;
+var focusFrames=0, noFaceFrames=0;
+var FOCUS_TRIGGER=2;   // frames seguidos com rosto para ligar mic
+var NOFOCUS_TIMEOUT=2200; // ms sem rosto para fechar encontro
+var currentEncounter={
+  personId:null, personName:null,
+  startTime:null, transcript:"", detected:false
+};
+var encounterCloseTimer=null;
+var NAME_PATTERNS=[
+  /(?:me chamo|meu nome é|sou (?:a |o |))([\w\s]{2,30})/i,
+  /(?:esse é o|essa é a|este é o|esta é a)\s+([\w\s]{2,20})/i,
+  /(?:oi|olá|hey)[,\s]+([\w]{3,20})/i,
+  /^([\w]{3,20})[,\s]+(?:tudo bem|como vai|boa)/i,
+];
+
+
 // ─── RELÓGIO ───
 (function tick(){
   document.getElementById("hudClock").textContent =
@@ -366,6 +408,169 @@ async function loadAll(){
     isOnline=false;
     setSyncBadge("⚠ offline","err");
     lg("offline: "+err.message,false);
+  }
+}
+
+
+// ═══════════════════════════════════════════════
+// SPEECH — ativado por foco visual
+// ═══════════════════════════════════════════════
+
+function initSpeech(){
+  if(!('SpeechRecognition' in window)&&!('webkitSpeechRecognition' in window)){
+    lg("Speech não suportado neste browser",false); return;
+  }
+  var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+  recognition=new SR();
+  recognition.continuous=true;
+  recognition.interimResults=true;
+  recognition.lang="pt-BR";
+  recognition.maxAlternatives=1;
+
+  recognition.onresult=function(e){
+    var interim="", final="";
+    for(var i=e.resultIndex;i<e.results.length;i++){
+      if(e.results[i].isFinal) final+=e.results[i][0].transcript+" ";
+      else interim+=e.results[i][0].transcript;
+    }
+    var display=(interim||final).trim();
+    if(display){
+      document.getElementById("hudSpeech").textContent=display;
+      document.getElementById("hudSpeech").classList.add("on");
+    }
+    if(final.trim()){
+      currentEncounter.transcript+=" "+final.trim();
+      checkForName(final.trim());
+      // apaga bubble após 2s
+      setTimeout(function(){
+        document.getElementById("hudSpeech").classList.remove("on");
+      },2000);
+    }
+  };
+
+  recognition.onerror=function(e){
+    if(e.error!=="no-speech") lg("Speech erro: "+e.error,false);
+  };
+  recognition.onend=function(){
+    // reconecta automaticamente se ainda em foco
+    if(speechActive) { try{recognition.start();}catch(e){} }
+  };
+  lg("✓ Speech pronto",true);
+}
+
+function startSpeech(){
+  if(!recognition||speechActive) return;
+  try{
+    recognition.start(); speechActive=true;
+    document.getElementById("hudMic").classList.add("on");
+    lg("⏺ microfone ativo",true);
+  }catch(e){}
+}
+
+function stopSpeech(){
+  if(!recognition||!speechActive) return;
+  speechActive=false;
+  try{recognition.stop();}catch(e){}
+  document.getElementById("hudMic").classList.remove("on");
+  document.getElementById("hudSpeech").classList.remove("on");
+  lg("⏹ microfone desligado",false);
+}
+
+function checkForName(text){
+  // Só tenta descobrir nome se rosto desconhecido
+  if(currentEncounter.personId) return;
+  for(var i=0;i<NAME_PATTERNS.length;i++){
+    var m=text.match(NAME_PATTERNS[i]);
+    if(m && m[1]){
+      var name=m[1].trim();
+      lg("🎤 nome detectado: "+name,true);
+      showToast("🎤 ""+name"" — vinculando ao rosto...");
+      autoLinkName(name);
+      return;
+    }
+  }
+}
+
+async function autoLinkName(name){
+  // Cria perfil e vincula ao rosto desconhecido atual
+  var payload={
+    name:name, status:"Ativo",
+    last_seen_date:new Date().toISOString(),
+    last_seen_context:"Apresentação oral detectada automaticamente",
+    tags:"speech,auto"
+  };
+  try{
+    var r=await fetch(API+"?entity=FaceContextPerson",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(payload)
+    });
+    var saved=await r.json();
+    profiles.push(saved);
+    currentEncounter.personId=saved.id;
+    currentEncounter.personName=name;
+    lastMatchId=null; // força re-detecção com novo perfil
+    buildEmbeddings();
+    showToast("✅ "+name+" criado — adicione a foto no Manager");
+    lg("✓ "+name+" criado via speech",true);
+  }catch(e){ lg("Erro ao criar via speech: "+e.message,false); }
+}
+
+// ── Fecha encontro e salva ──
+async function closeEncounter(){
+  clearTimeout(encounterCloseTimer); encounterCloseTimer=null;
+  if(!currentEncounter.startTime) return;
+  if(!currentEncounter.transcript.trim() && !currentEncounter.personId){
+    currentEncounter={personId:null,personName:null,startTime:null,transcript:"",detected:false};
+    return;
+  }
+  var duration=Math.round((Date.now()-currentEncounter.startTime)/1000);
+  var transcript=currentEncounter.transcript.trim();
+
+  // Gera resumo via backend
+  var context=transcript
+    ? await generateSummary(transcript, currentEncounter.personName)
+    : (currentEncounter.personName ? "Encontro com "+currentEncounter.personName : "Encontro registrado");
+
+  if(currentEncounter.personId){
+    var enc={
+      person_id:   currentEncounter.personId,
+      person_name: currentEncounter.personName||"",
+      date:        new Date(currentEncounter.startTime).toISOString(),
+      location:    "",
+      context:     context,
+      speech_captured: transcript.substring(0,1000),
+      capture_mode:"auto_speech",
+      notes:       "Duração: "+duration+"s"
+    };
+    try{
+      var r=await fetch(API+"?entity=FaceContextEncounter",{
+        method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(enc)
+      });
+      var saved=await r.json();
+      encounters.unshift(saved);
+      lg("💾 encontro salvo: "+context.substring(0,50),true);
+      showToast("💾 encontro salvo");
+    }catch(e){ lg("Erro ao salvar encontro: "+e.message,false); }
+  }
+
+  currentEncounter={personId:null,personName:null,startTime:null,transcript:"",detected:false};
+}
+
+async function generateSummary(transcript, personName){
+  try{
+    var r=await fetch(API,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({
+        action:"ai_summary",
+        transcript:transcript,
+        person_name:personName||"desconhecido"
+      })
+    });
+    var d=await r.json();
+    return d.summary||transcript.substring(0,120);
+  }catch(e){
+    return transcript.substring(0,120);
   }
 }
 
@@ -509,8 +714,16 @@ async function runDetection(){
   ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
 
   if(!dets.length){
+    focusFrames=0; noFaceFrames++;
     lastMatchId=null; clearHUD();
     document.getElementById("scanRing").classList.add("on");
+    // sem rosto por NOFOCUS_TIMEOUT → fecha encontro
+    if(speechActive && !encounterCloseTimer){
+      encounterCloseTimer=setTimeout(function(){
+        stopSpeech();
+        closeEncounter();
+      }, NOFOCUS_TIMEOUT);
+    }
     return;
   }
   document.getElementById("scanRing").classList.remove("on");
@@ -541,6 +754,19 @@ async function runDetection(){
         showKnownHUD(best.id,best,conf);
         lg("✓ "+best.name+" "+conf+"%",true);
       }
+      // ── FOCO VISUAL → ativa microfone ──
+      focusFrames++; noFaceFrames=0;
+      clearTimeout(encounterCloseTimer); encounterCloseTimer=null;
+      if(focusFrames>=FOCUS_TRIGGER && !speechActive){
+        startSpeech();
+        if(!currentEncounter.startTime){
+          currentEncounter.personId=best.id;
+          currentEncounter.personName=best.name;
+          currentEncounter.startTime=Date.now();
+          currentEncounter.transcript="";
+          lg("▶ encontro iniciado: "+best.name,true);
+        }
+      }
     } else {
       drawBox(ctx,box,"#ffaa00",false);
       drawLabel(ctx,box,"?","#ffaa00");
@@ -551,6 +777,16 @@ async function runDetection(){
         showUnknownHUD();
         lg("? desconhecido (d="+bestD.toFixed(2)+")",false);
         captureUnknownFace(vid);
+      }
+      // ── DESCONHECIDO em foco → ativa speech para capturar nome ──
+      focusFrames++; noFaceFrames=0;
+      clearTimeout(encounterCloseTimer); encounterCloseTimer=null;
+      if(focusFrames>=FOCUS_TRIGGER && !speechActive){
+        startSpeech();
+        if(!currentEncounter.startTime){
+          currentEncounter.startTime=Date.now();
+          lg("▶ escutando apresentação...",false);
+        }
       }
     }
   } else {
@@ -829,6 +1065,7 @@ document.addEventListener("keydown",function(e){
 // ─── INIT ───
 loadAll();
 initAI();
+initSpeech();
 </script>
 </body>
 </html>
