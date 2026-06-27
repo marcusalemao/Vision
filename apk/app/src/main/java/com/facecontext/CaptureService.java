@@ -74,7 +74,7 @@ public class CaptureService extends Service {
 
     // API endpoint — Base44 backend proxy
     private static final String API_URL =
-        "https://base44.app/api/apps/6a11083db49430b410a8c066/functions/fcProxy";
+        "https://base44.app/api/apps/6a11083db49430b410a8c066/functions/fcRecognize";
 
     // Camera
     private CameraManager      cameraManager;
@@ -291,13 +291,21 @@ public class CaptureService extends Service {
     }
 
     // ─── Envia JPEG para API de reconhecimento ────────────────────
+    //
+    // Fluxo (2 fases):
+    //   1. Envia image_b64 → API responde needs_client_embedding=true
+    //      (o servidor Deno não tem TFLite para extrair descriptor de JPEG)
+    //   2. TODO Fase 3: integrar TFLite no APK para extrair descriptor
+    //      localmente e enviar { descriptor: [128 floats] } direto
+    //
+    // Por ora a API retorna needs_client_embedding e o HUD mostra
+    // "Identifique no Manager" — funcional para validação do cabo.
 
     private void sendToFaceApi(byte[] jpeg) {
         try {
             String b64 = Base64.encodeToString(jpeg, Base64.NO_WRAP);
 
             JSONObject body = new JSONObject();
-            body.put("action", "recognize_face");
             body.put("image_b64", b64);
 
             RequestBody requestBody = RequestBody.create(
@@ -313,8 +321,8 @@ public class CaptureService extends Service {
             httpClient.newCall(request).enqueue(new Callback() {
                 @Override
                 public void onFailure(@NonNull Call call, @NonNull IOException e) {
-                    Log.w(TAG, "API offline, modo manual: " + e.getMessage());
-                    broadcastError("API offline — identifique manualmente");
+                    Log.w(TAG, "API offline: " + e.getMessage());
+                    broadcastError("API offline");
                 }
 
                 @Override
@@ -323,10 +331,29 @@ public class CaptureService extends Service {
                         broadcastError("API erro: " + response.code());
                         return;
                     }
-                    String responseBody = response.body() != null
-                        ? response.body().string() : "{}";
-                    broadcastProfile(responseBody);
-                    stopCapturePipeline();
+                    try {
+                        String raw = response.body() != null ? response.body().string() : "{}";
+                        JSONObject json = new JSONObject(raw);
+
+                        if (json.optBoolean("needs_client_embedding", false)) {
+                            // Fase 3: APK vai extrair descriptor com TFLite
+                            // Por ora, avisa que precisa do emulador ou Manager
+                            broadcastError("Foto capturada — identifique no Manager");
+                            stopCapturePipeline();
+                            return;
+                        }
+
+                        if (json.optBoolean("match", false)) {
+                            // Match encontrado — repassa o JSON completo pro HUD
+                            broadcastProfile(raw);
+                        } else {
+                            broadcastError("Não identificado");
+                        }
+                        stopCapturePipeline();
+
+                    } catch (Exception e) {
+                        broadcastError("Resposta inválida");
+                    }
                 }
             });
 
