@@ -53,49 +53,96 @@ html,body{
   background:repeating-linear-gradient(0deg,transparent,transparent 3px,rgba(0,255,136,.006) 3px,rgba(0,255,136,.006) 4px);
   pointer-events:none;
 }
+
+/* ── topo ── */
 .rec-dot{position:absolute;top:9px;left:10px;width:6px;height:6px;border-radius:50%;background:#00ff88;display:none;animation:blink .9s infinite;box-shadow:0 0 6px #00ff88}
 .rec-dot.on{display:block}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
 .hud-conf{position:absolute;top:9px;right:10px;font-size:10px;color:#00ff88;text-shadow:0 0 8px #00ff8899;letter-spacing:1px}
 .hud-clock{position:absolute;top:9px;left:0;right:0;text-align:center;font-size:9px;color:#003a20;letter-spacing:2px}
 
-/* ── scanning ring — indica reconhecimento ativo ── */
-.scan-ring{
-  position:absolute;inset:0;pointer-events:none;display:none;
-  align-items:center;justify-content:center;
-}
+/* ── scanning ring ── */
+.scan-ring{position:absolute;inset:0;pointer-events:none;display:none;align-items:center;justify-content:center}
 .scan-ring.on{display:flex}
-.scan-ring-inner{
-  width:80px;height:80px;border-radius:50%;
-  border:2px solid #00ff8855;
-  box-shadow:0 0 20px #00ff8822;
-  animation:scanpulse 1.2s infinite;
-}
-@keyframes scanpulse{0%,100%{transform:scale(.95);opacity:.4}50%{transform:scale(1.05);opacity:.8}}
+.scan-ring-inner{width:70px;height:70px;border-radius:50%;border:1.5px solid #00ff8833;animation:scanpulse 1.4s infinite}
+@keyframes scanpulse{0%,100%{transform:scale(.9);opacity:.25}50%{transform:scale(1.08);opacity:.6}}
 
-/* ── painel identidade ── */
-.hud-id{position:absolute;bottom:10px;left:10px;right:35%}
-.hud-name{font-size:clamp(14px,2.4vw,20px);font-weight:bold;color:#00ff88;text-shadow:0 0 14px #00ff88aa,0 0 28px #00ff8833;line-height:1.15;margin-bottom:2px}
-.hud-role{font-size:clamp(9px,1.4vw,11px);color:#00dd77;text-shadow:0 0 8px #00ff8855;margin-bottom:1px}
-.hud-co{font-size:clamp(8px,1.2vw,10px);color:#009944;text-shadow:0 0 6px #00ff8833;margin-bottom:1px}
-.hud-rel{font-size:8px;color:#005530}
-
-/* ── painel desconhecido — centro ── */
-.hud-unknown{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:5px;pointer-events:none}
-.hud-unknown.show{display:flex}
-.uq{font-size:clamp(24px,5vw,36px);color:#ffaa00;text-shadow:0 0 20px #ffaa0066}
-.ul{font-size:clamp(9px,1.5vw,11px);color:#ffaa00;text-shadow:0 0 8px #ffaa0044;letter-spacing:2px}
-.uh{font-size:8px;color:#664400;text-align:center;line-height:1.6}
-
-/* ── indicador contínuo — canto sup esq ── */
-.hud-live{
-  position:absolute;top:9px;left:22px;
-  font-size:8px;color:#003a20;letter-spacing:2px;
+/* ════════════════════════════════════════
+   PAINEL DE IDENTIDADE — bottom esquerda
+   ════════════════════════════════════════ */
+.hud-id{
+  position:absolute;
+  bottom:12px;left:10px;
+  /* não invade a timeline */
+  right:34%;
   display:none;
 }
-.hud-live.on{display:block;color:#006633}
+.hud-name{
+  font-size:clamp(13px,2.2vw,19px);font-weight:bold;
+  color:#00ff88;
+  text-shadow:0 0 12px #00ff88aa,0 0 24px #00ff8833;
+  line-height:1.2;margin-bottom:3px;
+}
+.hud-role{font-size:clamp(9px,1.3vw,11px);color:#00dd77;text-shadow:0 0 6px #00ff8844;margin-bottom:1px}
+.hud-co{font-size:clamp(8px,1.1vw,10px);color:#009944;margin-bottom:2px}
+.hud-meta{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:2px}
+.hud-rel{font-size:8px;color:#005530}
+/* badge email não lido */
+.hud-email-badge{
+  font-size:8px;padding:1px 5px;border-radius:8px;
+  background:rgba(59,130,246,.15);border:1px solid rgba(59,130,246,.3);
+  color:#60a5fa;display:none;
+}
+.hud-email-badge.show{display:inline-block}
+/* última interação abaixo do nome — 1 linha curtíssima */
+.hud-last{
+  font-size:8px;color:#003f22;margin-top:4px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
 
-.hud-status{position:absolute;bottom:10px;right:10px;text-align:right;font-size:8px;color:#003320;line-height:1.8}
+/* ════════════════════════════════════════
+   TIMELINE — coluna fina, lado direito
+   Últimas 3 interações
+   ════════════════════════════════════════ */
+.hud-timeline{
+  position:absolute;
+  bottom:12px;right:8px;
+  width:30%;
+  display:none;
+  flex-direction:column;
+  gap:5px;
+}
+.hud-timeline.show{display:flex}
+
+/* linha separadora no topo da timeline */
+.hud-timeline::before{
+  content:"HISTÓRICO";
+  font-size:6px;color:#003320;letter-spacing:2px;
+  margin-bottom:2px;
+  display:block;
+}
+
+.tl-item{
+  border-left:1.5px solid #003a20;
+  padding-left:6px;
+  opacity:.9;
+}
+.tl-date{font-size:7px;color:#004422;line-height:1.3}
+.tl-ctx{
+  font-size:clamp(7px,1vw,9px);color:#00884a;
+  line-height:1.3;
+  /* máximo 2 linhas */
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+}
+
+/* ── painel desconhecido ── */
+.hud-unknown{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:4px;pointer-events:none}
+.hud-unknown.show{display:flex}
+.uq{font-size:clamp(22px,4vw,32px);color:#ffaa00;text-shadow:0 0 18px #ffaa0055}
+.ul{font-size:clamp(8px,1.3vw,10px);color:#ffaa00;letter-spacing:2px}
+.uh{font-size:7px;color:#553300;text-align:center;line-height:1.5}
+
+.hud-status{position:absolute;bottom:10px;right:10px;text-align:right;font-size:7px;color:#002218;line-height:1.8}
 
 /* ═══ CONTROLES ═══ */
 .controls{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;width:min(640px,97vw)}
@@ -111,22 +158,18 @@ html,body{
 .btn:active,.btn.on{background:#0a2a18;border-color:#00ff88;color:#00ff88}
 .btn.dim{opacity:.3;pointer-events:none}
 .btn.live-on{border-color:#00ff8866;color:#00cc55;animation:glow 1.5s infinite}
+.btn.capture{border-color:#224400;color:#669900}
 .bicon{font-size:18px;line-height:1}
 
 /* ═══ TOAST ═══ */
-.toast{
-  position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
-  background:#0c1a10;border:1px solid #0a2a18;color:#00ff88;
-  padding:9px 16px;border-radius:10px;font-size:11px;
-  opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap;z-index:300;
-}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#0c1a10;border:1px solid #0a2a18;color:#00ff88;padding:9px 16px;border-radius:10px;font-size:11px;opacity:0;transition:opacity .2s;pointer-events:none;white-space:nowrap;z-index:300}
 .toast.show{opacity:1}
 .toast.warn{border-color:#552200;color:#ff8800}
 
 /* ═══ LOG ═══ */
 .logwrap{width:min(640px,97vw)}
 .slbl{font-size:7px;color:#002014;letter-spacing:3px;margin-bottom:4px;padding-left:2px}
-.logbox{background:#050c07;border:1px solid #081608;border-radius:8px;padding:7px 9px;height:72px;overflow-y:auto;font-size:8.5px}
+.logbox{background:#050c07;border:1px solid #081608;border-radius:8px;padding:7px 9px;height:64px;overflow-y:auto;font-size:8.5px}
 .ll{color:#002810;margin-bottom:2px}.ll.hi{color:#00aa55}.ll.warn{color:#aa6600}
 
 /* ═══ HELP ═══ */
@@ -140,26 +183,28 @@ html,body{
 .hkey{color:#009944}.hdesc{color:#005533;text-align:right}
 .hnote{font-size:8px;color:#004422;margin-top:8px;line-height:1.7;background:#040d07;padding:8px 10px;border-radius:6px;border-left:2px solid #0a3a18}
 
-/* ═══ MODAL IDENTIFICAR ═══ */
-#unknownModal{
-  position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:250;
-  display:none;align-items:flex-end;justify-content:center;
-}
+/* ═══ MODAL IDENTIFICAR (rosto desconhecido) ═══ */
+#unknownModal{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:250;display:none;align-items:flex-end;justify-content:center}
 #unknownModal.show{display:flex}
-.umodal{
-  background:#0c1a10;border:1px solid #0a2a18;border-radius:16px 16px 0 0;
-  width:min(480px,100%);padding:18px 16px 28px;
-}
-.umodal-img{width:72px;height:72px;border-radius:8px;object-fit:cover;border:2px solid #0a2a18;float:left;margin-right:12px}
-.umodal h3{font-size:14px;color:#ffaa00;margin-bottom:4px}
+.umodal{background:#0c1a10;border:1px solid #0a2a18;border-radius:16px 16px 0 0;width:min(480px,100%);padding:18px 16px 28px}
+.umodal-img{width:68px;height:68px;border-radius:8px;object-fit:cover;border:2px solid #0a2a18;float:left;margin-right:12px}
+.umodal h3{font-size:14px;color:#ffaa00;margin-bottom:3px}
 .umodal p{font-size:11px;color:#664400;clear:both;margin:10px 0 6px}
 .uname{width:100%;padding:10px 12px;background:#050c07;border:1px solid #0a2a18;border-radius:8px;color:#00ff88;font-family:monospace;font-size:14px;margin-bottom:10px;outline:none}
 .uname:focus{border-color:#00aa55}
 .ubtns{display:flex;gap:8px}
 .ubtn{flex:1;padding:10px;border-radius:8px;border:1px solid #0a2a18;background:#080f09;color:#009944;font-family:monospace;font-size:11px;cursor:pointer}
 .ubtn.primary{border-color:#00aa55;color:#00ff88;background:#061208}
-.ubtn.primary:active{background:#0a2a18}
 .ubtn.skip{color:#664400;border-color:#221000}
+
+/* ═══ MODAL OCR ═══ */
+#ocrModal{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:250;display:none;align-items:flex-end;justify-content:center}
+#ocrModal.show{display:flex}
+.omodal{background:#0c1a10;border:1px solid #224400;border-radius:16px 16px 0 0;width:min(480px,100%);padding:18px 16px 28px}
+.omodal h3{font-size:14px;color:#99ff00;margin-bottom:8px}
+.ocr-preview{width:100%;max-height:120px;object-fit:contain;border-radius:6px;border:1px solid #224400;margin-bottom:10px;background:#000}
+.ocr-result{width:100%;padding:8px 10px;background:#050c07;border:1px solid #0a2a18;border-radius:6px;color:#00aa55;font-size:11px;line-height:1.6;min-height:60px;margin-bottom:10px;white-space:pre-wrap}
+.ocr-note{font-size:9px;color:#446600;margin-bottom:10px}
 </style>
 </head>
 <body>
@@ -170,6 +215,7 @@ html,body{
   <div class="badge" id="livebadge">● live off</div>
 </div>
 
+<!-- ═══ VISOR ═══ -->
 <div class="visor" id="visor">
   <video id="vid" autoplay playsinline muted></video>
   <canvas id="detCanvas" class="det"></canvas>
@@ -183,35 +229,41 @@ html,body{
 
   <div class="hud" id="hud">
     <div class="rec-dot" id="recDot"></div>
-    <div class="hud-live" id="hudLive">◉ LIVE</div>
     <div class="hud-conf" id="hudConf"></div>
     <div class="hud-clock" id="hudClock"></div>
-
-    <!-- scanning ring — quando procurando -->
     <div class="scan-ring" id="scanRing"><div class="scan-ring-inner"></div></div>
 
-    <!-- identidade -->
-    <div class="hud-id" id="hudId" style="display:none">
+    <!-- ── IDENTIDADE (esquerda baixo) ── -->
+    <div class="hud-id" id="hudId">
       <div class="hud-name" id="hudName"></div>
       <div class="hud-role" id="hudRole"></div>
       <div class="hud-co"   id="hudCo"></div>
-      <div class="hud-rel"  id="hudRel"></div>
+      <div class="hud-meta">
+        <div class="hud-rel" id="hudRel"></div>
+        <div class="hud-email-badge" id="hudEmailBadge">📧 <span id="hudEmailCount">0</span></div>
+      </div>
+      <div class="hud-last" id="hudLast"></div>
     </div>
 
-    <!-- desconhecido -->
+    <!-- ── TIMELINE (direita baixo) ── -->
+    <div class="hud-timeline" id="hudTimeline"></div>
+
+    <!-- ── DESCONHECIDO (centro) ── -->
     <div class="hud-unknown" id="hudUnknown">
       <div class="uq">?</div>
       <div class="ul">IDENTIFICANDO...</div>
-      <div class="uh" id="hudUnkHint"></div>
+      <div class="uh" id="hudUnkHint">Aperte ⊙ para ler cartão / crachá</div>
     </div>
 
     <div class="hud-status" id="hudStatus"></div>
   </div>
 </div>
 
+<!-- ── CONTROLES ── -->
 <div class="controls">
   <div class="btn" id="bcam"><span class="bicon">⏻</span><span>Câmera</span></div>
   <div class="btn dim" id="blive"><span class="bicon">◉</span><span>Live off</span></div>
+  <div class="btn dim capture" id="bocr"><span class="bicon">⊙</span><span>Capturar</span></div>
   <div class="btn dim" id="bstop"><span class="bicon">■</span><span>Parar</span></div>
   <div class="btn" id="bhelp"><span class="bicon">?</span><span>Ajuda</span></div>
 </div>
@@ -226,21 +278,20 @@ html,body{
   <div class="hcard">
     <div class="hhead"><span>FACECONTEXT · EMULADOR AR</span><button class="hxbtn" id="helpx">✕</button></div>
     <div class="hnote">
-      Simula o waveguide dos óculos Rokid em proporção <strong>4:3 landscape (640×480)</strong>.<br>
-      Reconhecimento <strong>contínuo e automático</strong> — igual ao modo tradutor. Não precisa apertar botão.
+      Extensão de memória social — reconhece rostos de pessoas que você já conhece e mostra nome, cargo e últimas interações no HUD, discretamente.
     </div>
-    <div class="hsec">COMO USAR</div>
-    <div class="hrow"><span class="hkey">1. Câmera ⏻</span><span class="hdesc">Liga o visor</span></div>
-    <div class="hrow"><span class="hkey">2. Live ◉</span><span class="hdesc">Ativa reconhecimento contínuo</span></div>
-    <div class="hrow"><span class="hkey">Rosto verde</span><span class="hdesc">Pessoa reconhecida — nome no HUD</span></div>
-    <div class="hrow"><span class="hkey">Rosto laranja</span><span class="hdesc">Desconhecido — foto salva automaticamente</span></div>
-    <div class="hrow"><span class="hkey">Pop-up laranja</span><span class="hdesc">Identificar a pessoa agora</span></div>
+    <div class="hsec">FLUXO DE USO</div>
+    <div class="hrow"><span class="hkey">⏻ → ◉ Live</span><span class="hdesc">Liga câmera e reconhecimento contínuo</span></div>
+    <div class="hrow"><span class="hkey">Rosto verde</span><span class="hdesc">Reconhecido — nome + timeline no HUD</span></div>
+    <div class="hrow"><span class="hkey">Rosto laranja</span><span class="hdesc">Desconhecido — identifique no pop-up</span></div>
+    <div class="hrow"><span class="hkey">⊙ Capturar</span><span class="hdesc">OCR de cartão ou crachá</span></div>
     <div class="hsec">TECLADO</div>
-    <div class="hrow"><span class="hkey">Espaço</span><span class="hdesc">Liga câmera</span></div>
+    <div class="hrow"><span class="hkey">Espaço</span><span class="hdesc">Liga câmera / toggle live</span></div>
     <div class="hrow"><span class="hkey">L</span><span class="hdesc">Toggle live</span></div>
+    <div class="hrow"><span class="hkey">C</span><span class="hdesc">Capturar (OCR)</span></div>
     <div class="hrow"><span class="hkey">Esc</span><span class="hdesc">Fechar</span></div>
     <div class="hnote">
-      Para reconhecimento funcionar: cadastre perfis com <strong>foto real com rosto</strong> em <a href="https://fc.alema.io/webapp.html" style="color:#00aa55">fc.alema.io/webapp.html</a>
+      Cadastre contatos com foto em <a href="https://fc.alema.io/webapp.html" style="color:#00aa55">fc.alema.io/webapp.html</a>
     </div>
   </div>
 </div>
@@ -253,11 +304,25 @@ html,body{
       <h3>🟠 Rosto desconhecido</h3>
       <div style="font-size:10px;color:#664400">Quem é essa pessoa?</div>
     </div>
-    <p>Digite o nome para salvar o perfil e reconhecê-la na próxima vez:</p>
+    <p>Digite o nome para salvar o perfil:</p>
     <input class="uname" id="uNameInput" placeholder="Nome da pessoa..." maxlength="60">
     <div class="ubtns">
-      <button class="ubtn primary" onclick="saveUnknown()">✅ Salvar e identificar</button>
+      <button class="ubtn primary" onclick="saveUnknown()">✅ Salvar</button>
       <button class="ubtn skip"    onclick="skipUnknown()">⏭ Pular</button>
+    </div>
+  </div>
+</div>
+
+<!-- modal OCR -->
+<div id="ocrModal">
+  <div class="omodal">
+    <h3>⊙ OCR — Cartão / Crachá</h3>
+    <img id="ocrPreview" class="ocr-preview" src="" alt="">
+    <div class="ocr-note">Texto extraído da imagem (edite se necessário):</div>
+    <div class="ocr-result" id="ocrResult" contenteditable="true"></div>
+    <div class="ubtns">
+      <button class="ubtn primary" onclick="saveOcrContact()">💾 Criar contato</button>
+      <button class="ubtn skip" onclick="closeOcr()">Fechar</button>
     </div>
   </div>
 </div>
@@ -265,49 +330,47 @@ html,body{
 <div class="toast" id="toastEl"></div>
 
 <script>
-var APP_ID = "6a11083db49430b410a8c066";
-var API    = "https://base44.app/api/apps/"+APP_ID+"/functions/fcProxy";
-// CDN alternativo para os modelos (mais estável que githubusercontent direto)
-var MODELS = "https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights";
-var THRESH = 0.44;  // 0.44 = mais sensível, 0.4 = mais estrito
+var APP_ID  = "6a11083db49430b410a8c066";
+var API     = "https://base44.app/api/apps/"+APP_ID+"/functions/fcProxy";
+var MODELS  = "https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights";
+var THRESH  = 0.44;
 
-var stream=null, detLoop=null, clockLoop=null;
-var profiles=[], embeddings=[];
+var stream=null, detLoop=null;
+var profiles=[], encounters=[], embeddings=[];
 var isOnline=false, aiReady=false;
-var lastMatchId=null;
-var liveMode=false;
-
-// cooldowns
-var unknownCD=false, unknownCDMs=12000;  // 12s entre saves automáticos
-var pendingUnknownBlob=null, pendingUnknownId=null;
+var lastMatchId=null, liveMode=false;
+var unknownCD=false, pendingUnknownBlob=null;
 
 // ─── RELÓGIO ───
-(function tickClock(){
+(function tick(){
   document.getElementById("hudClock").textContent =
     new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit"});
-  clockLoop = setTimeout(tickClock, 30000);
+  setTimeout(tick, 30000);
 })();
 
-// ─── DADOS ────
-async function loadProfiles(){
+// ─── CARREGAR DADOS ───
+async function loadAll(){
   setSyncBadge("⟳ carregando...","loading");
   try{
-    var r = await fetch(API+"?entity=FaceContextPerson");
-    if(!r.ok) throw new Error(r.status);
-    profiles = await r.json();
+    var [p, e] = await Promise.all([
+      fetch(API+"?entity=FaceContextPerson").then(function(r){ return r.json(); }),
+      fetch(API+"?entity=FaceContextEncounter").then(function(r){ return r.json(); })
+    ]);
+    profiles   = Array.isArray(p) ? p : [];
+    encounters = Array.isArray(e) ? e : [];
     isOnline = true;
     setSyncBadge("☁ "+profiles.length+" perfis","ok");
-    lg("✓ "+profiles.length+" perfis carregados",true);
+    lg("✓ "+profiles.length+" perfis, "+encounters.length+" encontros",true);
     if(aiReady) buildEmbeddings();
-  }catch(e){
-    isOnline = false;
+  }catch(err){
+    isOnline=false;
     setSyncBadge("⚠ offline","err");
-    lg("offline: "+e.message,false);
+    lg("offline: "+err.message,false);
   }
 }
 
-// ─── IA / EMBEDDINGS ───
-async function loadModels(){
+// ─── FACE-API ───
+async function initAI(){
   setAIBadge("⟳ IA carregando","loading");
   try{
     await Promise.all([
@@ -315,34 +378,34 @@ async function loadModels(){
       faceapi.nets.faceLandmark68Net.loadFromUri(MODELS),
       faceapi.nets.faceRecognitionNet.loadFromUri(MODELS)
     ]);
-    aiReady = true;
+    aiReady=true;
     setAIBadge("⬡ IA pronta","ai-ready");
     lg("✓ modelos IA prontos",true);
     if(profiles.length) buildEmbeddings();
-  }catch(e){
+  }catch(err){
     setAIBadge("✕ IA erro","err");
-    lg("IA erro: "+e.message,false);
+    lg("IA erro: "+err.message,false);
   }
 }
 
 async function buildEmbeddings(){
-  embeddings = [];
-  var comFoto = profiles.filter(function(p){
-    return p.photo_url && p.photo_url.startsWith("http") && p.status !== "Pendente";
+  embeddings=[];
+  var comFoto=profiles.filter(function(p){
+    return p.photo_url && p.photo_url.startsWith("http") && p.status!=="Pendente";
   });
-  lg("Embeddings: "+comFoto.length+" perfis com foto...",false);
   var ok=0;
   for(var i=0;i<comFoto.length;i++){
     var p=comFoto[i];
     try{
-      var img = await loadImg(p.photo_url);
-      var det = await faceapi
-        .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:.35}))
+      var img=await loadImg(p.photo_url);
+      var det=await faceapi
+        .detectSingleFace(img,new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:.35}))
         .withFaceLandmarks().withFaceDescriptor();
       if(det){
         embeddings.push({
-          id:p.id, name:p.name, role:p.role||"",
-          company:p.company||"", relation:p.relation||"",
+          id:p.id,name:p.name,role:p.role||"",
+          company:p.company||"",relation:p.relation||"",
+          relation_context:p.relation_context||"",
           descriptor:det.descriptor
         });
         ok++;
@@ -350,15 +413,15 @@ async function buildEmbeddings(){
     }catch(e){}
   }
   setAIBadge("⬡ "+ok+" rostos","ai-ready");
-  document.getElementById("hudStatus").textContent = ok+" perfis · "+profiles.length+" total";
-  lg("✓ "+ok+" rostos reconhecíveis de "+comFoto.length+" fotos",true);
+  document.getElementById("hudStatus").textContent=ok+" perfis";
+  lg("✓ "+ok+" rostos reconhecíveis",true);
 }
 
 function loadImg(url){
   return new Promise(function(res,rej){
     var img=new Image(); img.crossOrigin="anonymous";
     img.onload=function(){res(img)};
-    img.onerror=function(){rej(new Error("img"))};
+    img.onerror=function(){rej()};
     img.src=url;
   });
 }
@@ -366,94 +429,83 @@ function loadImg(url){
 // ─── CÂMERA ───
 function startCam(){
   if(stream) return;
-  lg("Solicitando câmera...",false);
   navigator.mediaDevices.getUserMedia({
     video:{facingMode:{ideal:"environment"},width:{ideal:640},height:{ideal:480}},audio:false
-  })
-  .then(gotStream)
-  .catch(function(){
+  }).then(gotStream).catch(function(){
     navigator.mediaDevices.getUserMedia({video:true,audio:false})
-      .then(gotStream)
-      .catch(function(e){ lg("ERRO câmera: "+e.name,false); showToast("Permissão de câmera negada","warn"); });
+      .then(gotStream).catch(function(e){ lg("ERRO câmera: "+e.name,false); showToast("Permissão negada","warn"); });
   });
 }
 
 function gotStream(s){
   stream=s;
   var vid=document.getElementById("vid");
-  vid.srcObject=s;
-  vid.onloadedmetadata=function(){ vid.play(); };
+  vid.srcObject=s; vid.onloadedmetadata=function(){vid.play()};
   document.getElementById("idleScreen").style.display="none";
   document.getElementById("visor").classList.add("active");
   document.getElementById("blive").classList.remove("dim");
+  document.getElementById("bocr").classList.remove("dim");
   document.getElementById("bstop").classList.remove("dim");
   document.getElementById("bcam").classList.add("dim");
-  lg("✓ câmera ativa",true);
   syncCanvas();
+  lg("✓ câmera ativa",true);
 }
 
 function stopCam(){
   stopLive();
-  if(stream){ stream.getTracks().forEach(function(t){t.stop()}); stream=null; }
+  if(stream){stream.getTracks().forEach(function(t){t.stop()});stream=null;}
   document.getElementById("vid").srcObject=null;
   document.getElementById("idleScreen").style.display="flex";
   document.getElementById("visor").classList.remove("active");
   document.getElementById("blive").classList.add("dim");
+  document.getElementById("bocr").classList.add("dim");
   document.getElementById("bstop").classList.add("dim");
   document.getElementById("bcam").classList.remove("dim");
   clearHUD(); lastMatchId=null;
-  lg("câmera parada",false);
 }
 
 function syncCanvas(){
-  var vid=document.getElementById("vid");
-  var canvas=document.getElementById("detCanvas");
-  function sync(){ canvas.width=vid.clientWidth; canvas.height=vid.clientHeight; }
-  sync(); window.addEventListener("resize",sync);
+  var vid=document.getElementById("vid"), c=document.getElementById("detCanvas");
+  function s(){c.width=vid.clientWidth;c.height=vid.clientHeight;}
+  s(); window.addEventListener("resize",s);
 }
 
-// ─── LIVE MODE (reconhecimento contínuo) ───
+// ─── LIVE MODE ───
 function toggleLive(){
   if(liveMode) stopLive(); else startLive();
 }
-
 function startLive(){
-  if(!stream){ showToast("Liga a câmera primeiro","warn"); return; }
-  if(!aiReady){ showToast("IA ainda carregando...","warn"); return; }
+  if(!stream){showToast("Liga a câmera primeiro","warn");return;}
+  if(!aiReady){showToast("IA ainda carregando...","warn");return;}
   liveMode=true;
   document.getElementById("recDot").classList.add("on");
-  document.getElementById("hudLive").classList.add("on");
   document.getElementById("blive").classList.add("live-on");
   document.getElementById("blive").querySelector("span:last-child").textContent="Live on";
-  document.getElementById("livebadge").textContent="◉ live";
-  document.getElementById("livebadge").className="badge ok";
+  document.getElementById("livebadge").textContent="◉ live"; document.getElementById("livebadge").className="badge ok";
   lg("◉ reconhecimento contínuo LIGADO",true);
-  detLoop = setInterval(runDetection, 900);
+  detLoop=setInterval(runDetection,900);
 }
-
 function stopLive(){
   liveMode=false;
   clearInterval(detLoop); detLoop=null;
   document.getElementById("recDot").classList.remove("on");
-  document.getElementById("hudLive").classList.remove("on");
   document.getElementById("blive").classList.remove("live-on");
   document.getElementById("blive").querySelector("span:last-child").textContent="Live off";
-  document.getElementById("livebadge").textContent="● live off";
-  document.getElementById("livebadge").className="badge";
+  document.getElementById("livebadge").textContent="● live off"; document.getElementById("livebadge").className="badge";
   clearHUD(); lastMatchId=null;
-  var canvas=document.getElementById("detCanvas");
-  canvas.getContext("2d").clearRect(0,0,canvas.width,canvas.height);
+  var c=document.getElementById("detCanvas");
+  c.getContext("2d").clearRect(0,0,c.width,c.height);
   document.getElementById("scanRing").classList.remove("on");
 }
 
 // ─── LOOP DE DETECÇÃO ───
 async function runDetection(){
-  var vid = document.getElementById("vid");
-  if(!stream || !aiReady || !vid.videoWidth) return;
+  var vid=document.getElementById("vid");
+  if(!stream||!aiReady||!vid.videoWidth) return;
 
-  var opts = new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:.38});
-  var dets = await faceapi.detectAllFaces(vid,opts).withFaceLandmarks().withFaceDescriptors();
-  var ctx  = document.getElementById("detCanvas").getContext("2d");
+  var opts=new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:.38});
+  var dets=await faceapi.detectAllFaces(vid,opts).withFaceLandmarks().withFaceDescriptors();
+  var ctx=document.getElementById("detCanvas").getContext("2d");
   ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
 
   if(!dets.length){
@@ -461,57 +513,48 @@ async function runDetection(){
     document.getElementById("scanRing").classList.add("on");
     return;
   }
-
   document.getElementById("scanRing").classList.remove("on");
+
   var dispSize={width:vid.clientWidth,height:vid.clientHeight};
   var resized=faceapi.resizeResults(dets,dispSize);
 
-  // Maior rosto = pessoa mais próxima (foco dos óculos)
+  // maior rosto = pessoa mais próxima
   var mi=0;
-  dets.forEach(function(d,i){ if(d.detection.box.area>dets[mi].detection.box.area) mi=i; });
-  var main=dets[mi], mainR=resized[mi];
-  var box=mainR.detection.box;
+  dets.forEach(function(d,i){if(d.detection.box.area>dets[mi].detection.box.area)mi=i;});
+  var main=dets[mi], mainR=resized[mi], box=mainR.detection.box;
 
   if(embeddings.length>0){
-    var best=null, bestD=999;
+    var best=null,bestD=999;
     embeddings.forEach(function(e){
       var d=faceapi.euclideanDistance(main.descriptor,e.descriptor);
       if(d<bestD){bestD=d;best=e;}
     });
 
     if(bestD<THRESH){
-      // ─ RECONHECIDO ─
       var conf=Math.round((1-bestD)*100);
       drawBox(ctx,box,"#00ff88",true);
       drawLabel(ctx,box,best.name,"#00ff88");
-
       if(lastMatchId!==best.id){
         lastMatchId=best.id;
         setAIBadge("⬡ "+conf+"%","ai-match");
         document.getElementById("hudConf").textContent=conf+"%";
-        showKnownHUD(best,conf);
+        showKnownHUD(best.id,best,conf);
         lg("✓ "+best.name+" "+conf+"%",true);
       }
     } else {
-      // ─ DESCONHECIDO ─
       drawBox(ctx,box,"#ffaa00",false);
       drawLabel(ctx,box,"?","#ffaa00");
-
       if(lastMatchId!=="?"){
         lastMatchId="?";
         setAIBadge("? desconhecido","ai-scan");
         document.getElementById("hudConf").textContent="";
         showUnknownHUD();
         lg("? desconhecido (d="+bestD.toFixed(2)+")",false);
-        // captura foto e pede identificação
-        captureUnknownFace(vid,box);
+        captureUnknownFace(vid);
       }
     }
   } else {
-    // sem embeddings — só bounding box
-    resized.forEach(function(d){
-      drawBox(ctx,d.detection.box,"#00aa55",false);
-    });
+    resized.forEach(function(d){drawBox(ctx,d.detection.box,"#00aa55",false);});
     setAIBadge("⬡ sem perfis","ai-scan");
   }
 }
@@ -521,125 +564,219 @@ function drawBox(ctx,box,color,known){
   ctx.shadowColor=color; ctx.shadowBlur=known?8:5;
   ctx.strokeRect(box.x,box.y,box.width,box.height);
   ctx.shadowBlur=0;
-  ctx.fillStyle=known?"rgba(0,255,136,0.05)":"rgba(255,170,0,0.04)";
+  ctx.fillStyle=known?"rgba(0,255,136,0.04)":"rgba(255,170,0,0.04)";
   ctx.fillRect(box.x,box.y,box.width,box.height);
 }
-
 function drawLabel(ctx,box,text,color){
   var fsize=Math.max(10,Math.round(box.width*.12));
   ctx.font="bold "+fsize+"px monospace";
-  ctx.fillStyle=color;
-  ctx.shadowColor=color; ctx.shadowBlur=6;
+  ctx.fillStyle=color; ctx.shadowColor=color; ctx.shadowBlur=5;
   ctx.fillText(text,box.x+2,Math.max(fsize,box.y-4));
   ctx.shadowBlur=0;
 }
 
-// ─── CAPTURA ROSTO DESCONHECIDO ───
-function captureUnknownFace(vid,box){
-  if(unknownCD) return;
-  unknownCD=true;
-  setTimeout(function(){unknownCD=false;},unknownCDMs);
+// ─── HUD IDENTIDADE + TIMELINE ───
+function clearHUD(){
+  document.getElementById("hudId").style.display="none";
+  document.getElementById("hudTimeline").classList.remove("show");
+  document.getElementById("hudUnknown").classList.remove("show");
+  document.getElementById("hudConf").textContent="";
+}
 
-  // Tira screenshot do frame atual
+function showKnownHUD(personId, emb, conf){
+  document.getElementById("hudUnknown").classList.remove("show");
+
+  // Busca perfil completo no array
+  var person = profiles.find(function(p){return p.id===personId;}) || emb;
+
+  // Dados de identidade
+  document.getElementById("hudName").textContent = person.name||emb.name;
+  document.getElementById("hudRole").textContent = person.role||emb.role||"";
+  document.getElementById("hudCo").textContent   = person.company||emb.company||"";
+  document.getElementById("hudRel").textContent  = person.relation||emb.relation||"";
+
+  // Email badge — placeholder (integração Gmail futura)
+  var emailBadge = document.getElementById("hudEmailBadge");
+  emailBadge.classList.remove("show"); // por ora oculto até ter integração
+
+  // Última interação em 1 linha
+  var personEncs = encounters
+    .filter(function(e){return e.person_id===personId;})
+    .sort(function(a,b){return (b.date||b.created_date||"")>(a.date||a.created_date||"") ? 1 : -1;});
+
+  if(personEncs.length>0 && personEncs[0].context){
+    var last=personEncs[0];
+    document.getElementById("hudLast").textContent =
+      fmtShort(last.date||last.created_date)+" · "+last.context;
+  } else {
+    document.getElementById("hudLast").textContent = person.last_seen_context
+      ? fmtShort(person.last_seen_date)+" · "+person.last_seen_context
+      : "";
+  }
+
+  document.getElementById("hudId").style.display="block";
+  document.getElementById("hudConf").textContent=conf+"%";
+
+  // ── TIMELINE — últimas 3 interações ──
+  buildTimeline(personId, personEncs);
+}
+
+function buildTimeline(personId, personEncs){
+  var tl = document.getElementById("hudTimeline");
+  var items = personEncs.slice(0,3);
+
+  if(!items.length){
+    tl.classList.remove("show");
+    return;
+  }
+
+  var html = items.map(function(e){
+    var ctx = e.notes || e.context || e.speech_captured || "";
+    // trunca em ~60 chars para caber em 2 linhas
+    if(ctx.length>60) ctx=ctx.substring(0,58)+"…";
+    return '<div class="tl-item">'+
+      '<div class="tl-date">'+fmtShort(e.date||e.created_date)+'</div>'+
+      '<div class="tl-ctx">'+ctx+'</div>'+
+      '</div>';
+  }).join("");
+
+  tl.innerHTML=html;
+  tl.classList.add("show");
+}
+
+function showUnknownHUD(){
+  clearHUD();
+  document.getElementById("hudUnknown").classList.add("show");
+}
+
+// ─── CAPTURA ROSTO DESCONHECIDO ───
+function captureUnknownFace(vid){
+  if(unknownCD) return;
+  unknownCD=true; setTimeout(function(){unknownCD=false;},12000);
   var c=document.createElement("canvas");
   c.width=vid.videoWidth||640; c.height=vid.videoHeight||480;
   c.getContext("2d").drawImage(vid,0,0);
-
-  // Converte para blob JPEG
   c.toBlob(function(blob){
     pendingUnknownBlob=blob;
-    // Mostra preview no modal
-    var url=URL.createObjectURL(blob);
-    document.getElementById("uModalImg").src=url;
+    document.getElementById("uModalImg").src=URL.createObjectURL(blob);
     document.getElementById("uNameInput").value="";
     document.getElementById("unknownModal").classList.add("show");
     document.getElementById("uNameInput").focus();
     triggerFlash();
-    lg("📸 rosto capturado — aguardando identificação",false);
   },"image/jpeg",0.82);
 }
 
-// ─── SALVAR DESCONHECIDO ───
 async function saveUnknown(){
   var name=document.getElementById("uNameInput").value.trim();
-  if(!name){ document.getElementById("uNameInput").focus(); return; }
+  if(!name){document.getElementById("uNameInput").focus();return;}
   document.getElementById("unknownModal").classList.remove("show");
-
-  // 1. Faz upload da foto
-  var photoUrl="";
-  if(pendingUnknownBlob){
-    try{
-      var fd=new FormData();
-      fd.append("file",pendingUnknownBlob,"face_"+Date.now()+".jpg");
-      // Usa upload direto Base44 se disponível, senão skip
-      // (foto vai aparecer em branco no Manager mas perfil é editável)
-      photoUrl="";
-    }catch(e){}
-  }
-
-  // 2. Cria perfil no banco
   var payload={
-    name:name,
-    status:"Ativo",   // ← Ativo desde já (não Pendente) — editável no Manager
+    name:name,status:"Ativo",
     last_seen_date:new Date().toISOString(),
     last_seen_context:"Emulador AR — identificado manualmente",
     tags:"emulador"
   };
-  if(photoUrl) payload.photo_url=photoUrl;
-
   try{
     var r=await fetch(API+"?entity=FaceContextPerson",{
       method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)
     });
     var saved=await r.json();
     profiles.push(saved);
-    pendingUnknownId=saved.id;
-    showToast("✅ "+name+" salvo! Adicione a foto no Manager para reconhecimento automático.");
-    lg("✓ "+name+" criado (id:"+saved.id.slice(0,8)+")",true);
-    lastMatchId=null; // força redetecção
-    // Recarrega embeddings se tiver foto
-    if(saved.photo_url && aiReady) buildEmbeddings();
-  }catch(e){
-    showToast("Erro ao salvar: "+e.message,"warn");
-    lg("erro save: "+e.message,false);
-  }
+    showToast("✅ "+name+" salvo! Adicione a foto no Manager.");
+    lg("✓ "+name+" criado",true);
+    lastMatchId=null;
+  }catch(e){showToast("Erro: "+e.message,"warn");}
   pendingUnknownBlob=null;
 }
 
 function skipUnknown(){
   document.getElementById("unknownModal").classList.remove("show");
   pendingUnknownBlob=null;
-  lg("desconhecido ignorado",false);
 }
 
-// ─── HUD ───
-function clearHUD(){
-  document.getElementById("hudId").style.display="none";
-  document.getElementById("hudUnknown").classList.remove("show");
-  document.getElementById("hudConf").textContent="";
+// ─── OCR (botão capturar — cartão / crachá) ───
+function captureOCR(){
+  var vid=document.getElementById("vid");
+  if(!vid.videoWidth){showToast("Câmera não está ativa","warn");return;}
+  var c=document.createElement("canvas");
+  c.width=vid.videoWidth; c.height=vid.videoHeight;
+  c.getContext("2d").drawImage(vid,0,0);
+  triggerFlash();
+  document.getElementById("ocrPreview").src=c.toDataURL("image/jpeg",0.9);
+  document.getElementById("ocrResult").textContent="⟳ Extraindo texto...";
+  document.getElementById("ocrModal").classList.add("show");
+  // Tesseract via CDN — tenta carregar sob demanda
+  runOCR(c);
 }
 
-function showKnownHUD(p,conf){
-  document.getElementById("hudUnknown").classList.remove("show");
-  document.getElementById("hudConf").textContent=conf+"%";
-  document.getElementById("hudName").textContent=p.name;
-  document.getElementById("hudRole").textContent=p.role;
-  document.getElementById("hudCo").textContent=p.company;
-  document.getElementById("hudRel").textContent=p.relation;
-  document.getElementById("hudId").style.display="block";
+async function runOCR(canvas){
+  var resultEl=document.getElementById("ocrResult");
+  try{
+    // Usa Tesseract.js carregado dinamicamente
+    if(typeof Tesseract==="undefined"){
+      await loadScript("https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js");
+    }
+    resultEl.textContent="⟳ processando OCR...";
+    var result=await Tesseract.recognize(canvas,"por+eng",{logger:function(m){
+      if(m.status==="recognizing text") resultEl.textContent="⟳ "+Math.round(m.progress*100)+"%";
+    }});
+    var text=(result.data.text||"").trim();
+    resultEl.textContent=text||"Nenhum texto encontrado";
+    lg("OCR: "+text.substring(0,60),true);
+  }catch(e){
+    resultEl.textContent="OCR indisponível — edite manualmente";
+    lg("OCR erro: "+e.message,false);
+  }
 }
 
-function showUnknownHUD(){
-  clearHUD();
-  document.getElementById("hudUnkHint").textContent="Identifique no pop-up abaixo";
-  document.getElementById("hudUnknown").classList.add("show");
+function loadScript(src){
+  return new Promise(function(res,rej){
+    var s=document.createElement("script");
+    s.src=src; s.onload=res; s.onerror=rej;
+    document.head.appendChild(s);
+  });
 }
+
+async function saveOcrContact(){
+  var text=document.getElementById("ocrResult").textContent.trim();
+  if(!text||text.startsWith("⟳")){showToast("Aguarde o OCR terminar","warn");return;}
+  // Tenta extrair nome da primeira linha
+  var lines=text.split("\n").map(function(l){return l.trim();}).filter(Boolean);
+  var name=lines[0]||"Novo contato OCR";
+  var payload={
+    name:name,
+    notes:"OCR: "+text.substring(0,500),
+    status:"Ativo",
+    last_seen_date:new Date().toISOString(),
+    last_seen_context:"Cartão/crachá via emulador",
+    tags:"ocr"
+  };
+  try{
+    var r=await fetch(API+"?entity=FaceContextPerson",{
+      method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)
+    });
+    var saved=await r.json();
+    profiles.push(saved);
+    closeOcr();
+    showToast("✅ "+name+" criado — complete no Manager","");
+    lg("OCR → contato: "+name,true);
+  }catch(e){showToast("Erro: "+e.message,"warn");}
+}
+
+function closeOcr(){document.getElementById("ocrModal").classList.remove("show");}
 
 // ─── UTILS ───
-function triggerFlash(){
-  var f=document.getElementById("flash");
-  f.classList.add("on");
-  setTimeout(function(){f.classList.remove("on");},120);
+function triggerFlash(){var f=document.getElementById("flash");f.classList.add("on");setTimeout(function(){f.classList.remove("on");},120);}
+
+function fmtShort(d){
+  if(!d) return "";
+  var dt=new Date(d);
+  var now=new Date();
+  var diff=Math.floor((now-dt)/86400000);
+  if(diff===0) return "hoje";
+  if(diff===1) return "ontem";
+  if(diff<7)   return diff+"d atrás";
+  return dt.toLocaleDateString("pt-BR",{day:"2-digit",month:"short"});
 }
 
 var _toastT=null;
@@ -649,61 +786,49 @@ function showToast(msg,type){
   clearTimeout(_toastT);
   _toastT=setTimeout(function(){el.classList.remove("show");},3500);
 }
-
-function setSyncBadge(txt,cls){ var b=document.getElementById("syncbadge"); b.textContent=txt; b.className="badge "+cls; }
-function setAIBadge(txt,cls){ var b=document.getElementById("aibadge"); b.textContent=txt; b.className="badge "+cls; }
-
+function setSyncBadge(t,c){var b=document.getElementById("syncbadge");b.textContent=t;b.className="badge "+c;}
+function setAIBadge(t,c){var b=document.getElementById("aibadge");b.textContent=t;b.className="badge "+c;}
 function lg(msg,hi){
-  var box=document.getElementById("logbox");
-  var d=document.createElement("div");
+  var box=document.getElementById("logbox"),d=document.createElement("div");
   d.className="ll"+(hi?" hi":"");
   d.textContent=new Date().toLocaleTimeString("pt-BR",{hour:"2-digit",minute:"2-digit",second:"2-digit"})+" "+msg;
   box.insertBefore(d,box.firstChild);
-  while(box.children.length>40) box.removeChild(box.lastChild);
+  while(box.children.length>40)box.removeChild(box.lastChild);
 }
 
-// ─── BOTÕES ───
-(function bindButtons(){
+// ─── BIND BUTTONS ───
+(function(){
   function tap(id,fn){
-    var el=document.getElementById(id); if(!el) return;
-    var touched=false;
-    el.addEventListener("touchstart",function(e){e.preventDefault();touched=true;},{ passive:false});
-    el.addEventListener("touchend",function(e){e.preventDefault();if(touched){touched=false;fn();}},{ passive:false});
-    el.addEventListener("touchcancel",function(){touched=false;});
-    el.addEventListener("click",function(){if(!touched)fn();});
+    var el=document.getElementById(id); if(!el)return;
+    var t=false;
+    el.addEventListener("touchstart",function(e){e.preventDefault();t=true;},{passive:false});
+    el.addEventListener("touchend",function(e){e.preventDefault();if(t){t=false;fn();}},{passive:false});
+    el.addEventListener("touchcancel",function(){t=false;});
+    el.addEventListener("click",function(){if(!t)fn();});
   }
   tap("bcam",startCam);
   tap("blive",toggleLive);
+  tap("bocr",captureOCR);
   tap("bstop",stopCam);
   tap("bhelp",function(){document.getElementById("help").classList.add("show");});
   tap("helpx",function(){document.getElementById("help").classList.remove("show");});
 })();
 
 document.addEventListener("keydown",function(e){
-  if(e.key===" "||e.key==="Space"){ e.preventDefault(); if(!stream) startCam(); else toggleLive(); }
+  if(e.key===" "){e.preventDefault();if(!stream)startCam();else toggleLive();}
   if(e.key==="l"||e.key==="L") toggleLive();
+  if(e.key==="c"||e.key==="C") captureOCR();
   if(e.key==="Escape"){
     document.getElementById("help").classList.remove("show");
     document.getElementById("unknownModal").classList.remove("show");
+    document.getElementById("ocrModal").classList.remove("show");
   }
-  if(e.key==="Enter" && document.getElementById("unknownModal").classList.contains("show")) saveUnknown();
+  if(e.key==="Enter"&&document.getElementById("unknownModal").classList.contains("show")) saveUnknown();
 });
 
 // ─── INIT ───
-loadProfiles();
-Promise.all([
-  faceapi.nets.tinyFaceDetector.loadFromUri(MODELS),
-  faceapi.nets.faceLandmark68Net.loadFromUri(MODELS),
-  faceapi.nets.faceRecognitionNet.loadFromUri(MODELS)
-]).then(function(){
-  aiReady=true;
-  setAIBadge("⬡ IA pronta","ai-ready");
-  lg("✓ IA pronta",true);
-  if(profiles.length) buildEmbeddings();
-}).catch(function(e){
-  setAIBadge("✕ IA erro","err");
-  lg("IA erro: "+e.message,false);
-});
+loadAll();
+initAI();
 </script>
 </body>
 </html>
