@@ -16,7 +16,8 @@ html,body{
 .topbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;padding:4px 10px 0}
 .badge{font-size:9px;padding:3px 9px;border-radius:20px;border:1px solid #0a2a18;color:#004422;background:#080f09}
 .badge.ok{color:#00ff88;border-color:#00aa55}
-.badge.err{color:#aa4400;border-color:#441a00}
+.badge.warn{background:rgba(255,180,0,.18);color:#ffb400;border-color:#ffb400;}
+  .badge.err{color:#aa4400;border-color:#441a00}
 .badge.loading{color:#aaaa00;border-color:#444400;animation:pulse .8s infinite}
 .badge.ai-ready{color:#00bbff;border-color:#005577}
 .badge.ai-scan{color:#ffaa00;border-color:#554400;animation:pulse .7s infinite}
@@ -393,11 +394,19 @@ var NAME_PATTERNS=[
 // ─── CARREGAR DADOS ───
 async function loadAll(){
   setSyncBadge("⟳ carregando...","loading");
+  var tout=setTimeout(function(){
+    if(!isOnline) setSyncBadge("⚠ sem conexão — câmera ok","warn");
+  }, 5000);
   try{
-    var [p, e] = await Promise.all([
-      fetch(API+"?entity=FaceContextPerson").then(function(r){ return r.json(); }),
-      fetch(API+"?entity=FaceContextEncounter").then(function(r){ return r.json(); })
+    var timeout=new Promise(function(_,rej){setTimeout(function(){rej(new Error("timeout 8s"));},8000);});
+    var [p, e] = await Promise.race([
+      Promise.all([
+        fetch(API+"?entity=FaceContextPerson").then(function(r){ return r.json(); }),
+        fetch(API+"?entity=FaceContextEncounter").then(function(r){ return r.json(); })
+      ]),
+      timeout.then(function(){return [[],[]]})
     ]);
+    clearTimeout(tout);
     profiles   = Array.isArray(p) ? p : [];
     encounters = Array.isArray(e) ? e : [];
     isOnline = true;
@@ -406,8 +415,8 @@ async function loadAll(){
     if(aiReady) buildEmbeddings();
   }catch(err){
     isOnline=false;
-    setSyncBadge("⚠ offline","err");
-    lg("offline: "+err.message,false);
+    setSyncBadge("⚠ offline — câmera ok","warn");
+    lg("⚠ API offline: "+err.message+". Câmera funciona normalmente.",false);
   }
 }
 
@@ -1066,9 +1075,11 @@ document.addEventListener("keydown",function(e){
 });
 
 // ─── INIT ───
-loadAll();
-initAI();
-initSpeech();
+document.addEventListener("DOMContentLoaded", function(){
+  loadAll();
+  initAI();
+  initSpeech();
+});
 </script>
 </body>
 </html>
