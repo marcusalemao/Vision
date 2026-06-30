@@ -208,7 +208,19 @@ Deno.serve(async (req) => {
           recentCache.set(ck, summary);
           setTimeout(() => recentCache.delete(ck), 5 * 60 * 1000);
 
-          return Response.json({ summary: summary || truncated.substring(0,80), lang, model: GEMINI_MODEL, cost_usd: +usd.toFixed(6) }, { headers: CORS });
+          // Verifica budget (assíncrono, não bloqueia resposta)
+          const budgetInfo = await checkBudgetAlert(db, usd);
+
+          return Response.json({
+            summary: summary || truncated.substring(0,80),
+            lang, model: GEMINI_MODEL,
+            cost_usd: +usd.toFixed(6),
+            ...(budgetInfo.alert ? {
+              budget_alert: true,
+              budget_pct: budgetInfo.budget_pct,
+              budget_remaining_brl: budgetInfo.budget_remaining_brl
+            } : {})
+          }, { headers: CORS });
         } catch (e: any) {
           return Response.json({ summary: transcript.substring(0,80), lang: "pt", model: "fallback", error: e.message }, { headers: CORS });
         }
