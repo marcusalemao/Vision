@@ -357,7 +357,7 @@ html,body{
 var APP_ID  = "6a11083db49430b410a8c066";
 var API     = "https://base44.app/api/apps/"+APP_ID+"/functions/fcProxy";
 var MODELS  = "https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights";
-var THRESH  = 0.44;
+var THRESH  = 0.55;  // aumentado: fotos de perfil vs câmera ao vivo variam mais
 
 var stream=null, detLoop=null;
 var profiles=[], encounters=[], embeddings=[];
@@ -604,7 +604,7 @@ async function buildEmbeddings(){
     try{
       var img=await loadImg(p.photo_url);
       var det=await faceapi
-        .detectSingleFace(img,new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:.35}))
+        .detectSingleFace(img,new faceapi.TinyFaceDetectorOptions({inputSize:416,scoreThreshold:.30}))
         .withFaceLandmarks().withFaceDescriptor();
       if(det){
         embeddings.push({
@@ -615,7 +615,9 @@ async function buildEmbeddings(){
         });
         ok++;
       }
-    }catch(e){}
+    }catch(e){
+      lg("⚠ falha ao carregar foto: "+p.name+" — "+e, false);
+    }
   }
   setAIBadge("⬡ "+ok+" rostos","ai-ready");
   document.getElementById("hudStatus").textContent=ok+" perfis";
@@ -708,7 +710,7 @@ async function runDetection(){
   var vid=document.getElementById("vid");
   if(!stream||!aiReady||!vid.videoWidth) return;
 
-  var opts=new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:.38});
+  var opts=new faceapi.TinyFaceDetectorOptions({inputSize:416,scoreThreshold:.35});
   var dets=await faceapi.detectAllFaces(vid,opts).withFaceLandmarks().withFaceDescriptors();
   var ctx=document.getElementById("detCanvas").getContext("2d");
   ctx.clearRect(0,0,ctx.canvas.width,ctx.canvas.height);
@@ -921,6 +923,7 @@ async function saveUnknown(){
     showToast("✅ "+name+" salvo! Adicione a foto no Manager.");
     lg("✓ "+name+" criado",true);
     lastMatchId=null;
+    buildEmbeddings();  // atualiza embeddings (funciona após foto ser adicionada)
   }catch(e){showToast("Erro: "+e.message,"warn");}
   pendingUnknownBlob=null;
 }
