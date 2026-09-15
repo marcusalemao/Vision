@@ -166,12 +166,12 @@ body{
   background:#060f09;
   border:1px solid #0a2a18;
   border-radius:8px;
-  height:60px;
+  height:78px;
   overflow-y:auto;
-  padding:5px 8px;
-  font-size:9px;
+  padding:6px 10px;
+  font-size:11px;
 }
-.log-line{color:#004422;line-height:1.7}
+.log-line{color:#006633;line-height:1.85}
 .log-line.hi{color:#00ff88}
 
 /* Perfis salvos */
@@ -255,7 +255,7 @@ body{
   <div id="hud-idle">
     <span style="font-size:32px;color:#002a14">◉</span>
     <span>Pressione Câmera para iniciar</span>
-    <span style="font-size:9px;color:#001a0c">640 × 480 · Landscape · Rokid Waveguide</span>
+    <span style="font-size:9px;color:#001a0c;max-width:220px;text-align:center;line-height:1.5">Simulador do HUD dos óculos — testa o reconhecimento facial em tempo real, do jeito que apareceria no visor</span>
   </div>
 
   <!-- HUD overlay (sobre a câmera) -->
@@ -367,10 +367,9 @@ function syncProfiles() {
   .then(function(data){
     _profiles = Array.isArray(data) ? data : (data.records || []);
     var badge = document.getElementById('sync-badge');
-    badge.textContent = '● sincronizado';
-    badge.title = _profiles.length + ' perfis no banco';
+    badge.textContent = '● Base44 · ' + _profiles.length + ' perfis';
     badge.className = 'ok';
-    log('✓ ' + _profiles.length + ' perfis sincronizados (banco)', true);
+    log('✓ conectado ao banco Base44 — ' + _profiles.length + ' perfis carregados', true);
     loadEmbeddings();
   })
   .catch(function(e){
@@ -401,7 +400,7 @@ function setMatchBox(sig, html) {
 }
 
 function handleMatch(descriptor) {
-  _lastMatchDescriptor = descriptor;
+  _lastMatchDescriptor = Array.from(descriptor); // nunca guardar Float32Array crú (JSON.stringify quebra o formato)
   if (!_descriptors.length) {
     renderNoMatch();
     return;
@@ -466,16 +465,20 @@ var _detectTimer = null;
 function loadEmbeddings() {
   if (!_faceApiLoaded) return;
   _descriptors = [];
+  var bad = 0;
   _profiles.forEach(function(p) {
     if (p.face_embedding) {
       try {
         var arr = JSON.parse(p.face_embedding);
-        _descriptors.push({ profile: p, descriptor: new Float32Array(arr) });
-      } catch(e) {}
+        if (Array.isArray(arr) && arr.length === 128) {
+          _descriptors.push({ profile: p, descriptor: new Float32Array(arr) });
+        } else {
+          bad++;
+        }
+      } catch(e) { bad++; }
     }
   });
-  var rec = _descriptors.filter(function(d){return d.descriptor.length>0});
-  log('✓ ' + rec.length + ' rostos reconhecíveis');
+  log('✓ ' + _descriptors.length + ' rostos reconhecíveis' + (bad ? ' (' + bad + ' embedding inválido — recadastrar)' : ''), true);
 }
 
 function startFaceDetection() {
@@ -515,7 +518,7 @@ function detectFaces() {
         if (idx === 0 && r.descriptor) handleMatch(r.descriptor);
       });
     })
-    .catch(function(e) { log('⚠ detecção: ' + e.message); });
+    .catch(function(e) { log('⚠ falha na detecção — tenta de novo', true); console.error('detectFaces:', e); });
 }
 
 // ── HUD ──
@@ -712,6 +715,7 @@ function closeEnrollPicker() {
 function saveEmbedding(p, descriptorOverride) {
   var emb = descriptorOverride || _enrollDescriptor;
   if (!emb) return;
+  if (!Array.isArray(emb)) emb = Array.from(emb); // blindagem: nunca mandar Float32Array crú
   fetch(PROXY, {
     method:'POST',
     headers:{'Content-Type':'application/json'},
@@ -734,10 +738,11 @@ function saveEmbedding(p, descriptorOverride) {
 
 function createNewProfile(name) {
   if (!_enrollDescriptor) { log('⚠ Nenhum rosto capturado', true); return; }
+  var emb = Array.isArray(_enrollDescriptor) ? _enrollDescriptor : Array.from(_enrollDescriptor); // blindagem
   fetch(PROXY, {
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({ name: name, status: 'Identificado', face_embedding: JSON.stringify(_enrollDescriptor) })
+    body:JSON.stringify({ name: name, status: 'Identificado', face_embedding: JSON.stringify(emb) })
   })
   .then(function(r){ return r.json(); })
   .then(function(p){
