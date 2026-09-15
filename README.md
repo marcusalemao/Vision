@@ -10,7 +10,7 @@ Visual assistant with episodic memory for Rokid glasses — assistive technology
 > **Status:** Archived research version — the cognitive engine that originated the current project. The browser emulator runs the full face pipeline (face-api.js detection, enrollment and recognition end-to-end, wired to the Base44 backend). For the active, maintained version, see **[VisualContext](https://github.com/marcusalemao/VisualContext)** (Kotlin app for the glasses) and the [architecture evolution](#architecture) below.
 
 ## URLs
-- **VisualContext** (user manager web app): https://live-companion.base44.app
+- **VisualContext** (user manager web app): https://visualcontext.base44.app
 - **HUD Editor** (dev, legacy): https://fc.alema.io/hud-editor.html
 - **Emulator** (dev, legacy): https://fc.alema.io
 
@@ -34,7 +34,7 @@ Assistente visual com memória episódica para os óculos Rokid — tecnologia a
 > **Status:** Versão de pesquisa arquivada — o motor cognitivo que originou o projeto atual. O emulador roda o pipeline facial completo (detecção, cadastro e reconhecimento de ponta a ponta com face-api.js, ligado ao backend Base44). Para a versão ativa e mantida, veja **[VisualContext](https://github.com/marcusalemao/VisualContext)** (app Kotlin para os óculos) e a [evolução da arquitetura](#arquitetura) abaixo.
 
 ## URLs
-- **VisualContext** (manager do usuário): https://live-companion.base44.app
+- **VisualContext** (manager do usuário): https://visualcontext.base44.app
 - **HUD Editor** (dev, legado): https://fc.alema.io/hud-editor.html
 - **Emulador** (dev, legado): https://fc.alema.io
 
