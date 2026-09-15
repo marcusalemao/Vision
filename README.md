@@ -1,5 +1,7 @@
 [🇬🇧 English](#english) | [🇧🇷 Português](#portuguese)
 
+<p align="center"><img src="https://raw.githubusercontent.com/marcusalemao/LiveCompanion/main/icons/icon-512.png" width="130" alt="Live Companion"/></p>
+
 <a id="english"></a>
 # Vision
 
