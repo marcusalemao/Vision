@@ -280,8 +280,30 @@ body{
 <div id="bottom-bar">
   <button class="bar-btn" id="btn-cam">⏻<span class="blbl">Câmera</span></button>
   <button class="bar-btn" id="btn-cap" disabled>⊙<span class="blbl">Capturar</span></button>
+  <button class="bar-btn" id="btn-enroll">⬡<span class="blbl">Cadastrar</span></button>
   <button class="bar-btn" id="btn-dismiss" disabled>✕<span class="blbl">Dispensar</span></button>
   <button class="bar-btn" id="btn-help">?<span class="blbl">Ajuda</span></button>
+</div>
+
+<!-- ══ ENROLL ══ -->
+<style>
+#enroll-ov{position:fixed;inset:0;z-index:1000;background:rgba(0,8,4,.92);display:none;overflow-y:auto;padding:20px}
+#enroll-ov.on{display:block}
+#enroll-card{max-width:420px;margin:40px auto;background:#06220f;border:1px solid #0a3a1a;border-radius:10px;padding:16px}
+#enroll-tit{font-size:13px;font-weight:bold;color:#00ff88;margin-bottom:10px}
+#enroll-sub{font-size:10px;color:#00884a;margin-bottom:12px}
+#enroll-list{max-height:55vh;overflow-y:auto}
+#enroll-list .pcard{cursor:pointer;display:flex;gap:8px;padding:8px;border:1px solid #0a3a1a;border-radius:8px;margin-bottom:6px;background:#041a0a}
+#enroll-list .pcard:hover{background:#0a3a1a}
+#enroll-x{position:absolute;top:24px;right:24px;width:30px;height:30px;background:#111;border:1px solid #1a3a22;border-radius:50%;color:#00aa55;font-size:15px;cursor:pointer}
+</style>
+<div id="enroll-ov">
+  <button id="enroll-x">✕</button>
+  <div id="enroll-card">
+    <div id="enroll-tit">⬡ CADASTRAR ROSTO</div>
+    <div id="enroll-sub">Rosto capturado da câmera. Em qual perfil salvar?</div>
+    <div id="enroll-list"></div>
+  </div>
 </div>
 
 <!-- ══ HELP ══ -->
@@ -292,6 +314,7 @@ body{
     <div class="h-sec">Emulador (este app)</div>
     <div class="h-row"><span class="h-key">⏻ Câmera</span><span class="h-desc">Liga câmera como fundo do waveguide</span></div>
     <div class="h-row"><span class="h-key">⊙ Capturar</span><span class="h-desc">Captura rosto → exibe HUD overlay</span></div>
+    <div class="h-row"><span class="h-key">⬡ Cadastrar</span><span class="h-desc">Salva o rosto na câmera num perfil → passa a ser reconhecido</span></div>
     <div class="h-row"><span class="h-key">✕ Dispensar</span><span class="h-desc">Fecha HUD (mantém câmera)</span></div>
     <div class="h-sec">Teclado (desktop)</div>
     <div class="h-row"><span class="h-key">Espaço / P</span><span class="h-desc">Liga/desliga câmera</span></div>
@@ -545,7 +568,12 @@ function capture() {
 document.addEventListener('keydown', function(e) {
   if (e.key === ' ' || e.key === 'p') { e.preventDefault(); toggleCam(); }
   if (e.key === 'ArrowUp' || e.key === 'Enter') { e.preventDefault(); capture(); }
-  if (e.key === 'Escape' || e.key === 'ArrowDown') dismissHUD();
+  if (e.key === 'e') { e.preventDefault(); startEnroll(); }
+  if (e.key === 'Escape' || e.key === 'ArrowDown') {
+    var _eov = document.getElementById('enroll-ov');
+    if (_eov && _eov.classList.contains('on')) { closeEnrollPicker(); return; }
+    dismissHUD();
+  }
 });
 
 // ── Buttons (touch) ──
@@ -561,9 +589,69 @@ function bindBtn(id, fn) {
 
 bindBtn('btn-cam', toggleCam);
 bindBtn('btn-cap', capture);
+bindBtn('btn-enroll', startEnroll);
 bindBtn('btn-dismiss', dismissHUD);
 bindBtn('btn-help', function(){ document.getElementById('help-ov').classList.add('on'); });
 bindBtn('help-x', function(){ document.getElementById('help-ov').classList.remove('on'); });
+
+// ── Enroll (cadastro de rosto) ──
+var _enrollDescriptor = null;
+function startEnroll() {
+  if (!_faceApiLoaded) { log('⚠ IA ainda carregando, tenta de novo em uns segundos', true); return; }
+  if (!camStream) { log('⚠ Liga a câmera primeiro (botão Câmera)', true); return; }
+  var vid = document.getElementById('vid');
+  if (!vid || vid.readyState < 2) { log('⚠ Câmera não pronta', true); return; }
+  log('⬡ Detectando rosto pra cadastro...');
+  faceapi.detectSingleFace(vid, new faceapi.TinyFaceDetectorOptions({scoreThreshold:0.4}))
+    .withFaceLandmarks()
+    .withFaceDescriptor()
+    .then(function(r) {
+      if (!r || !r.descriptor) { log('⚠ Nenhum rosto na câmera — chega mais perto e olha pra lente', true); return; }
+      _enrollDescriptor = Array.from(r.descriptor);
+      openEnrollPicker();
+    })
+    .catch(function(e){ log('⚠ Erro na detecção: ' + e.message); });
+}
+function openEnrollPicker() {
+  if (!_profiles.length) { log('⚠ Nenhum perfil sincronizado', true); return; }
+  var list = document.getElementById('enroll-list');
+  list.innerHTML = '';
+  _profiles.forEach(function(p){
+    var d = document.createElement('div');
+    d.className = 'pcard';
+    d.innerHTML = '<div class="pc-info"><div class="pc-name">'+(p.name||'?')+'</div><div class="pc-sub">'+(p.role||'')+(p.company?' · '+p.company:'')+(p.face_embedding?' · ⬡ já tem rosto':'')+'</div></div>';
+    d.addEventListener('click', function(){ saveEmbedding(p); });
+    list.appendChild(d);
+  });
+  document.getElementById('enroll-ov').classList.add('on');
+  log('⬡ Rosto capturado — escolhe o perfil pra salvar');
+}
+function closeEnrollPicker() {
+  document.getElementById('enroll-ov').classList.remove('on');
+  _enrollDescriptor = null;
+}
+function saveEmbedding(p) {
+  if (!_enrollDescriptor) return;
+  fetch(PROXY, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'save_embedding', person_id:p.id, embedding:_enrollDescriptor})
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if (d && d.ok) {
+      p.face_embedding = JSON.stringify(_enrollDescriptor);
+      closeEnrollPicker();
+      renderProfiles();
+      loadEmbeddings();
+      log('✓ Rosto salvo: ' + (p.name||'?') + ' — agora é reconhecível!', true);
+    } else {
+      log('⚠ Erro ao salvar: ' + (d && d.error || '?'));
+    }
+  })
+  .catch(function(e){ log('⚠ Rede: ' + e.message); });
+}
+bindBtn('enroll-x', closeEnrollPicker);
 
 // ── Carrega face-api ──
 document.getElementById('hud-status').textContent = '⬡ carregando IA...';

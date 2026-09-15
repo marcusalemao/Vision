@@ -80,7 +80,7 @@ async function detectLang(text: string): Promise<string> {
 // ── Verifica budget mensal e dispara alerta ──
 async function checkBudgetAlert(db: any, newCostUsd: number) {
   const monthKey = new Date().toISOString().substring(0, 7);
-  const logs = await db["AIUsageLog"].filter({ month_key: monthKey }, { limit: 500 });
+  const logs = await db["AIUsageLog"].filter({ month_key: monthKey }, undefined, 500);
   const totalUsd = (logs || []).reduce((sum: number, l: any) => sum + (l.cost_usd || 0), 0) + newCostUsd;
   const pct = (totalUsd / BUDGET_USD) * 100;
 
@@ -120,7 +120,7 @@ Deno.serve(async (req) => {
       // Rota especial: /usage — retorna resumo de gastos
       if (url.searchParams.get("action") === "usage") {
         const monthKey = url.searchParams.get("month") || new Date().toISOString().substring(0, 7);
-        const logs = await db["AIUsageLog"].filter({ month_key: monthKey }, { limit: 500 });
+        const logs = await db["AIUsageLog"].filter({ month_key: monthKey }, undefined, 500);
         const totalUsd = (logs || []).reduce((s: number, l: any) => s + (l.cost_usd || 0), 0);
         const totalCalls = (logs || []).length;
         const byAction: Record<string, number> = {};
@@ -144,7 +144,7 @@ Deno.serve(async (req) => {
       const all: unknown[] = [];
       let skip = 0;
       while (true) {
-        const batch = await entityDb.filter({}, { limit: 100, skip });
+        const batch = await entityDb.filter({}, undefined, 100, skip);
         if (!batch || batch.length === 0) break;
         all.push(...batch);
         if (batch.length < 100) break;
@@ -261,7 +261,41 @@ Deno.serve(async (req) => {
         }
       }
 
-      // ── CRUD normal ──
+      // ── list ── (retorna registros da entidade sem criar lixo)
+      if (body.action === "list") {
+        const all: any[] = [];
+        let skip = 0;
+        const limit = Math.min(Number(body.limit) || 500, 500);
+        while (all.length < limit) {
+          const batch = await entityDb.filter({}, undefined, 100, skip);
+          if (!batch || batch.length === 0) break;
+          all.push(...batch);
+          if (batch.length < 100) break;
+          skip += 100;
+        }
+        return Response.json(all.slice(0, limit), { headers: CORS });
+      }
+
+      // ── save_embedding ── (cadastro de rosto: descriptor 128 floats do face-api no cliente)
+      if (body.action === "save_embedding") {
+        const personId = body.person_id;
+        const emb = body.embedding;
+        if (!personId) return Response.json({ ok: false, error: "person_id required" }, { status: 400, headers: CORS });
+        if (!Array.isArray(emb) || emb.length !== 128 || !emb.every((v: any) => typeof v === "number" && isFinite(v))) {
+          return Response.json({ ok: false, error: "embedding must be an array of 128 finite floats" }, { status: 400, headers: CORS });
+        }
+        try {
+          const updated = await db["FaceContextPerson"].update(personId, { face_embedding: JSON.stringify(emb) });
+          return Response.json({ ok: true, person_id: personId, face_embedding_saved: true }, { headers: CORS });
+        } catch (e: any) {
+          return Response.json({ ok: false, error: e.message }, { status: 500, headers: CORS });
+        }
+      }
+
+      // Acao desconhecida: NAO criar registro lixo (bug historico: action 'list' criava registros nulos)
+      if (body.action) return Response.json({ error: "unknown_action: " + body.action }, { status: 400, headers: CORS });
+
+      // ── CRUD normal (apenas sem action) ──
       const created = await entityDb.create(body);
       return Response.json(created, { status: 201, headers: CORS });
     }
