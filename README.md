@@ -7,7 +7,7 @@
 
 Visual assistant with episodic memory for Rokid glasses — assistive technology (ADHD and low vision).
 
-> **Status:** Archived research version — the cognitive engine that originated the current project. It works standalone for study (the browser emulator runs offline with face-api.js), but the full memory pipeline requires the Base44 backend. For the active, maintained version, see **[LiveCompanion](https://github.com/marcusalemao/LiveCompanion)** (Kotlin app for the glasses) and the [architecture evolution](#architecture) below.
+> **Status:** Archived research version — the cognitive engine that originated the current project. The browser emulator runs the full face pipeline (face-api.js detection, enrollment and recognition end-to-end, wired to the Base44 backend). For the active, maintained version, see **[LiveCompanion](https://github.com/marcusalemao/LiveCompanion)** (Kotlin app for the glasses) and the [architecture evolution](#architecture) below.
 
 ## URLs
 - **Live Companion** (user manager): https://live-companion.base44.app
@@ -31,7 +31,7 @@ Visual assistant with episodic memory for Rokid glasses — assistive technology
 
 Assistente visual com memória episódica para os óculos Rokid — tecnologia assistiva (TDAH e baixa visão).
 
-> **Status:** Versão de pesquisa arquivada — o motor cognitivo que originou o projeto atual. Funciona de forma independente para estudo (o emulador roda offline no navegador com face-api.js), mas o pipeline completo de memória requer o backend Base44. Para a versão ativa e mantida, veja **[LiveCompanion](https://github.com/marcusalemao/LiveCompanion)** (app Kotlin para os óculos) e a [evolução da arquitetura](#arquitetura) abaixo.
+> **Status:** Versão de pesquisa arquivada — o motor cognitivo que originou o projeto atual. O emulador roda o pipeline facial completo (detecção, cadastro e reconhecimento de ponta a ponta com face-api.js, ligado ao backend Base44). Para a versão ativa e mantida, veja **[LiveCompanion](https://github.com/marcusalemao/LiveCompanion)** (app Kotlin para os óculos) e a [evolução da arquitetura](#arquitetura) abaixo.
 
 ## URLs
 - **Live Companion** (manager do usuário): https://live-companion.base44.app
