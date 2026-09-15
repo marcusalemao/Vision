@@ -161,6 +161,11 @@ body{
 #sync-badge.err{color:#ff4400;border-color:#3a1000}
 
 /* Log */
+/* Log e badge só aparecem em modo debug (Ajuda → Log na tela).
+   Sem debug, tudo vai pro console do navegador — igual fluxo dos óculos. */
+#log-box,#sync-badge{display:none}
+body.debug #log-box{display:block}
+body.debug #sync-badge{display:inline}
 #log-box{
   width:100%; max-width:640px;
   background:#060f09;
@@ -172,6 +177,7 @@ body{
   font-size:11px;
 }
 .log-line{color:#006633;line-height:1.85}
+#help-debug{background:none;border:1px solid #0a2a18;color:#4ade80;font-family:inherit;font-size:10px;padding:6px 12px;border-radius:6px;cursor:pointer}
 .log-line.hi{color:#00ff88}
 
 /* Perfis salvos */
@@ -254,8 +260,8 @@ body{
   <!-- Idle state (sem câmera) -->
   <div id="hud-idle">
     <span style="font-size:32px;color:#002a14">◉</span>
-    <span>Pressione Câmera para iniciar</span>
-    <span style="font-size:9px;color:#001a0c;max-width:220px;text-align:center;line-height:1.5">Simulador do HUD dos óculos — testa o reconhecimento facial em tempo real, do jeito que apareceria no visor</span>
+    <span id="idle-main">Pressione Câmera para iniciar</span>
+    <span id="idle-sub" style="font-size:9px;color:#001a0c;max-width:220px;text-align:center;line-height:1.5">Simulador do HUD dos óculos — testa o reconhecimento facial em tempo real, do jeito que apareceria no visor</span>
   </div>
 
   <!-- HUD overlay (sobre a câmera) -->
@@ -334,6 +340,8 @@ body{
     <div class="h-row"><span class="h-key">Power (26)</span><span class="h-desc">= Capturar</span></div>
     <div class="h-row"><span class="h-key">Back (4)</span><span class="h-desc">= Dispensar HUD</span></div>
     <div class="h-row"><span class="h-key">Vol+ / Vol-</span><span class="h-desc">= Navegar perfis</span></div>
+    <div class="h-sec">Desenvolvedor</div>
+    <div class="h-row"><button id="help-debug">Log na tela: OFF</button></div>
     <div class="h-note">Display real: 640×480 landscape. Preto puro (#000) = transparente no waveguide — as infos flutuam sobre o mundo real.</div>
   </div>
 </div>
@@ -345,15 +353,53 @@ var _currentProfile = null;
 var PROXY = 'https://base44.app/api/apps/6a11083db49430b410a8c066/functions/fcProxy';
 
 // ── Log ──
+// Padrão: log vai pro console do navegador (ferramenta de debug, fora da interface).
+// Na tela só se o usuário ligar "Log na tela" na Ajuda (fica salvo).
+var _debugMode = false;
+try { _debugMode = localStorage.getItem('fc_debug') === '1'; } catch(e) {}
+var _logBuf = [];
+
 function log(msg, hi) {
-  var el = document.getElementById('log-el');
   var d = new Date();
   var t = d.getHours().toString().padStart(2,'0')+':'+d.getMinutes().toString().padStart(2,'0')+':'+d.getSeconds().toString().padStart(2,'0');
-  var line = document.createElement('div');
-  line.className = 'log-line' + (hi ? ' hi' : '');
-  line.textContent = t + ' ' + msg;
-  el.appendChild(line);
-  el.scrollTop = el.scrollHeight;
+  var txt = t + ' ' + msg;
+  try { console.log(txt); } catch(e) {}
+  _logBuf.push(txt);
+  if (_logBuf.length > 200) _logBuf.shift();
+  if (_debugMode) {
+    var el = document.getElementById('log-el');
+    var line = document.createElement('div');
+    line.className = 'log-line' + (hi ? ' hi' : '');
+    line.textContent = txt;
+    el.appendChild(line);
+    el.scrollTop = el.scrollHeight;
+  }
+}
+
+function setDebug(on) {
+  _debugMode = on;
+  try { localStorage.setItem('fc_debug', on ? '1' : '0'); } catch(e) {}
+  document.body.classList.toggle('debug', on);
+  var btn = document.getElementById('help-debug');
+  if (btn) btn.textContent = 'Log na tela: ' + (on ? 'ON' : 'OFF');
+  if (on) {
+    var el = document.getElementById('log-el');
+    el.innerHTML = '';
+    _logBuf.forEach(function(t2){
+      var line = document.createElement('div');
+      line.className = 'log-line';
+      line.textContent = t2;
+      el.appendChild(line);
+    });
+    el.scrollTop = el.scrollHeight;
+  }
+}
+
+function setIdle(main, sub) {
+  var m = document.getElementById('idle-main');
+  var s = document.getElementById('idle-sub');
+  if (m) m.textContent = main;
+  if (s) s.textContent = sub || '';
 }
 
 // ── Sync com banco ──
@@ -559,9 +605,11 @@ function toggleCam() {
   if (camStream) stopCam(); else startCam();
 }
 
-function startCam() {
+function startCam(auto) {
   var btn = document.getElementById('btn-cam');
   btn.textContent = '⏳'; btn.disabled = true;
+  // estado na tela ANTES de pedir permissão (no Knox/OneUI o popup pode ser suprimido)
+  setIdle('Solicitando câmera...', 'O navegador vai pedir permissão de câmera — o mesmo fluxo dos óculos');
   log('Solicitando câmera...');
   navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:640},height:{ideal:480}},audio:false})
   .then(function(stream) {
@@ -580,6 +628,13 @@ function startCam() {
   })
   .catch(function(e) {
     log('✗ câmera: ' + e.message);
+    if (auto) {
+      setIdle('Câmera bloqueada', e && e.name === 'NotAllowedError'
+        ? 'Permita no 🔒 da barra de endereço → Câmera → e toque em Câmera'
+        : 'Toque em Câmera para tentar de novo');
+    } else {
+      setIdle('Não deu pra acessar a câmera', 'Verifique a permissão no 🔒 da barra de endereço');
+    }
     btn.innerHTML = '⏻<span class="blbl">Câmera</span>';
     btn.disabled = false;
   });
@@ -599,6 +654,7 @@ function stopCam() {
   document.getElementById('btn-cam').className = 'bar-btn';
   document.getElementById('btn-cap').disabled = true;
   document.getElementById('btn-dismiss').disabled = true;
+  setIdle('Câmera parada', 'Toque em Câmera para religar');
   log('câmera parada');
 }
 
@@ -660,6 +716,7 @@ bindBtn('btn-cap', capture);
 bindBtn('btn-enroll', startEnroll);
 bindBtn('btn-dismiss', dismissHUD);
 bindBtn('btn-help', function(){ document.getElementById('help-ov').classList.add('on'); });
+bindTapDyn(document.getElementById('help-debug'), function(){ setDebug(!_debugMode); });
 bindBtn('help-x', function(){ document.getElementById('help-ov').classList.remove('on'); });
 
 // ── Enroll (cadastro de rosto) ──
@@ -797,6 +854,13 @@ document.head.appendChild(script);
 
 // ── Init ──
 syncProfiles();
+if (_debugMode) setDebug(true);
+// câmera pedida no carregamento — como será nos óculos (fallback: botão Câmera)
+if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+  startCam(true);
+} else {
+  setIdle('Câmera não suportada', 'Abra em HTTPS num navegador com câmera');
+}
 </script>
 </body>
 </html>
