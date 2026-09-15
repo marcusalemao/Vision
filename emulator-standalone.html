@@ -65,6 +65,7 @@ html,body{background:#000;height:100%;overflow:hidden;font-family:monospace;colo
 #hud-co{font-size:11px;color:#00aa5a;margin-top:1px}
 #hud-rel{font-size:10px;color:#008844;margin-top:4px;font-style:italic}
 #hud-when{font-size:9px;color:#005533;margin-top:6px}
+#hud-ctx{font-size:9px;color:#004428;margin-top:2px;font-style:italic}
 
 /* Badge de match — canto superior direito */
 #hud-match{
@@ -273,6 +274,7 @@ body.debug #sync-badge{display:inline}
       <div id="hud-co"></div>
       <div id="hud-rel"></div>
       <div id="hud-when"></div>
+      <div id="hud-ctx"></div>
     </div>
     <!-- Match score -->
     <div id="hud-match" style="display:none"></div>
@@ -296,31 +298,15 @@ body.debug #sync-badge{display:inline}
 <div id="bottom-bar">
   <button class="bar-btn" id="btn-cam">⏻<span class="blbl">Câmera</span></button>
   <button class="bar-btn" id="btn-cap" disabled>⊙<span class="blbl">Capturar</span></button>
-  <button class="bar-btn" id="btn-enroll">⬡<span class="blbl">Cadastrar</span></button>
   <button class="bar-btn" id="btn-dismiss" disabled>✕<span class="blbl">Dispensar</span></button>
   <button class="bar-btn" id="btn-help">?<span class="blbl">Ajuda</span></button>
 </div>
 
-<!-- ══ ENROLL ══ -->
+<!-- ══ AUTO-ENROLL: pessoa nova → countdown com cancelamento ══ -->
 <style>
-#enroll-ov{position:fixed;inset:0;z-index:1000;background:rgba(0,8,4,.92);display:none;overflow-y:auto;padding:20px}
-#enroll-ov.on{display:block}
-#enroll-card{max-width:420px;margin:40px auto;background:#06220f;border:1px solid #0a3a1a;border-radius:10px;padding:16px}
-#enroll-tit{font-size:13px;font-weight:bold;color:#00ff88;margin-bottom:10px}
-#enroll-sub{font-size:10px;color:#00884a;margin-bottom:12px}
-#enroll-list{max-height:55vh;overflow-y:auto}
-#enroll-list .pcard{cursor:pointer;display:flex;gap:8px;padding:8px;border:1px solid #0a3a1a;border-radius:8px;margin-bottom:6px;background:#041a0a}
-#enroll-list .pcard:hover{background:#0a3a1a}
-#enroll-x{position:absolute;top:24px;right:24px;width:30px;height:30px;background:#111;border:1px solid #1a3a22;border-radius:50%;color:#00aa55;font-size:15px;cursor:pointer}
+.mcount-lbl{font-size:10px;color:#007744;text-align:center;padding-bottom:4px}
+.mcard-count{display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:bold;color:#00ff88;background:#0a2015;border:1px solid #1a5a2a;border-radius:10px;padding:6px 0;margin-bottom:5px}
 </style>
-<div id="enroll-ov">
-  <button id="enroll-x">✕</button>
-  <div id="enroll-card">
-    <div id="enroll-tit">⬡ CADASTRAR ROSTO</div>
-    <div id="enroll-sub">Rosto capturado da câmera. Em qual perfil salvar?</div>
-    <div id="enroll-list"></div>
-  </div>
-</div>
 
 <!-- ══ HELP ══ -->
 <div id="help-ov">
@@ -330,7 +316,7 @@ body.debug #sync-badge{display:inline}
     <div class="h-sec">Emulador (este app)</div>
     <div class="h-row"><span class="h-key">⏻ Câmera</span><span class="h-desc">Liga câmera como fundo do waveguide</span></div>
     <div class="h-row"><span class="h-key">⊙ Capturar</span><span class="h-desc">Captura rosto → exibe HUD overlay</span></div>
-    <div class="h-row"><span class="h-key">⬡ Cadastrar</span><span class="h-desc">Salva o rosto na câmera num perfil → passa a ser reconhecido</span></div>
+    <div class="h-row"><span class="h-key">Pessoa nova</span><span class="h-desc">Salva automaticamente após 10s (countdown) — ✕ não salvar cancela e não insiste</span></div>
     <div class="h-row"><span class="h-key">✕ Dispensar</span><span class="h-desc">Fecha HUD (mantém câmera)</span></div>
     <div class="h-sec">Teclado (desktop)</div>
     <div class="h-row"><span class="h-key">Espaço / P</span><span class="h-desc">Liga/desliga câmera</span></div>
@@ -431,9 +417,13 @@ function syncProfiles() {
 // na câmera, mostrando 1) o match confiante (via HUD, showProfile) ou
 // 2) até 3 candidatos fracos + opção de cadastrar, ou 3) "não reconhecido".
 var MATCH_THRESHOLD     = 0.5;   // match confiante -> mostra card no HUD
-var CANDIDATE_THRESHOLD = 0.62;  // abaixo disso mas fraco -> mostra candidatos
 var _lastMatchSig = null;
 var _lastMatchDescriptor = null;
+var COUNTDOWN_SECONDS = 10;      // pessoa nova: salva automático após 10s (cancelável)
+var _countdownTimer = null;
+var _countdownEnd = 0;
+var _enrollCancelled = null;    // descriptor da pessoa que o usuário dispensou (não rearmar)
+var _lastFaceAt = Date.now();
 
 function setMatchBox(sig, html) {
   if (sig === _lastMatchSig) return; // evita flicker: só re-renderiza se mudou
@@ -447,55 +437,108 @@ function setMatchBox(sig, html) {
 
 function handleMatch(descriptor) {
   _lastMatchDescriptor = Array.from(descriptor); // nunca guardar Float32Array crú (JSON.stringify quebra o formato)
-  if (!_descriptors.length) {
-    renderNoMatch();
-    return;
+  var best = null;
+  if (_descriptors.length) {
+    best = _descriptors.map(function(d) {
+      return { profile: d.profile, dist: faceapi.euclideanDistance(descriptor, d.descriptor) };
+    }).sort(function(a,b){ return a.dist - b.dist; })[0];
   }
-  var scored = _descriptors.map(function(d) {
-    return { profile: d.profile, dist: faceapi.euclideanDistance(descriptor, d.descriptor) };
-  }).sort(function(a,b){ return a.dist - b.dist; });
-  var best = scored[0];
-  if (best.dist < MATCH_THRESHOLD) {
+  if (best && best.dist < MATCH_THRESHOLD) {
+    // rosto conhecido — cancela qualquer cadastro pendente e mostra o card
+    cancelEnrollCountdown();
     showProfile(best.profile, Math.round((1 - best.dist) * 100));
     setMatchBox('confident:' + best.profile.id, null); // esconde painel — já tem o card no HUD
-  } else if (best.dist < CANDIDATE_THRESHOLD) {
-    renderCandidates(scored.slice(0, 3));
-  } else {
-    renderNoMatch();
+    return;
+  }
+  // rosto desconhecido → cadastro automático com countdown (só um botão: não salvar)
+  renderUnknown();
+}
+
+function renderUnknown() {
+  // usuário já disse "não salvar" pra ESTA pessoa — não insiste enquanto ela estiver na frente
+  if (_enrollCancelled && _lastMatchDescriptor) {
+    try {
+      var dCancel = faceapi.euclideanDistance(_lastMatchDescriptor, _enrollCancelled);
+      if (dCancel < MATCH_THRESHOLD) return; // mesma pessoa dispensada
+    } catch(e) { _enrollCancelled = null; }
+  }
+  if (_countdownTimer) return; // countdown já rolando; descriptor atualiza a cada frame no handleMatch
+  startEnrollCountdown();
+}
+
+function startEnrollCountdown() {
+  hideHudCard(); // limpa card velho de outra pessoa
+  _countdownEnd = Date.now() + COUNTDOWN_SECONDS * 1000;
+  setMatchBox('unknown',
+    '<div class="mcount-lbl">Pessoa nova — salvando em</div>' +
+    '<div class="mcard-count" id="cnt-num">' + COUNTDOWN_SECONDS + '</div>' +
+    '<div class="mcard-new" id="mc-cancel">✕ Não salvar</div>');
+  var btn = document.getElementById('mc-cancel');
+  if (btn) bindTapDyn(btn, function(){ cancelEnrollCountdown(true); });
+  log('⬡ Pessoa nova — salvando em ' + COUNTDOWN_SECONDS + 's (✕ pra não salvar)', true);
+  _countdownTimer = setInterval(function() {
+    var left = Math.ceil((_countdownEnd - Date.now()) / 1000);
+    var num = document.getElementById('cnt-num');
+    if (num && left > 0) num.textContent = left;
+    if (left <= 0) {
+      clearInterval(_countdownTimer); _countdownTimer = null;
+      saveUnknown();
+    }
+  }, 250);
+}
+
+function cancelEnrollCountdown(userCancel) {
+  if (_countdownTimer) { clearInterval(_countdownTimer); _countdownTimer = null; }
+  if (userCancel) {
+    if (_lastMatchDescriptor) _enrollCancelled = _lastMatchDescriptor.slice();
+    clearMatchBox();
+    document.getElementById('hud-status').textContent = '⬡ pronto';
+    log('✗ Não vou salvar este rosto — dispensado');
   }
 }
 
-function renderCandidates(scored) {
-  var sig = 'weak:' + scored.map(function(s){ return s.profile.id; }).join(',');
-  var html = '<div class="mnomatch">Pode ser uma dessas pessoas — toca pra confirmar:</div>';
-  scored.forEach(function(s) {
-    var pct = Math.round((1 - s.dist) * 100);
-    html += '<div class="pcard" data-pid="' + s.profile.id + '"><div class="pc-info"><div class="pc-name">' +
-      (s.profile.name || '?') + '</div><div class="pc-sub">' + (s.profile.role || '') +
-      (s.profile.company ? ' · ' + s.profile.company : '') + '</div></div><div class="pc-score">' + pct + '%</div></div>';
+function saveUnknown() {
+  var emb = _lastMatchDescriptor;
+  if (!emb || !Array.isArray(emb)) { clearMatchBox(); return; }
+  var n = 1, re = /^Pessoa Desconhecida (\d+)$/;
+  _profiles.forEach(function(p){
+    var m = re.exec(p.name || '');
+    if (m) n = Math.max(n, parseInt(m[1], 10) + 1);
   });
-  html += '<div class="mcard-new" id="mc-new-weak">+ Não é nenhum — cadastrar novo</div>';
-  setMatchBox(sig, html);
-  scored.forEach(function(s) {
-    var el = document.querySelector('[data-pid="' + s.profile.id + '"]');
-    if (el) bindTapDyn(el, function() { confirmCandidate(s.profile); });
-  });
-  var mcNew = document.getElementById('mc-new-weak');
-  if (mcNew) bindTapDyn(mcNew, function() { openEnrollPicker(_lastMatchDescriptor); });
+  var name = 'Pessoa Desconhecida ' + n;
+  setMatchBox('saving:' + name, '<div class="mnomatch">Salvando ' + name + '…</div>');
+  fetch(PROXY, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ name: name, status: 'Identificado', face_embedding: JSON.stringify(emb) })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(p){
+    if (p && p.id) {
+      _profiles.push(p);
+      loadEmbeddings();
+      clearMatchBox();
+      showProfile(p, null);
+      document.getElementById('hud-status').textContent = '⬡ salvo';
+      log('✓ ' + name + ' criado — dá pra editar os detalhes depois no manager', true);
+    } else {
+      log('⚠ Erro ao salvar: ' + (p && p.error || '?'), true);
+      clearMatchBox();
+    }
+  })
+  .catch(function(e){ log('⚠ Rede: ' + e.message, true); clearMatchBox(); });
 }
 
-function renderNoMatch() {
-  var html = '<div class="mnomatch">Rosto não reconhecido.</div>' +
-    '<div class="mcard-new" id="mc-new-none">+ Cadastrar este rosto</div>';
-  setMatchBox('nomatch', html);
-  var mcNew = document.getElementById('mc-new-none');
-  if (mcNew) bindTapDyn(mcNew, function() { openEnrollPicker(_lastMatchDescriptor); });
+function hideHudCard() {
+  document.getElementById('hud-card').style.display = 'none';
+  document.getElementById('hud-match').style.display = 'none';
+  document.getElementById('hud-status').textContent = '⬡ pronto';
+  document.getElementById('btn-dismiss').disabled = true;
+  _currentProfile = null;
 }
 
-function confirmCandidate(profile) {
-  // Reforça o embedding do perfil escolhido com este novo descriptor (confirma identidade)
-  saveEmbedding(profile, _lastMatchDescriptor);
-}
+
+
 
 function clearMatchBox() {
   _lastMatchSig = null;
@@ -550,7 +593,17 @@ function detectFaces() {
     .then(function(results) {
       var ctx = cnv.getContext('2d');
       ctx.clearRect(0, 0, cnv.width, cnv.height);
-      if (!results || results.length === 0) { clearMatchBox(); return; }
+      if (!results || results.length === 0) {
+        // rosto saiu da frente: após 2.5s limpa card/painel e aborta cadastro pendente
+        if (Date.now() - _lastFaceAt > 2500) {
+          cancelEnrollCountdown();
+          _enrollCancelled = null;
+          clearMatchBox();
+          hideHudCard();
+        }
+        return;
+      }
+      _lastFaceAt = Date.now();
       results.forEach(function(r, idx) {
         var box = r.detection.box;
         // Bounding box verde
@@ -579,6 +632,7 @@ function showProfile(p, score) {
   document.getElementById('hud-rel').textContent = p.relation_context || p.relation || '';
   var when = p.last_seen_date ? 'Último encontro: ' + new Date(p.last_seen_date).toLocaleDateString('pt-BR') : '';
   document.getElementById('hud-when').textContent = when;
+  document.getElementById('hud-ctx').textContent = p.last_seen_context || '';
   if (score) {
     var m = document.getElementById('hud-match');
     m.style.display = 'block';
@@ -590,6 +644,8 @@ function showProfile(p, score) {
 }
 
 function dismissHUD() {
+  var wasCounting = !!_countdownTimer;
+  cancelEnrollCountdown(wasCounting);
   document.getElementById('hud').style.display = 'none';
   document.getElementById('hud-card').style.display = 'none';
   document.getElementById('hud-match').style.display = 'none';
@@ -641,6 +697,9 @@ function startCam(auto) {
 }
 
 function stopCam() {
+  cancelEnrollCountdown();
+  _enrollCancelled = null;
+  _lastFaceAt = Date.now();
   if (camStream) { camStream.getTracks().forEach(function(t){t.stop()}); camStream = null; }
   var vid = document.getElementById('vid');
   vid.srcObject = null;
@@ -681,10 +740,8 @@ function capture() {
 document.addEventListener('keydown', function(e) {
   if (e.key === ' ' || e.key === 'p') { e.preventDefault(); toggleCam(); }
   if (e.key === 'ArrowUp' || e.key === 'Enter') { e.preventDefault(); capture(); }
-  if (e.key === 'e') { e.preventDefault(); startEnroll(); }
   if (e.key === 'Escape' || e.key === 'ArrowDown') {
-    var _eov = document.getElementById('enroll-ov');
-    if (_eov && _eov.classList.contains('on')) { closeEnrollPicker(); return; }
+    e.preventDefault();
     dismissHUD();
   }
 });
@@ -713,125 +770,17 @@ function bindBtn(id, fn) {
 
 bindBtn('btn-cam', toggleCam);
 bindBtn('btn-cap', capture);
-bindBtn('btn-enroll', startEnroll);
 bindBtn('btn-dismiss', dismissHUD);
 bindBtn('btn-help', function(){ document.getElementById('help-ov').classList.add('on'); });
 bindTapDyn(document.getElementById('help-debug'), function(){ setDebug(!_debugMode); });
 bindBtn('help-x', function(){ document.getElementById('help-ov').classList.remove('on'); });
 
 // ── Enroll (cadastro de rosto) ──
-var _enrollDescriptor = null;
-function startEnroll() {
-  if (!_faceApiLoaded) { log('⚠ IA ainda carregando, tenta de novo em uns segundos', true); return; }
-  if (!camStream) { log('⚠ Liga a câmera primeiro (botão Câmera)', true); return; }
-  var vid = document.getElementById('vid');
-  if (!vid || vid.readyState < 2) { log('⚠ Câmera não pronta', true); return; }
-  log('⬡ Detectando rosto pra cadastro...');
-  faceapi.detectSingleFace(vid, new faceapi.TinyFaceDetectorOptions({scoreThreshold:0.4}))
-    .withFaceLandmarks(true)
-    .withFaceDescriptor()
-    .then(function(r) {
-      if (!r || !r.descriptor) { log('⚠ Nenhum rosto na câmera — chega mais perto e olha pra lente', true); return; }
-      openEnrollPicker(Array.from(r.descriptor));
-    })
-    .catch(function(e){ log('⚠ Erro na detecção: ' + e.message); });
-}
 
-function openEnrollPicker(descriptor) {
-  if (descriptor) _enrollDescriptor = descriptor;
-  if (!_enrollDescriptor) { log('⚠ Nenhum rosto capturado ainda', true); return; }
-  var list = document.getElementById('enroll-list');
-  list.innerHTML = '';
 
-  // ── Linha "novo perfil" (cria pessoa nova do zero) ──
-  var newRow = document.createElement('div');
-  newRow.style.cssText = 'display:flex;gap:6px;margin-bottom:10px';
-  newRow.innerHTML =
-    '<input id="enroll-newname" placeholder="Nome da pessoa nova..." ' +
-    'style="flex:1;background:#04140a;border:1px solid #1a4a2a;border-radius:8px;color:#00ff88;padding:9px 10px;font-family:monospace;font-size:12px;outline:none">' +
-    '<button id="enroll-newbtn" style="background:#0a3a1a;border:1px solid #1a5a2a;border-radius:8px;color:#00ff88;padding:0 14px;font-family:monospace;font-size:11px;font-weight:bold">Criar</button>';
-  list.appendChild(newRow);
-  bindTapDyn(document.getElementById('enroll-newbtn'), function(){
-    var name = document.getElementById('enroll-newname').value.trim();
-    if (!name) { log('⚠ Digita um nome pra pessoa nova', true); return; }
-    createNewProfile(name);
-  });
 
-  if (_profiles.length) {
-    var sub = document.createElement('div');
-    sub.style.cssText = 'font-size:9px;color:#004422;margin:4px 0 6px';
-    sub.textContent = 'ou escolhe um perfil já existente:';
-    list.appendChild(sub);
-  }
 
-  _profiles.forEach(function(p){
-    var d = document.createElement('div');
-    d.className = 'pcard';
-    d.innerHTML = '<div class="pc-info"><div class="pc-name">'+(p.name||'?')+'</div><div class="pc-sub">'+(p.role||'')+(p.company?' · '+p.company:'')+(p.face_embedding?' · ⬡ já tem rosto':'')+'</div></div>';
-    bindTapDyn(d, function(){ saveEmbedding(p); });
-    list.appendChild(d);
-  });
-  var nameInput = document.getElementById('enroll-newname');
-  if (nameInput) nameInput.addEventListener('keydown', function(ev){
-    if (ev.key === 'Enter') { ev.preventDefault(); createNewProfile(nameInput.value.trim()); }
-  });
-  document.getElementById('enroll-ov').classList.add('on');
-  log('⬡ Rosto capturado — escolhe o perfil ou cria um novo');
-}
 
-function closeEnrollPicker() {
-  document.getElementById('enroll-ov').classList.remove('on');
-  _enrollDescriptor = null;
-}
-
-function saveEmbedding(p, descriptorOverride) {
-  var emb = descriptorOverride || _enrollDescriptor;
-  if (!emb) return;
-  if (!Array.isArray(emb)) emb = Array.from(emb); // blindagem: nunca mandar Float32Array crú
-  fetch(PROXY, {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({action:'save_embedding', person_id:p.id, embedding:emb})
-  })
-  .then(function(r){ return r.json(); })
-  .then(function(d){
-    if (d && d.ok) {
-      p.face_embedding = JSON.stringify(emb);
-      closeEnrollPicker();
-      clearMatchBox();
-      loadEmbeddings();
-      log('✓ Rosto salvo: ' + (p.name||'?') + ' — agora é reconhecível!', true);
-    } else {
-      log('⚠ Erro ao salvar: ' + (d && d.error || '?'));
-    }
-  })
-  .catch(function(e){ log('⚠ Rede: ' + e.message); });
-}
-
-function createNewProfile(name) {
-  if (!_enrollDescriptor) { log('⚠ Nenhum rosto capturado', true); return; }
-  var emb = Array.isArray(_enrollDescriptor) ? _enrollDescriptor : Array.from(_enrollDescriptor); // blindagem
-  fetch(PROXY, {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({ name: name, status: 'Identificado', face_embedding: JSON.stringify(emb) })
-  })
-  .then(function(r){ return r.json(); })
-  .then(function(p){
-    if (p && p.id) {
-      _profiles.push(p);
-      closeEnrollPicker();
-      clearMatchBox();
-      loadEmbeddings();
-      log('✓ Novo perfil criado e rosto cadastrado: ' + name, true);
-    } else {
-      log('⚠ Erro ao criar perfil: ' + (p && p.error || '?'));
-    }
-  })
-  .catch(function(e){ log('⚠ Rede: ' + e.message); });
-}
-
-bindBtn('enroll-x', closeEnrollPicker);
 
 // ── Carrega face-api ──
 document.getElementById('hud-status').textContent = '⬡ carregando IA...';
