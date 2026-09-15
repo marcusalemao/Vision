@@ -432,10 +432,10 @@ function renderCandidates(scored) {
   setMatchBox(sig, html);
   scored.forEach(function(s) {
     var el = document.querySelector('[data-pid="' + s.profile.id + '"]');
-    if (el) el.addEventListener('click', function() { confirmCandidate(s.profile); });
+    if (el) bindTapDyn(el, function() { confirmCandidate(s.profile); });
   });
   var mcNew = document.getElementById('mc-new-weak');
-  if (mcNew) mcNew.addEventListener('click', function() { openEnrollPicker(_lastMatchDescriptor); });
+  if (mcNew) bindTapDyn(mcNew, function() { openEnrollPicker(_lastMatchDescriptor); });
 }
 
 function renderNoMatch() {
@@ -443,7 +443,7 @@ function renderNoMatch() {
     '<div class="mcard-new" id="mc-new-none">+ Cadastrar este rosto</div>';
   setMatchBox('nomatch', html);
   var mcNew = document.getElementById('mc-new-none');
-  if (mcNew) mcNew.addEventListener('click', function() { openEnrollPicker(_lastMatchDescriptor); });
+  if (mcNew) bindTapDyn(mcNew, function() { openEnrollPicker(_lastMatchDescriptor); });
 }
 
 function confirmCandidate(profile) {
@@ -634,6 +634,17 @@ document.addEventListener('keydown', function(e) {
 });
 
 // ── Buttons (touch) ──
+// Tap binding para elementos criados dinamicamente (Android 16/Knox nao propaga
+// 'click' em alguns elementos — mesmo padrao do bindBtn, via elemento direto)
+function bindTapDyn(el, fn) {
+  if (!el) return;
+  var touched = false;
+  el.addEventListener('touchstart', function(e){ e.preventDefault(); touched=true; el.style.opacity='0.7'; }, {passive:false});
+  el.addEventListener('touchend', function(e){ e.preventDefault(); el.style.opacity=''; if(touched){touched=false;fn();} }, {passive:false});
+  el.addEventListener('touchcancel', function(){ touched=false; el.style.opacity=''; });
+  el.addEventListener('click', function(){ if(!touched) fn(); });
+}
+
 function bindBtn(id, fn) {
   var el = document.getElementById(id);
   if (!el) return;
@@ -683,7 +694,7 @@ function openEnrollPicker(descriptor) {
     'style="flex:1;background:#04140a;border:1px solid #1a4a2a;border-radius:8px;color:#00ff88;padding:9px 10px;font-family:monospace;font-size:12px;outline:none">' +
     '<button id="enroll-newbtn" style="background:#0a3a1a;border:1px solid #1a5a2a;border-radius:8px;color:#00ff88;padding:0 14px;font-family:monospace;font-size:11px;font-weight:bold">Criar</button>';
   list.appendChild(newRow);
-  document.getElementById('enroll-newbtn').addEventListener('click', function(){
+  bindTapDyn(document.getElementById('enroll-newbtn'), function(){
     var name = document.getElementById('enroll-newname').value.trim();
     if (!name) { log('⚠ Digita um nome pra pessoa nova', true); return; }
     createNewProfile(name);
@@ -700,8 +711,12 @@ function openEnrollPicker(descriptor) {
     var d = document.createElement('div');
     d.className = 'pcard';
     d.innerHTML = '<div class="pc-info"><div class="pc-name">'+(p.name||'?')+'</div><div class="pc-sub">'+(p.role||'')+(p.company?' · '+p.company:'')+(p.face_embedding?' · ⬡ já tem rosto':'')+'</div></div>';
-    d.addEventListener('click', function(){ saveEmbedding(p); });
+    bindTapDyn(d, function(){ saveEmbedding(p); });
     list.appendChild(d);
+  });
+  var nameInput = document.getElementById('enroll-newname');
+  if (nameInput) nameInput.addEventListener('keydown', function(ev){
+    if (ev.key === 'Enter') { ev.preventDefault(); createNewProfile(nameInput.value.trim()); }
   });
   document.getElementById('enroll-ov').classList.add('on');
   log('⬡ Rosto capturado — escolhe o perfil ou cria um novo');
