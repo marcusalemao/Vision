@@ -605,7 +605,7 @@ async function initAI(){
 async function buildEmbeddings(){
   embeddings=[];
   var comFoto=profiles.filter(function(p){
-    return p.photo_url && p.photo_url.startsWith("http") && p.status!=="Pendente";
+    return !!p.photo_url && p.status!=="Pendente";   // http OU data: (rosto recortado do webapp)
   });
   var ok=0;
   for(var i=0;i<comFoto.length;i++){

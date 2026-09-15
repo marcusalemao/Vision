@@ -221,6 +221,16 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .empty p{font-size:13px;line-height:1.9}
 .sec-title{font-size:11px;color:var(--muted);text-transform:uppercase;
   letter-spacing:1px;padding:12px 14px 4px}
+
+/* ── CROP DE FOTO (recorte circular do rosto) ── */
+.crop-vp{position:relative;width:100%;aspect-ratio:1/1;background:#0b0f18;border-radius:14px;overflow:hidden;touch-action:none;user-select:none;-webkit-user-select:none}
+#cropImg{position:absolute;top:0;left:0;transform-origin:0 0;pointer-events:none;max-width:none;max-height:none;-webkit-user-drag:none;user-select:none}
+.crop-mask{position:absolute;inset:11%;border-radius:50%;box-shadow:0 0 0 9999px rgba(0,0,0,.74);border:2px solid rgba(0,255,136,.55);pointer-events:none}
+.crop-zoomrow{display:flex;align-items:center;gap:10px;margin-top:14px}
+.crop-zbtn{width:40px;height:40px;border-radius:50%;border:1px solid var(--border);background:rgba(0,255,136,.08);color:var(--text);font-size:20px;line-height:1;cursor:pointer;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+.crop-zbtn:active{background:rgba(0,255,136,.22)}
+.crop-slider{flex:1;accent-color:var(--green);touch-action:manipulation}
+.crop-hint{font-size:12px;color:var(--muted);text-align:center;margin:10px 0 12px}
 </style>
 </head>
 <body>
@@ -343,6 +353,9 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
         <button onclick="document.getElementById('editPhotoFile').click()"
           style="background:none;border:1px solid var(--border);border-radius:8px;
           padding:5px 12px;color:var(--muted);font-size:12px;cursor:pointer">📷 Trocar foto</button>
+        <button onclick="reCropExisting()"
+          style="background:none;border:1px solid var(--border);border-radius:8px;
+          padding:5px 12px;color:var(--muted);font-size:12px;cursor:pointer;margin-left:6px">✂️ Ajustar recorte</button>
       </div>
       <div class="row2">
         <div class="field"><label>Nome *</label><input type="text" id="editName" placeholder="Nome completo"></div>
@@ -454,6 +467,30 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
   </div>
 </div>
 
+
+<!-- MODAL: CROP DE FOTO -->
+<div class="overlay" id="cropModal">
+  <div class="modal" style="max-width:360px">
+    <div class="mhead">
+      <span class="mtitle">✂️ Posicione o rosto</span>
+      <button class="btn-x" onclick="cropCancel()">✕</button>
+    </div>
+    <div class="mbody">
+      <div class="crop-vp" id="cropVp">
+        <img id="cropImg" alt="" draggable="false">
+        <div class="crop-mask"></div>
+      </div>
+      <div class="crop-zoomrow">
+        <button class="crop-zbtn" id="cropZoomOut" type="button">−</button>
+        <input type="range" id="cropZoom" class="crop-slider" min="0" max="100" value="0">
+        <button class="crop-zbtn" id="cropZoomIn" type="button">+</button>
+      </div>
+      <p class="crop-hint">Arraste pra posicionar · pinça (ou botões/slider) pra zoom</p>
+      <button class="btn-save" id="btnCropSave" onclick="cropConfirm()">✂️ Recortar e usar</button>
+    </div>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 </div>
 
@@ -507,7 +544,7 @@ function closeModal(id){ document.getElementById(id).classList.remove("open"); }
 function avHtml(c, size){
   size = size||48;
   var r = size>56?16:12;
-  if(c.photo_url && !c.photo_url.startsWith("data:")){
+  if(c.photo_url){
     return '<div class="av" style="width:'+size+'px;height:'+size+'px;border-radius:'+r+'px"><img src="'+esc(c.photo_url)+'" onerror="this.parentElement.innerHTML=\''+initials(c.name)+'\'"></div>';
   }
   var cls = c.status==="Pendente" ? " pend" : "";
@@ -608,8 +645,8 @@ function renderContactList(list){
 function openDetail(id){
   var c = contacts.find(function(x){ return x.id===id; });
   if(!c) return;
-  var photo = c.photo_url && !c.photo_url.startsWith("data:")
-    ? '<div class="det-photo"><img src="'+esc(c.photo_url)+'"></div>'
+  var photo = c.photo_url
+    ? '<div class="det-photo"><img src="'+esc(c.photo_url)+'" onerror="this.parentElement.textContent=\'👤\'"></div>'
     : '<div class="det-photo">'+initials(c.name)+'</div>';
   var enc = encounters.filter(function(e){ return e.person_id===id; });
   var tags = tagsArr(c);
@@ -681,7 +718,7 @@ function openEditContact(id){
   document.getElementById("editStatus").value     = c.status||"Ativo";
   document.getElementById("editPhotoUrl").value   = c.photo_url||"";
   var prev = document.getElementById("editPhotoPreview");
-  if(c.photo_url && !c.photo_url.startsWith("data:")){
+  if(c.photo_url){
     prev.innerHTML = '<img src="'+esc(c.photo_url)+'" style="width:72px;height:72px;object-fit:cover;border-radius:14px">';
   } else {
     prev.textContent = initials(c.name)||"👤";
@@ -701,15 +738,176 @@ function clearForm(){
   document.getElementById("editPhotoPreview").innerHTML='<span style="font-size:28px">👤</span>';
 }
 
+
+// ─── CROP DE FOTO (recorte circular do rosto) ──────────────
+var _cropNat = {w:0,h:0};          // tamanho natural da imagem
+var _cropSt  = {s:1,x:0,y:0};      // scale, offset (top-left da imagem no viewport)
+var _cropMin = 1, _cropMax = 1;
+var _cropUrl = null;               // data-url final recortada
+
+function cropVp(){ return document.getElementById("cropVp"); }
+function cropImgEl(){ return document.getElementById("cropImg"); }
+function cropRect(){ var vp=cropVp().getBoundingClientRect(); return {w:vp.width,h:vp.height}; }
+
+function cropApply(){
+  var im=cropImgEl();
+  im.style.transform = "translate("+_cropSt.x+"px,"+_cropSt.y+"px) scale("+_cropSt.s+")";
+  // slider reflete o zoom (0–100, escala log)
+  var t = Math.log(_cropSt.s/_cropMin) / Math.log(_cropMax/_cropMin || 2);
+  document.getElementById("cropZoom").value = Math.round(Math.max(0,Math.min(1,t))*100);
+}
+
+function cropClamp(){
+  var r = cropRect();
+  var w = _cropNat.w*_cropSt.s, h = _cropNat.h*_cropSt.s;
+  _cropSt.s = Math.max(_cropMin, Math.min(_cropMax, _cropSt.s));
+  w = _cropNat.w*_cropSt.s; h = _cropNat.h*_cropSt.s;
+  _cropSt.x = Math.min(0, Math.max(r.w - w, _cropSt.x));
+  _cropSt.y = Math.min(0, Math.max(r.h - h, _cropSt.y));
+}
+
+// zoom mantendo fixo o ponto (px,py) do viewport
+function cropZoomTo(newS, px, py){
+  newS = Math.max(_cropMin, Math.min(_cropMax, newS));
+  var k = newS/_cropSt.s;
+  _cropSt.x = px - (px - _cropSt.x)*k;
+  _cropSt.y = py - (py - _cropSt.y)*k;
+  _cropSt.s = newS;
+  cropClamp(); cropApply();
+}
+
+function openCrop(src){
+  var im = cropImgEl();
+  im.crossOrigin = "anonymous";
+  im.onload = function(){
+    _cropNat = {w: im.naturalWidth, h: im.naturalHeight};
+    var r = cropRect();
+    _cropMin = Math.max(r.w/_cropNat.w, r.h/_cropNat.h);   // cobrir o viewport
+    _cropMax = Math.max(_cropMin*6, 4);
+    // começa ~1.6x do mínimo, centralizado (bom pra rosto)
+    _cropSt.s = _cropMin*1.6;
+    var w=_cropNat.w*_cropSt.s, h=_cropNat.h*_cropSt.s;
+    _cropSt.x = (r.w-w)/2; _cropSt.y = (r.h-h)/2;
+    cropClamp(); cropApply();
+    document.getElementById("cropModal").classList.add("open");
+  };
+  im.onerror = function(){ toast("Não consegui carregar essa imagem","err"); };
+  im.src = src;
+}
+
+function reCropExisting(){
+  var url = document.getElementById("editPhotoUrl").value;
+  if(!url){ toast("Escolha uma foto primeiro","err"); return; }
+  openCrop(url);
+}
+
+function cropCancel(){
+  document.getElementById("cropModal").classList.remove("open");
+}
+
+function cropConfirm(){
+  var im = cropImgEl(), vp = cropVp();
+  var r = cropRect();
+  var cx = r.w/2, cy = r.h/2, rad = r.w*0.39;   // círculo = inset 11%
+  try{
+    var cv = document.createElement("canvas");
+    cv.width = 256; cv.height = 256;
+    var ctx = cv.getContext("2d");
+    ctx.beginPath(); ctx.arc(128,128,128,0,Math.PI*2); ctx.clip();
+    var sx = ((cx-rad)-_cropSt.x)/_cropSt.s;
+    var sy = ((cy-rad)-_cropSt.y)/_cropSt.s;
+    var sw = (rad*2)/_cropSt.s;
+    ctx.drawImage(im, sx, sy, sw, sw, 0, 0, 256, 256);
+    var url = cv.toDataURL("image/jpeg", 0.85);
+    document.getElementById("editPhotoUrl").value = url;
+    document.getElementById("editPhotoPreview").innerHTML =
+      '<img src="'+url+'" style="width:100%;height:100%;object-fit:cover">';
+    document.getElementById("cropModal").classList.remove("open");
+    toast("Rosto recortado — salve o contato","ok");
+  }catch(e){
+    // canvas contaminado por imagem externa sem CORS
+    toast("Não consegui recortar essa imagem externa — salvei a original","err");
+    document.getElementById("cropModal").classList.remove("open");
+  }
+}
+
+// gestos: pan (1 dedo/mouse), pinch (2 dedos), wheel (desktop)
+(function(){
+  var vp = null, ptrs = {}, lastDist = 0;
+  function ensure(){ if(vp) return; vp = document.getElementById("cropVp");
+    if(!vp) return;
+    vp.addEventListener("touchstart", function(e){
+      e.preventDefault();
+      for(var i=0;i<e.changedTouches.length;i++) ptrs[e.changedTouches[i].identifier]={x:e.changedTouches[i].clientX,y:e.changedTouches[i].clientY};
+      lastDist = Object.keys(ptrs).length===2 ? dist() : 0;
+    }, {passive:false});
+    vp.addEventListener("touchmove", function(e){
+      e.preventDefault();
+      var ids = Object.keys(ptrs);
+      if(ids.length===1){
+        var t = e.changedTouches[0]; var p = ptrs[t.identifier];
+        if(p){ _cropSt.x += t.clientX-p.x; _cropSt.y += t.clientY-p.y; p.x=t.clientX; p.y=t.clientY; cropClamp(); cropApply(); }
+      } else if(ids.length>=2){
+        for(var i=0;i<e.changedTouches.length;i++){ var t2=e.changedTouches[i]; var p2=ptrs[t2.identifier];
+          if(p2){ p2.x=t2.clientX; p2.y=t2.clientY; } }
+        var d = dist(); var rect = vp.getBoundingClientRect();
+        var mx=(ids[0] in ptrs? ptrs[ids[0]].x : 0), my=(ids[0] in ptrs? ptrs[ids[0]].y : 0);
+        if(lastDist && d) cropZoomTo(_cropSt.s * (d/lastDist), mx-rect.left, my-rect.top);
+        lastDist = d;
+      }
+    }, {passive:false});
+    vp.addEventListener("touchend", function(e){
+      for(var i=0;i<e.changedTouches.length;i++) delete ptrs[e.changedTouches[i].identifier];
+      lastDist = Object.keys(ptrs).length===2 ? dist() : 0;
+    }, {passive:false});
+    vp.addEventListener("touchcancel", function(e){
+      for(var i=0;i<e.changedTouches.length;i++) delete ptrs[e.changedTouches[i].identifier];
+      lastDist = 0;
+    }, {passive:false});
+    function dist(){
+      var ids = Object.keys(ptrs);
+      if(ids.length<2) return 0;
+      var a = ptrs[ids[0]], b = ptrs[ids[1]];
+      return Math.hypot(a.x-b.x, a.y-b.y);
+    }
+    // mouse (desktop)
+    var mdown = false, mx=0, my=0;
+    vp.addEventListener("mousedown", function(e){ mdown=true; mx=e.clientX; my=e.clientY; });
+    window.addEventListener("mousemove", function(e){
+      if(!mdown) return;
+      _cropSt.x += e.clientX-mx; _cropSt.y += e.clientY-my; mx=e.clientX; my=e.clientY;
+      cropClamp(); cropApply();
+    });
+    window.addEventListener("mouseup", function(){ mdown=false; });
+    vp.addEventListener("wheel", function(e){
+      e.preventDefault();
+      var rect = vp.getBoundingClientRect();
+      cropZoomTo(_cropSt.s * (e.deltaY<0 ? 1.12 : 0.89), e.clientX-rect.left, e.clientY-rect.top);
+    }, {passive:false});
+    // botões e slider
+    document.getElementById("cropZoomIn").addEventListener("click", function(){
+      var rct = vp.getBoundingClientRect(); cropZoomTo(_cropSt.s*1.25, rct.width/2, rct.height/2);
+    });
+    document.getElementById("cropZoomOut").addEventListener("click", function(){
+      var rct = vp.getBoundingClientRect(); cropZoomTo(_cropSt.s/1.25, rct.width/2, rct.height/2);
+    });
+    document.getElementById("cropZoom").addEventListener("input", function(){
+      var t = parseInt(this.value,10)/100;
+      var s = _cropMin * Math.pow(_cropMax/_cropMin || 2, t);
+      var rct = vp.getBoundingClientRect();
+      cropZoomTo(s, rct.width/2, rct.height/2);
+    });
+  }
+  if(document.readyState!=="loading") ensure();
+  else document.addEventListener("DOMContentLoaded", ensure);
+})();
+
 function handlePhotoUpload(input){
   var file = input.files[0];
   if(!file) return;
   var reader = new FileReader();
   reader.onload = function(ev){
-    document.getElementById("editPhotoPreview").innerHTML =
-      '<img src="'+ev.target.result+'" style="width:72px;height:72px;object-fit:cover;border-radius:14px">';
-    document.getElementById("editPhotoUrl").value = ev.target.result;
-    toast("Foto carregada — salve o contato","ok");
+    openCrop(ev.target.result);   // abre o recorte circular em vez de usar a foto inteira
   };
   reader.readAsDataURL(file);
 }
@@ -730,7 +928,7 @@ async function saveContact(){
     tags: document.getElementById("editTags").value.trim().split(",").map(function(t){return t.trim();}).filter(Boolean),
     notes: document.getElementById("editNotes").value.trim(),
     status: document.getElementById("editStatus").value,
-    photo_url: photoUrl.startsWith("data:") ? "" : photoUrl
+    photo_url: photoUrl
   };
   var btn = document.querySelector("#contactModal .btn-save");
   btn.textContent="Salvando…"; btn.disabled=true;
@@ -969,7 +1167,7 @@ function openEncDetail(id){
   var ch=e.capture_mode||"presencial";
   var icon={presencial:"🤝",whatsapp:"💬",linkedin:"💼",gmail:"✉️",audio:"🎙",manual:"📝",auto:"🤖"}[ch]||"📝";
   var html="";
-  if(c&&c.photo_url&&!c.photo_url.startsWith("data:"))
+  if(c&&c.photo_url)
     html+='<div style="text-align:center;margin-bottom:10px">'+avHtml(c,64)+'</div>';
   html+='<div class="det-name">'+icon+' '+esc(e.person_name||"Desconhecido")+'</div>';
   html+='<div class="det-role">'+fmtDate(e.date)+(e.location?' · '+esc(e.location):'')+'</div>';
