@@ -156,6 +156,7 @@ body{
   letter-spacing:1px;
 }
 #sync-badge{font-size:9px;padding:2px 8px;border:1px solid #0a2a18;border-radius:10px}
+#top-bar span:first-child{font-size:9px}
 #sync-badge.ok{color:#00ff88;border-color:#00aa55}
 #sync-badge.err{color:#ff4400;border-color:#3a1000}
 
@@ -174,12 +175,19 @@ body{
 .log-line.hi{color:#00ff88}
 
 /* Perfis salvos */
-#saved-box{width:100%;max-width:640px}
-.slbl{font-size:9px;color:#004422;letter-spacing:1px;margin-bottom:4px}
-.pcard{background:#060f09;border:1px solid #0a2a18;border-radius:8px;padding:8px 10px;margin-bottom:5px;display:flex;gap:8px;align-items:center}
+#match-box{width:100%;max-width:640px;display:none}
+#match-box.on{display:block}
+.mlbl{font-size:9px;color:#004422;letter-spacing:1px;margin-bottom:4px}
+.pcard{background:#060f09;border:1px solid #0a2a18;border-radius:8px;padding:8px 10px;margin-bottom:5px;display:flex;gap:8px;align-items:center;cursor:pointer}
+.pcard:active{background:#0a2a18}
 .pcard img{width:36px;height:36px;border-radius:50%;object-fit:cover;background:#000;border:1px solid #0a2a18;flex-shrink:0}
+.pc-info{flex:1;min-width:0}
 .pc-info .pc-name{font-size:11px;color:#00cc6e;font-weight:bold}
 .pc-info .pc-sub{font-size:9px;color:#004422;margin-top:1px}
+.pc-score{font-size:10px;color:#00ff88;flex-shrink:0}
+.mcard-new{background:#0a2015;border:1px dashed #1a5a2a;border-radius:8px;padding:9px 10px;margin-bottom:5px;display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;color:#00ff88;font-weight:bold}
+.mcard-new:active{background:#0f3020}
+.mnomatch{font-size:10px;color:#007744;padding:2px 0 6px}
 
 /* ══ BOTTOM BAR ══ */
 #bottom-bar{
@@ -194,23 +202,25 @@ body{
 }
 .bar-btn{
   flex:1;
-  padding:13px 4px;
+  min-width:0;
+  padding:12px 2px 10px;
   background:#0f2018;
   border:1px solid #1a4a2a;
   border-radius:10px;
   color:#00aa55;
-  font-size:12px;
+  font-size:18px;
   font-family:monospace;
   text-align:center;
   cursor:pointer;
   -webkit-tap-highlight-color:transparent;
   touch-action:manipulation;
   user-select:none;
-  line-height:1.3;
+  line-height:1.1;
 }
 .bar-btn:active,.bar-btn.on{background:#0a3020;border-color:#00ff88;color:#00ff88}
 .bar-btn:disabled{opacity:.3;pointer-events:none}
-.bar-btn .blbl{font-size:9px;display:block;margin-top:2px;color:#004422}
+.bar-btn .blbl{font-size:10.5px;font-weight:600;display:block;margin-top:4px;color:#00aa55;letter-spacing:.2px;white-space:nowrap}
+.bar-btn:disabled .blbl{color:#004422}
 
 /* ══ HELP OVERLAY ══ */
 #help-ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.93);z-index:500;align-items:center;justify-content:center;padding:20px}
@@ -270,10 +280,10 @@ body{
 <!-- Log -->
 <div id="log-box"><div id="log-el"></div></div>
 
-<!-- Perfis -->
-<div id="saved-box">
-  <div class="slbl" id="slbl">PERFIS (0)</div>
-  <div id="slist"></div>
+<!-- Reconhecimento (dinâmico — só aparece quando há rosto detectado) -->
+<div id="match-box">
+  <div class="mlbl" id="mlbl">RECONHECIMENTO</div>
+  <div id="mlist"></div>
 </div>
 
 <!-- ══ BOTTOM BAR ══ -->
@@ -357,11 +367,10 @@ function syncProfiles() {
   .then(function(data){
     _profiles = Array.isArray(data) ? data : (data.records || []);
     var badge = document.getElementById('sync-badge');
-    badge.textContent = '● ' + _profiles.length + ' perfis';
+    badge.textContent = '● sincronizado';
+    badge.title = _profiles.length + ' perfis no banco';
     badge.className = 'ok';
-    document.getElementById('slbl').textContent = 'PERFIS (' + _profiles.length + ')';
-    renderProfiles();
-    log('✓ ' + _profiles.length + ' perfis sincronizados', true);
+    log('✓ ' + _profiles.length + ' perfis sincronizados (banco)', true);
     loadEmbeddings();
   })
   .catch(function(e){
@@ -372,22 +381,81 @@ function syncProfiles() {
   });
 }
 
-function renderProfiles() {
-  var box = document.getElementById('slist');
-  box.innerHTML = '';
-  _profiles.slice(0,5).forEach(function(p){
-    var d = document.createElement('div');
-    d.className = 'pcard';
-    var img = p.photo_url ? '<img src="'+p.photo_url+'" onerror="this.style.display=\'none\'">' : '<img style="display:none">';
-    d.innerHTML = img + '<div class="pc-info"><div class="pc-name">'+(p.name||'?')+'</div><div class="pc-sub">'+(p.role||'')+(p.company?' · '+p.company:'')+'</div></div>';
-    box.appendChild(d);
-  });
-  if (_profiles.length > 5) {
-    var more = document.createElement('div');
-    more.style.cssText = 'font-size:9px;color:#004422;padding:4px 10px';
-    more.textContent = '+ ' + (_profiles.length - 5) + ' mais no banco';
-    box.appendChild(more);
+// ── Painel de reconhecimento (dinâmico) ──
+// Substitui a antiga lista fixa de perfis: só aparece quando há um rosto
+// na câmera, mostrando 1) o match confiante (via HUD, showProfile) ou
+// 2) até 3 candidatos fracos + opção de cadastrar, ou 3) "não reconhecido".
+var MATCH_THRESHOLD     = 0.5;   // match confiante -> mostra card no HUD
+var CANDIDATE_THRESHOLD = 0.62;  // abaixo disso mas fraco -> mostra candidatos
+var _lastMatchSig = null;
+var _lastMatchDescriptor = null;
+
+function setMatchBox(sig, html) {
+  if (sig === _lastMatchSig) return; // evita flicker: só re-renderiza se mudou
+  _lastMatchSig = sig;
+  var box = document.getElementById('match-box');
+  var list = document.getElementById('mlist');
+  if (!html) { box.classList.remove('on'); list.innerHTML = ''; return; }
+  list.innerHTML = html;
+  box.classList.add('on');
+}
+
+function handleMatch(descriptor) {
+  _lastMatchDescriptor = descriptor;
+  if (!_descriptors.length) {
+    renderNoMatch();
+    return;
   }
+  var scored = _descriptors.map(function(d) {
+    return { profile: d.profile, dist: faceapi.euclideanDistance(descriptor, d.descriptor) };
+  }).sort(function(a,b){ return a.dist - b.dist; });
+  var best = scored[0];
+  if (best.dist < MATCH_THRESHOLD) {
+    showProfile(best.profile, Math.round((1 - best.dist) * 100));
+    setMatchBox('confident:' + best.profile.id, null); // esconde painel — já tem o card no HUD
+  } else if (best.dist < CANDIDATE_THRESHOLD) {
+    renderCandidates(scored.slice(0, 3));
+  } else {
+    renderNoMatch();
+  }
+}
+
+function renderCandidates(scored) {
+  var sig = 'weak:' + scored.map(function(s){ return s.profile.id; }).join(',');
+  var html = '<div class="mnomatch">Pode ser uma dessas pessoas — toca pra confirmar:</div>';
+  scored.forEach(function(s) {
+    var pct = Math.round((1 - s.dist) * 100);
+    html += '<div class="pcard" data-pid="' + s.profile.id + '"><div class="pc-info"><div class="pc-name">' +
+      (s.profile.name || '?') + '</div><div class="pc-sub">' + (s.profile.role || '') +
+      (s.profile.company ? ' · ' + s.profile.company : '') + '</div></div><div class="pc-score">' + pct + '%</div></div>';
+  });
+  html += '<div class="mcard-new" id="mc-new-weak">+ Não é nenhum — cadastrar novo</div>';
+  setMatchBox(sig, html);
+  scored.forEach(function(s) {
+    var el = document.querySelector('[data-pid="' + s.profile.id + '"]');
+    if (el) el.addEventListener('click', function() { confirmCandidate(s.profile); });
+  });
+  var mcNew = document.getElementById('mc-new-weak');
+  if (mcNew) mcNew.addEventListener('click', function() { openEnrollPicker(_lastMatchDescriptor); });
+}
+
+function renderNoMatch() {
+  var html = '<div class="mnomatch">Rosto não reconhecido.</div>' +
+    '<div class="mcard-new" id="mc-new-none">+ Cadastrar este rosto</div>';
+  setMatchBox('nomatch', html);
+  var mcNew = document.getElementById('mc-new-none');
+  if (mcNew) mcNew.addEventListener('click', function() { openEnrollPicker(_lastMatchDescriptor); });
+}
+
+function confirmCandidate(profile) {
+  // Reforça o embedding do perfil escolhido com este novo descriptor (confirma identidade)
+  saveEmbedding(profile, _lastMatchDescriptor);
+}
+
+function clearMatchBox() {
+  _lastMatchSig = null;
+  document.getElementById('match-box').classList.remove('on');
+  document.getElementById('mlist').innerHTML = '';
 }
 
 // ── Face recognition (face-api.js) ──
@@ -428,13 +496,13 @@ function detectFaces() {
   cnv.width = vid.videoWidth || 640;
   cnv.height = vid.videoHeight || 480;
   faceapi.detectAllFaces(vid, new faceapi.TinyFaceDetectorOptions({scoreThreshold:0.4}))
-    .withFaceLandmarks()
+    .withFaceLandmarks(true)
     .withFaceDescriptors()
     .then(function(results) {
       var ctx = cnv.getContext('2d');
       ctx.clearRect(0, 0, cnv.width, cnv.height);
-      if (!results || results.length === 0) return;
-      results.forEach(function(r) {
+      if (!results || results.length === 0) { clearMatchBox(); return; }
+      results.forEach(function(r, idx) {
         var box = r.detection.box;
         // Bounding box verde
         ctx.strokeStyle = '#00ff88';
@@ -443,26 +511,11 @@ function detectFaces() {
         ctx.shadowBlur = 4;
         ctx.strokeRect(box.x, box.y, box.width, box.height);
         ctx.shadowBlur = 0;
-        // Tenta reconhecer
-        if (_descriptors.length > 0 && r.descriptor) {
-          var best = null, bestDist = 0.55;
-          _descriptors.forEach(function(d) {
-            var dist = faceapi.euclideanDistance(r.descriptor, d.descriptor);
-            if (dist < bestDist) { bestDist = dist; best = d.profile; }
-          });
-          if (best) {
-            showProfile(best, Math.round((1 - bestDist) * 100));
-            // Label no box
-            ctx.fillStyle = 'rgba(0,0,0,0.6)';
-            ctx.fillRect(box.x, box.y - 16, Math.min(box.width, 160), 16);
-            ctx.fillStyle = '#00ff88';
-            ctx.font = '10px monospace';
-            ctx.fillText(best.name || '?', box.x + 3, box.y - 4);
-          }
-        }
+        // Só o rosto principal (maior/primeiro) alimenta o reconhecimento
+        if (idx === 0 && r.descriptor) handleMatch(r.descriptor);
       });
     })
-    .catch(function(){});
+    .catch(function(e) { log('⚠ detecção: ' + e.message); });
 }
 
 // ── HUD ──
@@ -534,6 +587,7 @@ function stopCam() {
   var vid = document.getElementById('vid');
   vid.srcObject = null;
   stopFaceDetection();
+  clearMatchBox();
   var ctx = document.getElementById('cnv').getContext('2d');
   ctx.clearRect(0,0,640,480);
   document.getElementById('hud-idle').style.display = 'flex';
@@ -603,19 +657,42 @@ function startEnroll() {
   if (!vid || vid.readyState < 2) { log('⚠ Câmera não pronta', true); return; }
   log('⬡ Detectando rosto pra cadastro...');
   faceapi.detectSingleFace(vid, new faceapi.TinyFaceDetectorOptions({scoreThreshold:0.4}))
-    .withFaceLandmarks()
+    .withFaceLandmarks(true)
     .withFaceDescriptor()
     .then(function(r) {
       if (!r || !r.descriptor) { log('⚠ Nenhum rosto na câmera — chega mais perto e olha pra lente', true); return; }
-      _enrollDescriptor = Array.from(r.descriptor);
-      openEnrollPicker();
+      openEnrollPicker(Array.from(r.descriptor));
     })
     .catch(function(e){ log('⚠ Erro na detecção: ' + e.message); });
 }
-function openEnrollPicker() {
-  if (!_profiles.length) { log('⚠ Nenhum perfil sincronizado', true); return; }
+
+function openEnrollPicker(descriptor) {
+  if (descriptor) _enrollDescriptor = descriptor;
+  if (!_enrollDescriptor) { log('⚠ Nenhum rosto capturado ainda', true); return; }
   var list = document.getElementById('enroll-list');
   list.innerHTML = '';
+
+  // ── Linha "novo perfil" (cria pessoa nova do zero) ──
+  var newRow = document.createElement('div');
+  newRow.style.cssText = 'display:flex;gap:6px;margin-bottom:10px';
+  newRow.innerHTML =
+    '<input id="enroll-newname" placeholder="Nome da pessoa nova..." ' +
+    'style="flex:1;background:#04140a;border:1px solid #1a4a2a;border-radius:8px;color:#00ff88;padding:9px 10px;font-family:monospace;font-size:12px;outline:none">' +
+    '<button id="enroll-newbtn" style="background:#0a3a1a;border:1px solid #1a5a2a;border-radius:8px;color:#00ff88;padding:0 14px;font-family:monospace;font-size:11px;font-weight:bold">Criar</button>';
+  list.appendChild(newRow);
+  document.getElementById('enroll-newbtn').addEventListener('click', function(){
+    var name = document.getElementById('enroll-newname').value.trim();
+    if (!name) { log('⚠ Digita um nome pra pessoa nova', true); return; }
+    createNewProfile(name);
+  });
+
+  if (_profiles.length) {
+    var sub = document.createElement('div');
+    sub.style.cssText = 'font-size:9px;color:#004422;margin:4px 0 6px';
+    sub.textContent = 'ou escolhe um perfil já existente:';
+    list.appendChild(sub);
+  }
+
   _profiles.forEach(function(p){
     var d = document.createElement('div');
     d.className = 'pcard';
@@ -624,25 +701,28 @@ function openEnrollPicker() {
     list.appendChild(d);
   });
   document.getElementById('enroll-ov').classList.add('on');
-  log('⬡ Rosto capturado — escolhe o perfil pra salvar');
+  log('⬡ Rosto capturado — escolhe o perfil ou cria um novo');
 }
+
 function closeEnrollPicker() {
   document.getElementById('enroll-ov').classList.remove('on');
   _enrollDescriptor = null;
 }
-function saveEmbedding(p) {
-  if (!_enrollDescriptor) return;
+
+function saveEmbedding(p, descriptorOverride) {
+  var emb = descriptorOverride || _enrollDescriptor;
+  if (!emb) return;
   fetch(PROXY, {
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({action:'save_embedding', person_id:p.id, embedding:_enrollDescriptor})
+    body:JSON.stringify({action:'save_embedding', person_id:p.id, embedding:emb})
   })
   .then(function(r){ return r.json(); })
   .then(function(d){
     if (d && d.ok) {
-      p.face_embedding = JSON.stringify(_enrollDescriptor);
+      p.face_embedding = JSON.stringify(emb);
       closeEnrollPicker();
-      renderProfiles();
+      clearMatchBox();
       loadEmbeddings();
       log('✓ Rosto salvo: ' + (p.name||'?') + ' — agora é reconhecível!', true);
     } else {
@@ -651,6 +731,29 @@ function saveEmbedding(p) {
   })
   .catch(function(e){ log('⚠ Rede: ' + e.message); });
 }
+
+function createNewProfile(name) {
+  if (!_enrollDescriptor) { log('⚠ Nenhum rosto capturado', true); return; }
+  fetch(PROXY, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({ name: name, status: 'Identificado', face_embedding: JSON.stringify(_enrollDescriptor) })
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(p){
+    if (p && p.id) {
+      _profiles.push(p);
+      closeEnrollPicker();
+      clearMatchBox();
+      loadEmbeddings();
+      log('✓ Novo perfil criado e rosto cadastrado: ' + name, true);
+    } else {
+      log('⚠ Erro ao criar perfil: ' + (p && p.error || '?'));
+    }
+  })
+  .catch(function(e){ log('⚠ Rede: ' + e.message); });
+}
+
 bindBtn('enroll-x', closeEnrollPicker);
 
 // ── Carrega face-api ──
