@@ -1,13 +1,14 @@
-# FaceContext
+# Vision
+
+Assistente visual com memória episódica para os óculos Rokid — tecnologia assistiva (TDAH e baixa visão).
 
 ## URLs
-- **Manager** (usuário): https://fc.alema.io/webapp.html
-- **HUD Editor** (dev): https://fc.alema.io/hud-editor.html  
-- **Emulador** (dev): https://fc.alema.io
+- **Live Companion** (manager do usuário): https://screeching-face-sync-pro.base44.app
+- **HUD Editor** (dev, legado): https://fc.alema.io/hud-editor.html
+- **Emulador** (dev, legado): https://fc.alema.io
 
 ## Arquitetura
-- APK → Rokid YodaOS (glasses)
-- Manager → usuário final (celular/PC)
+- APK (RokidLive) → Rokid YodaOS (glasses)
+- Live Companion → usuário final (celular/PC) — memórias, pessoas, encontros e skills sincronizados automaticamente
 - HUD Editor → desenvolvedor
 - Emulador → dev/testes
-
