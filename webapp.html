@@ -472,6 +472,8 @@ var _tlIdx = -1;
 
 // ─── UTILS ──────────────────────────────────────────────────
 function esc(s){ return String(s||"").replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
+function tagsArr(c){ var t=c&&c.tags; if(Array.isArray(t)) return t.filter(Boolean); if(typeof t==="string") return t.split(",").map(function(x){return x.trim();}).filter(Boolean); return []; }
+function tagsStr(c){ return tagsArr(c).join(", "); }
 
 function toast(msg, type){
   var el = document.getElementById("toast");
@@ -562,7 +564,7 @@ function filterContacts(){
     return (c.name||"").toLowerCase().includes(q) ||
            (c.company||"").toLowerCase().includes(q) ||
            (c.role||"").toLowerCase().includes(q) ||
-           (c.tags||"").toLowerCase().includes(q) ||
+           tagsArr(c).join(" ").toLowerCase().includes(q) ||
            (c.contact_email||"").toLowerCase().includes(q);
   });
   renderContactList(list);
@@ -587,7 +589,7 @@ function renderContactList(list){
   });
   el.innerHTML = list.map(function(c){
     var meta = [c.role,c.company].filter(Boolean).join(" · ");
-    var tags = (c.tags||"").split(",").map(function(t){return t.trim();}).filter(Boolean).slice(0,3);
+    var tags = tagsArr(c).slice(0,3);
     var badge = c.status==="Pendente" ? '<span class="cbadge">⚠ Pendente</span>' : "";
     var tagsHtml = tags.map(function(t){ return '<span class="ctag">'+esc(t)+'</span>'; }).join("");
     return '<div class="ccard" onclick="openDetail(\''+c.id+'\')">'+
@@ -610,7 +612,7 @@ function openDetail(id){
     ? '<div class="det-photo"><img src="'+esc(c.photo_url)+'"></div>'
     : '<div class="det-photo">'+initials(c.name)+'</div>';
   var enc = encounters.filter(function(e){ return e.person_id===id; });
-  var tags = (c.tags||"").split(",").map(function(t){return t.trim();}).filter(Boolean);
+  var tags = tagsArr(c);
 
   var html = photo;
   html += '<div class="det-name">'+esc(c.name||"Desconhecido")+'</div>';
@@ -674,7 +676,7 @@ function openEditContact(id){
   document.getElementById("editWhatsapp").value   = c.contact_whatsapp||"";
   document.getElementById("editLinkedin").value   = c.contact_linkedin||"";
   document.getElementById("editRelation").value   = c.relation||"";
-  document.getElementById("editTags").value       = c.tags||"";
+  document.getElementById("editTags").value       = tagsStr(c);
   document.getElementById("editNotes").value      = c.notes||"";
   document.getElementById("editStatus").value     = c.status||"Ativo";
   document.getElementById("editPhotoUrl").value   = c.photo_url||"";
@@ -725,7 +727,7 @@ async function saveContact(){
     contact_whatsapp: document.getElementById("editWhatsapp").value.trim(),
     contact_linkedin: document.getElementById("editLinkedin").value.trim(),
     relation: document.getElementById("editRelation").value,
-    tags: document.getElementById("editTags").value.trim(),
+    tags: document.getElementById("editTags").value.trim().split(",").map(function(t){return t.trim();}).filter(Boolean),
     notes: document.getElementById("editNotes").value.trim(),
     status: document.getElementById("editStatus").value,
     photo_url: photoUrl.startsWith("data:") ? "" : photoUrl
