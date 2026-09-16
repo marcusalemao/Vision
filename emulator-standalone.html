@@ -310,7 +310,6 @@ body.debug #sync-badge{display:inline}
 <!-- ══ BOTTOM BAR ══ -->
 <div id="bottom-bar">
   <button class="bar-btn" id="btn-cam">⏻<span class="blbl">Câmera</span></button>
-  <button class="bar-btn" id="btn-cap" disabled>⊙<span class="blbl">Capturar</span></button>
   <button class="bar-btn" id="btn-dismiss" disabled>✕<span class="blbl">Dispensar</span></button>
   <button class="bar-btn" id="btn-help">?<span class="blbl">Ajuda</span></button>
 </div>
@@ -329,12 +328,10 @@ body.debug #sync-badge{display:inline}
     <div class="h-tit">REFERÊNCIA</div>
     <div class="h-sec">Emulador (este app)</div>
     <div class="h-row"><span class="h-key">⏻ Câmera</span><span class="h-desc">Liga câmera como fundo do waveguide</span></div>
-    <div class="h-row"><span class="h-key">⊙ Capturar</span><span class="h-desc">Captura rosto → exibe HUD overlay</span></div>
     <div class="h-row"><span class="h-key">Pessoa nova</span><span class="h-desc">Salva automaticamente após 10s (countdown) — ✕ não salvar cancela e não insiste</span></div>
     <div class="h-row"><span class="h-key">✕ Dispensar</span><span class="h-desc">Fecha HUD (mantém câmera)</span></div>
     <div class="h-sec">Teclado (desktop)</div>
     <div class="h-row"><span class="h-key">Espaço / P</span><span class="h-desc">Liga/desliga câmera</span></div>
-    <div class="h-row"><span class="h-key">↑ / Enter</span><span class="h-desc">Capturar frame</span></div>
     <div class="h-row"><span class="h-key">Esc / ↓</span><span class="h-desc">Dispensar HUD</span></div>
     <div class="h-sec">Mapeamento Rokid</div>
     <div class="h-row"><span class="h-key">Power (26)</span><span class="h-desc">= Capturar</span></div>
@@ -780,7 +777,6 @@ function startCam(auto) {
     btn.innerHTML = '■<span class="blbl">Parar</span>';
     btn.className = 'bar-btn on';
     btn.disabled = false;
-    document.getElementById('btn-cap').disabled = false;
     log('✓ câmera ativa', true);
     startFaceDetection();
   })
@@ -825,35 +821,14 @@ function stopCam() {
   document.getElementById('hud').style.display = 'none';
   document.getElementById('btn-cam').innerHTML = '⏻<span class="blbl">Câmera</span>';
   document.getElementById('btn-cam').className = 'bar-btn';
-  document.getElementById('btn-cap').disabled = true;
   document.getElementById('btn-dismiss').disabled = true;
   setIdle('Câmera parada', 'Toque em Câmera para religar');
   log('câmera parada');
 }
 
-// ── Capturar rosto ──
-function capture() {
-  if (!camStream) return;
-  var vid = document.getElementById('vid');
-  var cnv = document.getElementById('cnv');
-  cnv.width = vid.videoWidth || 640; cnv.height = vid.videoHeight || 480;
-  cnv.getContext('2d').drawImage(vid, 0, 0);
-  // Flash
-  var fl = document.getElementById('flash');
-  fl.classList.add('on');
-  setTimeout(function(){ fl.classList.remove('on'); }, 100);
-  var cap = document.getElementById('hud-cap');
-  cap.classList.add('on');
-  setTimeout(function(){ cap.classList.remove('on'); }, 800);
-  log('⊙ frame capturado');
-  // Se face-api carregou, detecta agora
-  if (_faceApiLoaded) detectFaces();
-}
-
 // ── Keyboard (desktop) ──
 document.addEventListener('keydown', function(e) {
   if (e.key === ' ' || e.key === 'p') { e.preventDefault(); toggleCam(); }
-  if (e.key === 'ArrowUp' || e.key === 'Enter') { e.preventDefault(); capture(); }
   if (e.key === 'Escape' || e.key === 'ArrowDown') {
     e.preventDefault();
     dismissHUD();
@@ -883,7 +858,6 @@ function bindBtn(id, fn) {
 }
 
 bindBtn('btn-cam', toggleCam);
-bindBtn('btn-cap', capture);
 bindBtn('btn-dismiss', dismissHUD);
 bindBtn('btn-help', function(){ document.getElementById('help-ov').classList.add('on'); });
 bindTapDyn(document.getElementById('help-debug'), function(){ setDebug(!_debugMode); });
