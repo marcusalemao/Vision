@@ -9,6 +9,17 @@
 html,body{background:#000;height:100%;overflow:hidden;font-family:monospace;color:#00ff88}
 
 /* ══ WAVEGUIDE — 640x480 landscape, câmera como fundo ══ */
+#flip-cam-btn{
+  position:absolute; top:8px; right:8px; z-index:50;
+  width:34px; height:34px; border-radius:50%;
+  background:rgba(0,20,10,.55); border:1px solid rgba(0,255,136,.35);
+  color:#00ff88; font-size:15px; line-height:1;
+  display:none; align-items:center; justify-content:center;
+  cursor:pointer; touch-action:manipulation; -webkit-tap-highlight-color:transparent;
+  backdrop-filter:blur(2px);
+}
+#flip-cam-btn.show{display:flex}
+#flip-cam-btn:active{background:rgba(0,255,136,.18); border-color:#00ff88}
 #waveguide{
   position:relative;
   width:640px; height:480px;
@@ -253,6 +264,8 @@ body.debug #sync-badge{display:inline}
 <div id="waveguide">
   <!-- Câmera como fundo -->
   <video id="vid" autoplay playsinline muted></video>
+  <!-- Botão trocar câmera (só mobile/touch) -->
+  <button id="flip-cam-btn" type="button" title="Trocar câmera frontal/traseira">🔄</button>
   <!-- Canvas para bounding boxes -->
   <canvas id="cnv"></canvas>
   <!-- Flash de captura -->
@@ -334,6 +347,12 @@ body.debug #sync-badge{display:inline}
 
 <script>
 var camStream = null;
+var _facingMode = 'environment';
+var _isTouchDevice = (function(){
+  try { return window.matchMedia && window.matchMedia('(pointer: coarse)').matches
+    || ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+  } catch(e){ return false; }
+})();
 var _profiles = [];
 var _currentProfile = null;
 var PROXY = 'https://base44.app/api/apps/6a11083db49430b410a8c066/functions/fcProxy';
@@ -661,13 +680,31 @@ function toggleCam() {
   if (camStream) stopCam(); else startCam();
 }
 
+function toggleFlipCam() {
+  _facingMode = (_facingMode === 'environment') ? 'user' : 'environment';
+  log('Trocando câmera: ' + (_facingMode === 'user' ? 'frontal' : 'traseira'));
+  if (camStream) {
+    // reinicia o stream já com a nova câmera
+    camStream.getTracks().forEach(function(t){ t.stop(); });
+    camStream = null;
+    startCam(true);
+  }
+}
+
+(function initFlipCamBtn(){
+  var btn = document.getElementById('flip-cam-btn');
+  if (!btn) return;
+  if (_isTouchDevice) btn.classList.add('show');
+  btn.addEventListener('click', function(e){ e.preventDefault(); toggleFlipCam(); });
+})();
+
 function startCam(auto) {
   var btn = document.getElementById('btn-cam');
   btn.textContent = '⏳'; btn.disabled = true;
   // estado na tela ANTES de pedir permissão (no Knox/OneUI o popup pode ser suprimido)
   setIdle('Solicitando câmera...', 'O navegador vai pedir permissão de câmera — o mesmo fluxo dos óculos');
   log('Solicitando câmera...');
-  navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:640},height:{ideal:480}},audio:false})
+  navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:_facingMode},width:{ideal:640},height:{ideal:480}},audio:false})
   .then(function(stream) {
     camStream = stream;
     var vid = document.getElementById('vid');
