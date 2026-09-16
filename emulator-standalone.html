@@ -317,7 +317,8 @@ body.debug #sync-badge{display:inline}
 
 <!-- ══ AUTO-ENROLL: pessoa nova → countdown com cancelamento ══ -->
 <style>
-.mcount-lbl{font-size:10px;color:#007744;text-align:center;padding-bottom:4px}
+.mcount-lbl{font-size:11px;color:#007744;text-align:center;padding-bottom:6px}
+.mcount-lbl #cnt-num{color:#00ff88;font-weight:bold;font-size:14px}
 .mcard-count{display:flex;align-items:center;justify-content:center;font-size:36px;font-weight:bold;color:#00ff88;background:#0a2015;border:1px solid #1a5a2a;border-radius:10px;padding:6px 0;margin-bottom:5px}
 </style>
 
@@ -490,12 +491,11 @@ function startEnrollCountdown() {
   hideHudCard(); // limpa card velho de outra pessoa
   _countdownEnd = Date.now() + COUNTDOWN_SECONDS * 1000;
   setMatchBox('unknown',
-    '<div class="mcount-lbl">Pessoa nova — salvando em</div>' +
-    '<div class="mcard-count" id="cnt-num">' + COUNTDOWN_SECONDS + '</div>' +
-    '<div class="mcard-new" id="mc-cancel">✕ Não salvar</div>');
+    '<div class="mcount-lbl">Cadastrando novo rosto em: <span id="cnt-num">' + COUNTDOWN_SECONDS + '</span>s</div>' +
+    '<div class="mcard-new" id="mc-cancel">Descartar</div>');
   var btn = document.getElementById('mc-cancel');
   if (btn) bindTapDyn(btn, function(){ cancelEnrollCountdown(true); });
-  log('⬡ Pessoa nova — salvando em ' + COUNTDOWN_SECONDS + 's (✕ pra não salvar)', true);
+  log('⬡ Cadastrando novo rosto em ' + COUNTDOWN_SECONDS + 's (Descartar pra não salvar)', true);
   _countdownTimer = setInterval(function() {
     var left = Math.ceil((_countdownEnd - Date.now()) / 1000);
     var num = document.getElementById('cnt-num');
@@ -619,24 +619,38 @@ function loadEmbeddings() {
   log('✓ ' + _descriptors.length + ' rostos reconhecíveis' + (bad ? ' (' + bad + ' embedding inválido — recadastrar)' : ''), true);
 }
 
+// loop auto-encadeado: a próxima detecção só roda quando a atual termina
+// (nunca empilha detecções — era o que travava o botão e derrubava a câmera no celular)
+var _detectRunning = false;
+function _detectChain() {
+  if (!_faceApiLoaded || !camStream || _detectTimer === null) return;
+  if (_detectRunning) { _detectTimer = setTimeout(_detectChain, 300); return; }
+  _detectRunning = true;
+  detectFaces()
+    .then(function(){ _detectRunning = false; })
+    .catch(function(){ _detectRunning = false; })
+    .then(function(){ if (_detectTimer !== null) _detectTimer = setTimeout(_detectChain, 400); });
+}
+
 function startFaceDetection() {
   if (!_faceApiLoaded || !camStream) return;
-  clearInterval(_detectTimer);
-  _detectTimer = setInterval(detectFaces, 1200);
+  clearTimeout(_detectTimer);
+  _detectTimer = setTimeout(_detectChain, 0);
 }
 
 function stopFaceDetection() {
-  clearInterval(_detectTimer);
+  clearTimeout(_detectTimer);
   _detectTimer = null;
+  _detectRunning = false;
 }
 
 function detectFaces() {
   var vid = document.getElementById('vid');
   var cnv = document.getElementById('cnv');
-  if (!vid || vid.readyState < 2) return;
+  if (!vid || vid.readyState < 2 || !camStream) return Promise.resolve();
   cnv.width = vid.videoWidth || 640;
   cnv.height = vid.videoHeight || 480;
-  faceapi.detectAllFaces(vid, new faceapi.TinyFaceDetectorOptions({scoreThreshold:0.4}))
+  return faceapi.detectAllFaces(vid, new faceapi.TinyFaceDetectorOptions({scoreThreshold:0.4}))
     .withFaceLandmarks(true)
     .withFaceDescriptors()
     .then(function(results) {
@@ -732,11 +746,21 @@ function toggleFlipCam() {
   }
 }
 
+var _flipBusy = false;
+function flipCamTap() {
+  if (_flipBusy) return;           // troca de câmera em andamento — ignora toques extra
+  _flipBusy = true;
+  toggleFlipCam();
+  setTimeout(function(){ _flipBusy = false; }, 800);  // libera depois que o stream assenta
+}
 (function initFlipCamBtn(){
   var btn = document.getElementById('flip-cam-btn');
   if (!btn) return;
   if (_isTouchDevice) btn.classList.add('show');
-  btn.addEventListener('click', function(e){ e.preventDefault(); toggleFlipCam(); });
+  var touched = false;
+  btn.addEventListener('touchstart', function(e){ e.preventDefault(); touched = true; }, {passive:false});
+  btn.addEventListener('touchend', function(e){ e.preventDefault(); if (touched){ touched = false; flipCamTap(); } }, {passive:false});
+  btn.addEventListener('click', function(e){ e.preventDefault(); if (!touched) flipCamTap(); }); // desktop
 })();
 
 function startCam(auto) {
@@ -773,6 +797,18 @@ function startCam(auto) {
     btn.disabled = false;
   });
 }
+
+// câmera caiu (troca de app / economia de energia) → religa sozinha quando a página volta
+document.addEventListener('visibilitychange', function() {
+  if (document.visibilityState !== 'visible' || !camStream) return;
+  var dead = camStream.getTracks().length === 0 ||
+             camStream.getTracks().every(function(t){ return t.readyState === 'ended'; });
+  if (dead) {
+    log('câmera caiu em background — religando...');
+    camStream = null;
+    startCam(true);
+  }
+});
 
 function stopCam() {
   cancelEnrollCountdown();
