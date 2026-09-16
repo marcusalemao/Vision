@@ -653,21 +653,29 @@ function detectFaces() {
         return;
       }
       _lastFaceAt = Date.now();
-      results.forEach(function(r, idx) {
+      // "quem olha primeiro": o MAIOR rosto do frame alimenta o reconhecimento.
+      // Com várias faces na cena (ex.: você + foto de outra pessoa), a maior área vence — regra previsível.
+      var main = null, mainArea = 0;
+      results.forEach(function(r) {
         var box = r.detection.box;
-        // Bounding box verde
-        ctx.strokeStyle = '#00ff88';
-        ctx.lineWidth = 1.5;
+        var area = box.width * box.height;
+        if (area > mainArea) { mainArea = area; main = r; }
+      });
+      results.forEach(function(r) {
+        var box = r.detection.box;
+        // Bounding box verde (mais forte no rosto principal)
+        ctx.strokeStyle = (r === main) ? '#00ff88' : 'rgba(0,255,136,.35)';
+        ctx.lineWidth = (r === main) ? 1.5 : 1;
         ctx.shadowColor = '#00ff88';
-        ctx.shadowBlur = 4;
+        ctx.shadowBlur = (r === main) ? 4 : 0;
         ctx.strokeRect(box.x, box.y, box.width, box.height);
         ctx.shadowBlur = 0;
-        // Só o rosto principal (maior/primeiro) alimenta o reconhecimento
-        if (idx === 0 && r.descriptor) {
-          _lastFaceBox = { x: box.x, y: box.y, w: box.width, h: box.height };
-          handleMatch(r.descriptor);
-        }
       });
+      if (main && main.descriptor) {
+        var b = main.detection.box;
+        _lastFaceBox = { x: b.x, y: b.y, w: b.width, h: b.height };
+        handleMatch(main.descriptor);
+      }
     })
     .catch(function(e) { log('⚠ falha na detecção — tenta de novo', true); console.error('detectFaces:', e); });
 }
