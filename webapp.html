@@ -753,7 +753,8 @@ function cropApply(){
   var im=cropImgEl();
   im.style.transform = "translate("+_cropSt.x+"px,"+_cropSt.y+"px) scale("+_cropSt.s+")";
   // slider reflete o zoom (0–100, escala log)
-  var t = Math.log(_cropSt.s/_cropMin) / Math.log(_cropMax/_cropMin || 2);
+  var t = (_cropMax > _cropMin) ? Math.log(Math.max(_cropSt.s,_cropMin)/_cropMin) / Math.log(_cropMax/_cropMin) : 0;
+  if(!isFinite(t)) t = 0;
   document.getElementById("cropZoom").value = Math.round(Math.max(0,Math.min(1,t))*100);
 }
 
@@ -778,20 +779,25 @@ function cropZoomTo(newS, px, py){
 
 function openCrop(src){
   var im = cropImgEl();
+  var modal = document.getElementById("cropModal");
+  modal.classList.add("open");   // abre ANTES: modal escondido mede 0x0 (display:none)
   im.crossOrigin = "anonymous";
   im.onload = function(){
     _cropNat = {w: im.naturalWidth, h: im.naturalHeight};
-    var r = cropRect();
+    var r = cropRect();   // agora com o modal visível → medidas reais
     _cropMin = Math.max(r.w/_cropNat.w, r.h/_cropNat.h);   // cobrir o viewport
+    if(!isFinite(_cropMin) || _cropMin<=0) _cropMin = 0.05;
     _cropMax = Math.max(_cropMin*6, 4);
     // começa ~1.6x do mínimo, centralizado (bom pra rosto)
     _cropSt.s = _cropMin*1.6;
     var w=_cropNat.w*_cropSt.s, h=_cropNat.h*_cropSt.s;
     _cropSt.x = (r.w-w)/2; _cropSt.y = (r.h-h)/2;
     cropClamp(); cropApply();
-    document.getElementById("cropModal").classList.add("open");
   };
-  im.onerror = function(){ toast("Não consegui carregar essa imagem","err"); };
+  im.onerror = function(){
+    modal.classList.remove("open");
+    toast("Não consegui carregar essa imagem","err");
+  };
   im.src = src;
 }
 
