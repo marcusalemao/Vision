@@ -329,7 +329,7 @@ body.debug #sync-badge{display:inline}
     <div class="h-tit">REFERÊNCIA</div>
     <div class="h-sec">Emulador (este app)</div>
     <div class="h-row"><span class="h-key">⏻ Câmera</span><span class="h-desc">Liga câmera como fundo do waveguide</span></div>
-    <div class="h-row"><span class="h-key">⊙ Capturar</span><span class="h-desc">Cadastra o rosto novo que está na câmera (nos óculos: tap na haste)</span></div>
+    <div class="h-row"><span class="h-key">⊙ Capturar</span><span class="h-desc">Foto do rosto novo → preview → Salvar / Descartar (nos óculos: swipe forward na haste descarta)</span></div>
     <div class="h-row"><span class="h-key">Pessoa nova</span><span class="h-desc">Salva automaticamente após 10s (countdown) — ✕ não salvar cancela e não insiste</span></div>
     <div class="h-row"><span class="h-key">✕ Dispensar</span><span class="h-desc">Fecha HUD (mantém câmera)</span></div>
     <div class="h-sec">Teclado (desktop)</div>
@@ -439,6 +439,7 @@ var MATCH_THRESHOLD     = 0.5;   // match confiante -> mostra card no HUD
 var _lastMatchSig = null;
 var _lastMatchDescriptor = null;
 var _lastMatchKnown = false;    // o rosto principal atual já é reconhecido?
+var _previewOpen = false;       // preview de captura aberto — usuário ainda vai decidir (salvar/descartar)
 var _lastFaceBox = null;        // último bounding box do rosto principal (coords do vídeo) — usado pra capturar foto no cadastro
 var _lastFaceAt = Date.now();
 
@@ -469,7 +470,7 @@ function handleMatch(descriptor) {
   }
   // rosto novo — NÃO salva sozinho: só avisa que dá pra cadastrar (Capturar = tap na haste)
   _lastMatchKnown = false;
-  renderUnknown();
+  if (!_previewOpen) renderUnknown();
 }
 
 function renderUnknown() {
@@ -485,17 +486,41 @@ function renderUnknown() {
 // Rosto conhecido → nada (já tem card no HUD). Sem rosto → avisa. Igual ao tap na haste dos óculos.
 var _captureBusy = false;
 function manualCapture() {
-  if (_captureBusy || !camStream) return;
+  if (_captureBusy || !camStream || _previewOpen) return;
   if (!_lastMatchDescriptor) { log('⊙ sem rosto no frame pra capturar'); return; }
   if (_lastMatchKnown) { log('⊙ ' + (_currentProfile ? _currentProfile.name : 'já conheço esse rosto') + ' — já cadastrado'); return; }
   _captureBusy = true;
-  setTimeout(function(){ _captureBusy = false; }, 1500);
+  setTimeout(function(){ _captureBusy = false; }, 1000);
   var fl = document.getElementById('flash');
   if (fl) { fl.classList.add('on'); setTimeout(function(){ fl.classList.remove('on'); }, 100); }
-  saveUnknown();
+  openCapturePreview();
 }
 
-function saveUnknown() {
+// Preview da captura — mesmo comportamento da câmera nativa do Rokid:
+// foto tirada aparece em preview; DESCARTAR (= swipe forward na haste) joga fora sem salvar.
+function openCapturePreview() {
+  var photoUrl = captureFacePhoto();
+  _previewOpen = true;
+  setMatchBox('preview',
+    '<div class="mcount-lbl">Cadastrar este rosto?</div>' +
+    (photoUrl
+      ? '<div style="display:flex;justify-content:center;margin:6px 0"><img src="' + photoUrl + '" style="width:96px;height:96px;border-radius:48px;border:1px solid #1a5a2a"></div>'
+      : '<div class="mcount-lbl">preview indisponível</div>') +
+    '<div class="mcard-new" id="mc-save">Salvar</div>' +
+    '<div class="mcard-new" id="mc-discard" style="color:#ff5566;border-color:#5a1a1a;background:#200a0a">Descartar</div>');
+  var bSave = document.getElementById('mc-save');
+  var bDisc = document.getElementById('mc-discard');
+  if (bSave) bindTapDyn(bSave, function(){ _previewOpen = false; saveUnknown(photoUrl); });
+  if (bDisc) bindTapDyn(bDisc, function(){
+    _previewOpen = false;
+    clearMatchBox();
+    document.getElementById('hud-status').textContent = '⬡ pronto';
+    log('✗ foto descartada — não salva (nos óculos: swipe forward na haste)');
+  });
+  log('⊙ preview — Salvar ou Descartar (swipe forward)', true);
+}
+
+function saveUnknown(previewPhoto) {
   var emb = _lastMatchDescriptor;
   if (!emb || !Array.isArray(emb)) { clearMatchBox(); return; }
   var n = 1, re = /^Pessoa Desconhecida (\d+)$/;
@@ -506,7 +531,7 @@ function saveUnknown() {
   var name = 'Pessoa Desconhecida ' + n;
   setMatchBox('saving:' + name, '<div class="mnomatch">Salvando ' + name + '…</div>');
   // captura foto do rosto direto do frame da câmera (perfil nunca fica órfão de foto)
-  var photoUrl = captureFacePhoto();
+  var photoUrl = previewPhoto || captureFacePhoto();
   var bodyData = { name: name, status: 'Identificado', face_embedding: JSON.stringify(emb) };
   if (photoUrl) bodyData.photo_url = photoUrl;
   fetch(PROXY, {
@@ -636,7 +661,7 @@ function detectFaces() {
       ctx.clearRect(0, 0, cnv.width, cnv.height);
       if (!results || results.length === 0) {
         // rosto saiu da frente: após 2.5s limpa card/painel e aborta cadastro pendente
-        if (Date.now() - _lastFaceAt > 2500) {
+        if (Date.now() - _lastFaceAt > 2500 && !_previewOpen) {
           clearMatchBox();
           hideHudCard();
         }
@@ -809,6 +834,7 @@ document.addEventListener('keydown', function(e) {
   if (e.key === 'ArrowUp' || e.key === 'Enter') { e.preventDefault(); manualCapture(); }
   if (e.key === 'Escape' || e.key === 'ArrowDown') {
     e.preventDefault();
+    if (_previewOpen) { _previewOpen = false; clearMatchBox(); log('✗ foto descartada'); return; }
     dismissHUD();
   }
 });
