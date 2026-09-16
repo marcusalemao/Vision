@@ -91,6 +91,12 @@ html,body{background:#000;height:100%;overflow:hidden;font-family:monospace;colo
 }
 
 /* Status do sistema — canto inferior esquerdo */
+#hud-sum-wrap{margin-top:8px;border-top:1px solid #123d22;padding-top:6px}
+#hud-sum-lbl{font-size:8px;color:#00aa55;letter-spacing:1px;margin-bottom:3px}
+#hud-sum{max-height:68px;overflow-y:auto;font-size:9.5px;line-height:1.55;color:#7fdfb0}
+#hud-sum .sum-item{margin-bottom:4px}
+#hud-sum .sum-when{color:#00cc66;font-weight:bold}
+#hud-sum .sum-txt{color:#8fdfb5}
 #hud-status{
   position:absolute;
   bottom:12px; left:14px;
@@ -288,6 +294,10 @@ body.debug #sync-badge{display:inline}
       <div id="hud-rel"></div>
       <div id="hud-when"></div>
       <div id="hud-ctx"></div>
+      <div id="hud-sum-wrap" style="display:none">
+        <div id="hud-sum-lbl">RESUMO DOS ENCONTROS</div>
+        <div id="hud-sum"></div>
+      </div>
     </div>
     <!-- Match score -->
     <div id="hud-match" style="display:none"></div>
@@ -716,7 +726,57 @@ function showProfile(p, score) {
   document.getElementById('btn-dismiss').disabled = false;
   document.getElementById('hud-status').textContent = '⬡ identificado';
   log('✓ HUD: ' + p.name + (score ? ' (' + score + '%)' : ''), true);
+  loadEncounterSummary(p);
 }
+
+// ── Resumo cronológico dos encontros (estilo ReadIt/tl;dv): condensado, com scroll.
+// Fonte: FaceContextEncounter (contexto do encontro). Transcrição completa fica só no manager.
+var _encCache = {};
+function loadEncounterSummary(p) {
+  var wrap = document.getElementById('hud-sum-wrap');
+  var box = document.getElementById('hud-sum');
+  if (!wrap || !box || !p.id) return;
+  if (_encCache[p.id]) { renderSummary(p, _encCache[p.id]); return; }
+  wrap.style.display = 'block';
+  box.textContent = '…';
+  fetch(PROXY, {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({action:'list',entity:'FaceContextEncounter',limit:200})
+  })
+  .then(function(r){ return r.json(); })
+  .then(function(data){
+    var list = (Array.isArray(data) ? data : (data.records || []))
+      .filter(function(e){ return e.person_id === p.id || e.person_name === p.name; })
+      .sort(function(a,b){ return new Date(a.date||0) - new Date(b.date||0); })  // cronológico
+      .slice(-4);  // últimos 4 encontros (o card é pequeno)
+    _encCache[p.id] = list;
+    renderSummary(p, list);
+  })
+  .catch(function(){ wrap.style.display = 'none'; });
+}
+
+function renderSummary(p, list) {
+  var wrap = document.getElementById('hud-sum-wrap');
+  var box = document.getElementById('hud-sum');
+  if (!wrap || !box) return;
+  if (!list || !list.length) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+  var html = '';
+  list.forEach(function(e){
+    var d = e.date ? new Date(e.date) : null;
+    var when = d ? (d.toLocaleDateString('pt-BR',{day:'2-digit',month:'short'}) + ' ' +
+                     d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'})) : '';
+    var txt = (e.context || e.notes || '').split('\n')[0];  // condensado: 1ª linha do resumo
+    if (txt.length > 90) txt = txt.slice(0, 88) + '…';
+    html += '<div class="sum-item"><span class="sum-when">' + when + (e.location ? ' · ' + esc(e.location) : '') + '</span>' +
+            '<br><span class="sum-txt">' + esc(txt || '(sem resumo)') + '</span></div>';
+  });
+  box.innerHTML = html;
+  box.scrollTop = box.scrollHeight;  // scroll começa no mais recente
+}
+
+function esc(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function dismissHUD() {
   document.getElementById('hud').style.display = 'none';

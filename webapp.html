@@ -440,6 +440,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
       <div class="field"><label>Resumo / Notas</label>
         <textarea id="encContext" placeholder="Do que vocês falaram? Decisões, próximos passos…" style="min-height:80px"></textarea>
       </div>
+      <div class="field"><label>Transcrição (falas com hora)</label>
+        <textarea id="encSpeech" placeholder="Pessoa reconhecida X: 13:25: bla bla bla
+Marcus de Magalhães: 13:26: blu blu blu
+Desconhecido: nunca nununu" style="min-height:100px;font-family:monospace;font-size:12px"></textarea>
+      </div>
       <button class="btn-save" onclick="saveEncounter()">💾 Salvar Encontro</button>
     </div>
   </div>
@@ -1222,6 +1227,7 @@ function openNewEncounter(){
   document.getElementById("encPersonId").value="";
   document.getElementById("encLocation").value="";
   document.getElementById("encContext").value="";
+  document.getElementById("encSpeech").value="";
   document.getElementById("encTranscript").style.display="none";
   document.getElementById("encAIBox").style.display="none";
   document.getElementById("btnGenSum").style.display="none";
@@ -1276,11 +1282,12 @@ async function saveEncounter(){
   var dateVal=document.getElementById("encDate").value;
   if(!name){toast("Selecione uma pessoa","err");return;}
   var date=dateVal?new Date(dateVal).toISOString():new Date().toISOString();
+  var speech=document.getElementById("encSpeech").value.trim();
   try{
     var r=await fetch(PROXY+"?entity=FaceContextEncounter",{
       method:"POST",headers:{"Content-Type":"application/json"},
       body:JSON.stringify({person_id:_encPersonId||"",person_name:name,date:date,
-        location:loc,context:ctx,capture_mode:ch,notes:""})
+        location:loc,context:ctx,capture_mode:ch,speech_captured:speech,notes:""})
     });
     if(!r.ok) throw new Error("HTTP "+r.status);
     var saved=await r.json();
