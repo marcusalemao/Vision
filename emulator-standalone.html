@@ -310,6 +310,7 @@ body.debug #sync-badge{display:inline}
 <!-- ══ BOTTOM BAR ══ -->
 <div id="bottom-bar">
   <button class="bar-btn" id="btn-cam">⏻<span class="blbl">Câmera</span></button>
+  <button class="bar-btn" id="btn-cap" disabled>⊙<span class="blbl">Capturar</span></button>
   <button class="bar-btn" id="btn-dismiss" disabled>✕<span class="blbl">Dispensar</span></button>
   <button class="bar-btn" id="btn-help">?<span class="blbl">Ajuda</span></button>
 </div>
@@ -328,6 +329,7 @@ body.debug #sync-badge{display:inline}
     <div class="h-tit">REFERÊNCIA</div>
     <div class="h-sec">Emulador (este app)</div>
     <div class="h-row"><span class="h-key">⏻ Câmera</span><span class="h-desc">Liga câmera como fundo do waveguide</span></div>
+    <div class="h-row"><span class="h-key">⊙ Capturar</span><span class="h-desc">Cadastra o rosto novo que está na câmera (nos óculos: tap na haste)</span></div>
     <div class="h-row"><span class="h-key">Pessoa nova</span><span class="h-desc">Salva automaticamente após 10s (countdown) — ✕ não salvar cancela e não insiste</span></div>
     <div class="h-row"><span class="h-key">✕ Dispensar</span><span class="h-desc">Fecha HUD (mantém câmera)</span></div>
     <div class="h-sec">Teclado (desktop)</div>
@@ -436,11 +438,8 @@ function syncProfiles() {
 var MATCH_THRESHOLD     = 0.5;   // match confiante -> mostra card no HUD
 var _lastMatchSig = null;
 var _lastMatchDescriptor = null;
-var COUNTDOWN_SECONDS = 10;      // pessoa nova: salva automático após 10s (cancelável)
-var _countdownTimer = null;
-var _countdownEnd = 0;
-var _enrollCancelled = null;    // descriptor da pessoa que o usuário dispensou (não rearmar)
-var _lastFaceBox = null;        // último bounding box do rosto principal (coords do vídeo) — usado pra capturar foto no auto-save
+var _lastMatchKnown = false;    // o rosto principal atual já é reconhecido?
+var _lastFaceBox = null;        // último bounding box do rosto principal (coords do vídeo) — usado pra capturar foto no cadastro
 var _lastFaceAt = Date.now();
 
 function setMatchBox(sig, html) {
@@ -462,56 +461,38 @@ function handleMatch(descriptor) {
     }).sort(function(a,b){ return a.dist - b.dist; })[0];
   }
   if (best && best.dist < MATCH_THRESHOLD) {
-    // rosto conhecido — cancela qualquer cadastro pendente e mostra o card
-    cancelEnrollCountdown();
+    // rosto conhecido — card no HUD, painel esconde (cadastro só com Capturar mesmo)
+    _lastMatchKnown = true;
     showProfile(best.profile, Math.round((1 - best.dist) * 100));
-    setMatchBox('confident:' + best.profile.id, null); // esconde painel — já tem o card no HUD
+    setMatchBox('confident:' + best.profile.id, null);
     return;
   }
-  // rosto desconhecido → cadastro automático com countdown (só um botão: não salvar)
+  // rosto novo — NÃO salva sozinho: só avisa que dá pra cadastrar (Capturar = tap na haste)
+  _lastMatchKnown = false;
   renderUnknown();
 }
 
 function renderUnknown() {
-  // usuário já disse "não salvar" pra ESTA pessoa — não insiste enquanto ela estiver na frente
-  if (_enrollCancelled && _lastMatchDescriptor) {
-    try {
-      var dCancel = faceapi.euclideanDistance(_lastMatchDescriptor, _enrollCancelled);
-      if (dCancel < MATCH_THRESHOLD) return; // mesma pessoa dispensada
-    } catch(e) { _enrollCancelled = null; }
-  }
-  if (_countdownTimer) return; // countdown já rolando; descriptor atualiza a cada frame no handleMatch
-  startEnrollCountdown();
-}
-
-function startEnrollCountdown() {
   hideHudCard(); // limpa card velho de outra pessoa
-  _countdownEnd = Date.now() + COUNTDOWN_SECONDS * 1000;
   setMatchBox('unknown',
-    '<div class="mcount-lbl">Cadastrando novo rosto em: <span id="cnt-num">' + COUNTDOWN_SECONDS + '</span>s</div>' +
-    '<div class="mcard-new" id="mc-cancel">Descartar</div>');
-  var btn = document.getElementById('mc-cancel');
-  if (btn) bindTapDyn(btn, function(){ cancelEnrollCountdown(true); });
-  log('⬡ Cadastrando novo rosto em ' + COUNTDOWN_SECONDS + 's (Descartar pra não salvar)', true);
-  _countdownTimer = setInterval(function() {
-    var left = Math.ceil((_countdownEnd - Date.now()) / 1000);
-    var num = document.getElementById('cnt-num');
-    if (num && left > 0) num.textContent = left;
-    if (left <= 0) {
-      clearInterval(_countdownTimer); _countdownTimer = null;
-      saveUnknown();
-    }
-  }, 250);
+    '<div class="mcount-lbl">Rosto novo — toque em Capturar para cadastrar</div>' +
+    '<div class="mcard-new" id="mc-capture">⊙ Capturar</div>');
+  var btn = document.getElementById('mc-capture');
+  if (btn) bindTapDyn(btn, manualCapture);
 }
 
-function cancelEnrollCountdown(userCancel) {
-  if (_countdownTimer) { clearInterval(_countdownTimer); _countdownTimer = null; }
-  if (userCancel) {
-    if (_lastMatchDescriptor) _enrollCancelled = _lastMatchDescriptor.slice();
-    clearMatchBox();
-    document.getElementById('hud-status').textContent = '⬡ pronto';
-    log('✗ Não vou salvar este rosto — dispensado');
-  }
+// Capturar (barra, painel ou ↑/Enter): cadastra O ROSTO NOVO que está na frente da câmera.
+// Rosto conhecido → nada (já tem card no HUD). Sem rosto → avisa. Igual ao tap na haste dos óculos.
+var _captureBusy = false;
+function manualCapture() {
+  if (_captureBusy || !camStream) return;
+  if (!_lastMatchDescriptor) { log('⊙ sem rosto no frame pra capturar'); return; }
+  if (_lastMatchKnown) { log('⊙ ' + (_currentProfile ? _currentProfile.name : 'já conheço esse rosto') + ' — já cadastrado'); return; }
+  _captureBusy = true;
+  setTimeout(function(){ _captureBusy = false; }, 1500);
+  var fl = document.getElementById('flash');
+  if (fl) { fl.classList.add('on'); setTimeout(function(){ fl.classList.remove('on'); }, 100); }
+  saveUnknown();
 }
 
 function saveUnknown() {
@@ -656,8 +637,6 @@ function detectFaces() {
       if (!results || results.length === 0) {
         // rosto saiu da frente: após 2.5s limpa card/painel e aborta cadastro pendente
         if (Date.now() - _lastFaceAt > 2500) {
-          cancelEnrollCountdown();
-          _enrollCancelled = null;
           clearMatchBox();
           hideHudCard();
         }
@@ -715,8 +694,6 @@ function showProfile(p, score) {
 }
 
 function dismissHUD() {
-  var wasCounting = !!_countdownTimer;
-  cancelEnrollCountdown(wasCounting);
   document.getElementById('hud').style.display = 'none';
   document.getElementById('hud-card').style.display = 'none';
   document.getElementById('hud-match').style.display = 'none';
@@ -777,6 +754,7 @@ function startCam(auto) {
     btn.innerHTML = '■<span class="blbl">Parar</span>';
     btn.className = 'bar-btn on';
     btn.disabled = false;
+    document.getElementById('btn-cap').disabled = false;
     log('✓ câmera ativa', true);
     startFaceDetection();
   })
@@ -807,8 +785,6 @@ document.addEventListener('visibilitychange', function() {
 });
 
 function stopCam() {
-  cancelEnrollCountdown();
-  _enrollCancelled = null;
   _lastFaceAt = Date.now();
   if (camStream) { camStream.getTracks().forEach(function(t){t.stop()}); camStream = null; }
   var vid = document.getElementById('vid');
@@ -822,6 +798,7 @@ function stopCam() {
   document.getElementById('btn-cam').innerHTML = '⏻<span class="blbl">Câmera</span>';
   document.getElementById('btn-cam').className = 'bar-btn';
   document.getElementById('btn-dismiss').disabled = true;
+  document.getElementById('btn-cap').disabled = true;
   setIdle('Câmera parada', 'Toque em Câmera para religar');
   log('câmera parada');
 }
@@ -829,6 +806,7 @@ function stopCam() {
 // ── Keyboard (desktop) ──
 document.addEventListener('keydown', function(e) {
   if (e.key === ' ' || e.key === 'p') { e.preventDefault(); toggleCam(); }
+  if (e.key === 'ArrowUp' || e.key === 'Enter') { e.preventDefault(); manualCapture(); }
   if (e.key === 'Escape' || e.key === 'ArrowDown') {
     e.preventDefault();
     dismissHUD();
@@ -858,6 +836,7 @@ function bindBtn(id, fn) {
 }
 
 bindBtn('btn-cam', toggleCam);
+bindBtn('btn-cap', manualCapture);
 bindBtn('btn-dismiss', dismissHUD);
 bindBtn('btn-help', function(){ document.getElementById('help-ov').classList.add('on'); });
 bindTapDyn(document.getElementById('help-debug'), function(){ setDebug(!_debugMode); });
