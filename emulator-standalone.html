@@ -442,6 +442,7 @@ var COUNTDOWN_SECONDS = 10;      // pessoa nova: salva automático após 10s (ca
 var _countdownTimer = null;
 var _countdownEnd = 0;
 var _enrollCancelled = null;    // descriptor da pessoa que o usuário dispensou (não rearmar)
+var _lastFaceBox = null;        // último bounding box do rosto principal (coords do vídeo) — usado pra capturar foto no auto-save
 var _lastFaceAt = Date.now();
 
 function setMatchBox(sig, html) {
@@ -526,10 +527,14 @@ function saveUnknown() {
   });
   var name = 'Pessoa Desconhecida ' + n;
   setMatchBox('saving:' + name, '<div class="mnomatch">Salvando ' + name + '…</div>');
+  // captura foto do rosto direto do frame da câmera (perfil nunca fica órfão de foto)
+  var photoUrl = captureFacePhoto();
+  var bodyData = { name: name, status: 'Identificado', face_embedding: JSON.stringify(emb) };
+  if (photoUrl) bodyData.photo_url = photoUrl;
   fetch(PROXY, {
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({ name: name, status: 'Identificado', face_embedding: JSON.stringify(emb) })
+    body:JSON.stringify(bodyData)
   })
   .then(function(r){ return r.json(); })
   .then(function(p){
@@ -546,6 +551,31 @@ function saveUnknown() {
     }
   })
   .catch(function(e){ log('⚠ Rede: ' + e.message, true); clearMatchBox(); });
+}
+
+function captureFacePhoto() {
+  try {
+    var vid = document.getElementById('vid');
+    if (!vid || vid.readyState < 2 || !_lastFaceBox) return null;
+    var b = _lastFaceBox;
+    // margem 25% em volta do rosto (evita corte agressivo no queixo/testa)
+    var m = Math.max(b.w, b.h) * 0.25;
+    var side = Math.max(b.w, b.h) + m * 2;
+    var sx = b.x - (side - b.w) / 2;
+    var sy = b.y - (side - b.h) / 2;
+    // limita aos bounds do vídeo
+    var vw = vid.videoWidth || 640, vh = vid.videoHeight || 480;
+    if (sx < 0) sx = 0; if (sy < 0) sy = 0;
+    if (sx + side > vw) side = Math.min(side, vw - sx);
+    if (sy + side > vh) side = Math.min(side, vh - sy);
+    if (side < 10) return null;
+    var cv = document.createElement('canvas');
+    cv.width = 256; cv.height = 256;
+    var ctx = cv.getContext('2d');
+    ctx.beginPath(); ctx.arc(128, 128, 128, 0, Math.PI * 2); ctx.clip();
+    ctx.drawImage(vid, sx, sy, side, side, 0, 0, 256, 256);
+    return cv.toDataURL('image/jpeg', 0.8);
+  } catch (e) { return null; }  // sem foto melhor que falhar o save
 }
 
 function hideHudCard() {
@@ -633,7 +663,10 @@ function detectFaces() {
         ctx.strokeRect(box.x, box.y, box.width, box.height);
         ctx.shadowBlur = 0;
         // Só o rosto principal (maior/primeiro) alimenta o reconhecimento
-        if (idx === 0 && r.descriptor) handleMatch(r.descriptor);
+        if (idx === 0 && r.descriptor) {
+          _lastFaceBox = { x: box.x, y: box.y, w: box.width, h: box.height };
+          handleMatch(r.descriptor);
+        }
       });
     })
     .catch(function(e) { log('⚠ falha na detecção — tenta de novo', true); console.error('detectFaces:', e); });
