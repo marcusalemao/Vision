@@ -102,6 +102,20 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 .selact:disabled{opacity:.35}
 .selact.danger{border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.1)}
 
+/* REVISÃO DE MESCLAGEM */
+.mrgrow{border:1px solid var(--border);border-radius:12px;padding:10px 12px;margin-bottom:10px}
+.mrglabel{font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:6px}
+.mrgvals{font-size:12px;line-height:1.5;margin-bottom:8px;white-space:pre-wrap;word-break:break-word}
+.mrgvals b{color:var(--text)}
+.mrgopts{display:flex;gap:8px}
+.mrgchip{flex:1;padding:7px 0;border-radius:9px;border:1px solid var(--border);
+  background:rgba(255,255,255,.05);color:var(--muted);font-size:12px;cursor:pointer;
+  -webkit-tap-highlight-color:transparent}
+.mrgchip.on{background:rgba(0,255,136,.15);border-color:var(--green);color:var(--green);font-weight:600}
+.mrgphoto{width:64px;height:64px;border-radius:12px;object-fit:cover;
+  border:2px solid transparent;cursor:pointer}
+.mrgphoto.sel{border-color:var(--green)}
+
 /* OVERLAY / MODAL */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:100;
   display:none;align-items:flex-end;justify-content:center}
@@ -502,6 +516,24 @@ Desconhecido: nunca nununu" style="min-height:100px;font-family:monospace;font-s
   </div>
 </div>
 
+
+<!-- MODAL: REVISAR MESCLAGEM -->
+<div class="overlay" id="mergeReviewModal">
+  <div class="modal">
+    <div class="mhandle"></div>
+    <div class="mhead">
+      <span class="mtitle">🔀 Revisar mesclagem</span>
+      <button class="btn-x" onclick="closeModal('mergeReviewModal')">✕</button>
+    </div>
+    <div class="mbody">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">
+        Campos com informação diferente nos dois contatos. <b>A</b> é o principal (fica); <b>B</b> é o que será mesclado. Campos vazios de um lado são preenchidos automaticamente com o dado do outro.
+      </p>
+      <div id="mergeReviewBody"></div>
+      <button class="btn-save" onclick="confirmMergeReview()">🔀 Mesclar agora</button>
+    </div>
+  </div>
+</div>
 
 <!-- MODAL: MESCLAR PESSOAS EM LOTE -->
 <div class="overlay" id="batchMergeModal">
@@ -1270,29 +1302,140 @@ function batchKeep(id){
   _batchKeepId=id;
   renderBatchMergeList();
 }
+var _mergePlan=null, _mergeChoices={};
+var MERGE_KEYS=["nickname","company","role","relation","relation_context","contact_whatsapp",
+  "contact_email","contact_phone","contact_linkedin"];
+var MERGE_LABELS={nickname:"Apelido",company:"Empresa",role:"Cargo",relation:"Relação",
+  relation_context:"Contexto da relação",contact_whatsapp:"WhatsApp",contact_email:"Email",
+  contact_phone:"Telefone",contact_linkedin:"LinkedIn",notes:"Notas",tags:"Tags",
+  last_seen_date:"Última vez visto",photo_url:"Foto"};
+
+function truncStr(s,n){ s=String(s); return s.length>n? s.slice(0,n)+"…" : s; }
+
+// Combina os contatos que serão mesclados em um "B" só (sem perder info: notas/tags entram todas, datas ficam com a mais recente)
+function combineOthers(others){
+  var rec={};
+  others.forEach(function(o){
+    MERGE_KEYS.forEach(function(k){ if(!rec[k]&&o[k]) rec[k]=o[k]; });
+    if(!rec.photo_url&&o.photo_url) rec.photo_url=o.photo_url;
+  });
+  var tgs=[]; others.forEach(function(o){ tagsArr(o).forEach(function(t){ if(tgs.indexOf(t)<0)tgs.push(t); }); });
+  if(tgs.length) rec.tags=tgs.join(", ");
+  var ns=[]; others.forEach(function(o){ if(o.notes&&ns.indexOf(o.notes)<0) ns.push(o.notes); });
+  if(ns.length) rec.notes=ns.join("\n");
+  var latest=null; others.forEach(function(o){
+    if(o.last_seen_date&&(!latest||new Date(o.last_seen_date)>new Date(latest.last_seen_date))) latest=o;
+  });
+  if(latest){ rec.last_seen_date=latest.last_seen_date; rec.last_seen_context=latest.last_seen_context; }
+  return rec;
+}
+
+// Conflito = mesmo campo preenchido nos dois lados com valores diferentes
+function mergeConflicts(keep,other){
+  var list=[];
+  MERGE_KEYS.forEach(function(k){
+    if(keep[k]&&other[k]&&String(keep[k]).trim()!==String(other[k]).trim())
+      list.push({key:k,label:MERGE_LABELS[k],a:keep[k],b:other[k]});
+  });
+  if(keep.notes&&other.notes&&keep.notes!==other.notes)
+    list.push({key:"notes",label:MERGE_LABELS.notes,a:keep.notes,b:other.notes});
+  var ta=tagsArr(keep).join(", "), tb=other.tags||"";
+  if(ta&&tb&&ta!==tb) list.push({key:"tags",label:MERGE_LABELS.tags,a:ta,b:tb});
+  if(keep.last_seen_date&&other.last_seen_date&&keep.last_seen_date!==other.last_seen_date)
+    list.push({key:"last_seen_date",label:MERGE_LABELS.last_seen_date,
+      a:new Date(keep.last_seen_date).toLocaleDateString("pt-BR"),
+      b:new Date(other.last_seen_date).toLocaleDateString("pt-BR")});
+  if(isRealPhoto(keep.photo_url)&&isRealPhoto(other.photo_url))
+    list.push({key:"photo_url",label:MERGE_LABELS.photo_url,a:keep.photo_url,b:other.photo_url});
+  return list;
+}
+
 async function confirmBatchMerge(){
   var keep=contacts.find(function(c){return c.id===_batchKeepId;});
   if(!keep) return;
-  var others=selIds().filter(function(id){return id!==keep.id;});
-  var upd={};
-  for(var i=0;i<others.length;i++){
-    var s=contacts.find(function(c){return c.id===others[i];});
-    if(!s) continue;
-    ["nickname","company","role","relation","relation_context","contact_whatsapp",
-     "contact_email","contact_phone","contact_linkedin"].forEach(function(k){
-      if(s[k]&&!keep[k]&&upd[k]===undefined) upd[k]=s[k];
-    });
-    if(!keep.photo_url&&!upd.photo_url&&s.photo_url) upd.photo_url=s.photo_url;
-    if(!keep.face_embedding&&!upd.face_embedding&&s.face_embedding) upd.face_embedding=s.face_embedding;
-    if(s.notes&&(!keep.notes||keep.notes.indexOf(s.notes)<0)) upd.notes=(upd.notes||keep.notes||"")+((upd.notes||keep.notes)?"\n":"")+s.notes;
-    if(s.last_seen_date&&(!keep.last_seen_date||new Date(s.last_seen_date)>new Date(keep.last_seen_date))){
-      upd.last_seen_date=s.last_seen_date; upd.last_seen_context=s.last_seen_context;
-    }
-    var tgs=Array.from(new Set(tagsArr(keep).concat(upd.tags?String(upd.tags).split(","):"",tagsArr(s)).filter(Boolean)));
-    if(tgs.length) upd.tags=tgs.join(", ");
+  var others=selIds().filter(function(id){return id!==keep.id;})
+    .map(function(id){return contacts.find(function(c){return c.id===id;});}).filter(Boolean);
+  if(!others.length) return;
+  var other=combineOthers(others);
+  var conflicts=mergeConflicts(keep,other);
+  if(!conflicts.length){
+    await executeBatchMerge(keep,others,other,{});
+    return;
   }
+  _mergePlan={keep:keep,others:others,other:other,conflicts:conflicts};
+  _mergeChoices={};
+  conflicts.forEach(function(c){ _mergeChoices[c.key]=(c.key==="tags"||c.key==="notes")?"join":"a"; });
+  closeModal("batchMergeModal");
+  renderMergeReview();
+  document.getElementById("mergeReviewModal").classList.add("open");
+}
+
+function renderMergeReview(){
+  var p=_mergePlan; if(!p) return;
+  document.getElementById("mergeReviewBody").innerHTML=p.conflicts.map(function(c){
+    if(c.key==="photo_url"){
+      return '<div class="mrgrow"><div class="mrglabel">'+c.label+'</div>'+
+        '<div style="display:flex;gap:12px">'+
+        '<img class="mrgphoto'+(_mergeChoices.photo_url==="a"?" sel":"")+'" src="'+esc(c.a)+'" onclick="mergeChoose(\'photo_url\',\'a\')">'+
+        '<img class="mrgphoto'+(_mergeChoices.photo_url==="b"?" sel":"")+'" src="'+esc(c.b)+'" onclick="mergeChoose(\'photo_url\',\'b\')">'+
+        '</div></div>';
+    }
+    return '<div class="mrgrow"><div class="mrglabel">'+c.label+'</div>'+
+      '<div class="mrgvals"><b>A:</b> '+esc(truncStr(c.a,80))+'<br><b>B:</b> '+esc(truncStr(c.b,80))+'</div>'+
+      '<div class="mrgopts">'+
+      '<button class="mrgchip'+(_mergeChoices[c.key]==="a"?" on":"")+'" onclick="mergeChoose(\''+c.key+'\',\'a\')">Manter A</button>'+
+      '<button class="mrgchip'+(_mergeChoices[c.key]==="b"?" on":"")+'" onclick="mergeChoose(\''+c.key+'\',\'b\')">Usar B</button>'+
+      '<button class="mrgchip'+(_mergeChoices[c.key]==="join"?" on":"")+'" onclick="mergeChoose(\''+c.key+'\',\'join\')">Juntar</button>'+
+      '</div></div>';
+  }).join("");
+}
+function mergeChoose(key,val){ _mergeChoices[key]=val; renderMergeReview(); }
+
+async function confirmMergeReview(){
+  if(!_mergePlan) return;
+  var p=_mergePlan; _mergePlan=null;
+  await executeBatchMerge(p.keep,p.others,p.other,_mergeChoices);
+}
+
+// Executa a mesclagem: preenche campos vazios automaticamente, aplica escolhas da revisão
+async function executeBatchMerge(keep,others,other,choices){
+  var upd={};
+  MERGE_KEYS.forEach(function(k){ if(!keep[k]&&other[k]) upd[k]=other[k]; });
+  if(!keep.notes&&other.notes) upd.notes=other.notes;
+  if(!tagsArr(keep).length&&other.tags) upd.tags=other.tags;
+  if(!keep.last_seen_date&&other.last_seen_date){
+    upd.last_seen_date=other.last_seen_date; upd.last_seen_context=other.last_seen_context;
+  }
+  if(!keep.photo_url&&other.photo_url) upd.photo_url=other.photo_url;
+  if(!keep.face_embedding){
+    var eo=others.find(function(o){return o.face_embedding;});
+    if(eo) upd.face_embedding=eo.face_embedding;
+  }
+  Object.keys(choices).forEach(function(key){
+    var ch=choices[key]||"a";
+    if(ch==="a") return; // mantém o principal, nada a fazer
+    if(ch==="b"){
+      if(key==="last_seen_date"){ upd.last_seen_date=other.last_seen_date; upd.last_seen_context=other.last_seen_context; }
+      else if(key==="photo_url"){ upd.photo_url=other.photo_url; }
+      else upd[key]=other[key];
+      return;
+    }
+    // juntar
+    if(key==="tags"){
+      var tgs=[]; tagsArr(keep).forEach(function(t){if(tgs.indexOf(t)<0)tgs.push(t);});
+      String(other.tags).split(",").forEach(function(t){t=t.trim(); if(t&&tgs.indexOf(t)<0)tgs.push(t);});
+      upd.tags=tgs.join(", ");
+    } else if(key==="notes"){
+      upd.notes=(keep.notes?keep.notes+"\n":"")+(other.notes||"");
+    } else if(key==="last_seen_date"||key==="photo_url"){
+      // juntar não se aplica — usa B (mais recente / foto escolhida já tratada acima)
+      if(key==="last_seen_date"){ upd.last_seen_date=other.last_seen_date; upd.last_seen_context=other.last_seen_context; }
+    } else {
+      upd[key]=(keep[key]||"")+" · "+(other[key]||"");
+    }
+  });
   try{
-    var encs=encounters.filter(function(e){return others.indexOf(e.person_id)>=0;});
+    var encs=encounters.filter(function(e){return others.some(function(o){return o.id===e.person_id;});});
     await Promise.all(encs.map(function(e){
       return fetch(PROXY+"?id="+e.id+"&entity=FaceContextEncounter",{
         method:"PUT",headers:{"Content-Type":"application/json"},
@@ -1304,15 +1447,15 @@ async function confirmBatchMerge(){
         method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(upd)
       });
     }
-    await Promise.all(others.map(function(id){
-      return fetch(PROXY+"?id="+id+"&entity=FaceContextPerson",{method:"DELETE"});
+    await Promise.all(others.map(function(o){
+      return fetch(PROXY+"?id="+o.id+"&entity=FaceContextPerson",{method:"DELETE"});
     }));
     encounters.forEach(function(e){
-      if(others.indexOf(e.person_id)>=0){e.person_id=keep.id;e.person_name=keep.name;}
+      if(others.some(function(o){return o.id===e.person_id;})){e.person_id=keep.id;e.person_name=keep.name;}
     });
     Object.assign(keep,upd);
-    contacts=contacts.filter(function(c){return others.indexOf(c.id)<0;});
-    closeModal("batchMergeModal");
+    contacts=contacts.filter(function(c){return !others.some(function(o){return o.id===c.id;});});
+    closeModal("mergeReviewModal");
     toggleSelMode();
     renderContacts(); updatePendBadge();
     toast("✅ Mesclados em "+(keep.name||"Desconhecido"),"ok");
