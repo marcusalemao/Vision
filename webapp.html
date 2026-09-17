@@ -546,10 +546,18 @@ function fmtDayLabel(ds){
 
 function closeModal(id){ document.getElementById(id).classList.remove("open"); }
 
+
+// Avatar gerado automaticamente (iniciais) NÃO conta como foto real do contato.
+function isRealPhoto(url){
+  if(!url) return false;
+  if(/ui-avatars\.com/i.test(url)) return false;
+  return true;
+}
+
 function avHtml(c, size){
   size = size||48;
   var r = size>56?16:12;
-  if(c.photo_url){
+  if(isRealPhoto(c.photo_url)){
     return '<div class="av" style="width:'+size+'px;height:'+size+'px;border-radius:'+r+'px"><img src="'+esc(c.photo_url)+'" onerror="this.parentElement.innerHTML=\''+initials(c.name)+'\'"></div>';
   }
   var cls = c.status==="Pendente" ? " pend" : "";
@@ -600,8 +608,8 @@ function filterContacts(){
   var list = contacts.filter(function(c){
     if(_filter==="ativos"    && c.status==="Pendente")  return false;
     if(_filter==="pendentes" && c.status!=="Pendente")  return false;
-    if(_filter==="com-foto"  && !c.photo_url)           return false;
-    if(_filter==="sem-foto"  && c.photo_url)            return false;
+    if(_filter==="com-foto"  && !isRealPhoto(c.photo_url)) return false;
+    if(_filter==="sem-foto"  && isRealPhoto(c.photo_url))  return false;
     if(!q) return true;
     return (c.name||"").toLowerCase().includes(q) ||
            (c.company||"").toLowerCase().includes(q) ||
@@ -1311,7 +1319,7 @@ function renderStats(){
   var total=contacts.length;
   var ativos=contacts.filter(function(c){return c.status!=="Pendente";}).length;
   var pend=contacts.filter(function(c){return c.status==="Pendente";}).length;
-  var foto=contacts.filter(function(c){return c.photo_url&&!c.photo_url.startsWith("data:");}).length;
+  var foto=contacts.filter(function(c){return isRealPhoto(c.photo_url);}).length;
   document.getElementById("statsContent").innerHTML=
     '👥 <strong>'+total+'</strong> contatos totais<br>'+
     '✅ <strong>'+ativos+'</strong> identificados<br>'+
