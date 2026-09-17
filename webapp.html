@@ -81,6 +81,27 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
   color:#fff;font-size:8px;font-weight:700;min-width:16px;height:16px;border-radius:8px;
   display:flex;align-items:center;justify-content:center;padding:0 3px}
 
+/* SELEÇÃO EM LOTE */
+.selbtn{background:rgba(255,255,255,.06);border:1px solid var(--border);color:var(--muted);
+  width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:15px;display:flex;
+  align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;flex-shrink:0}
+.selbtn.on{background:rgba(0,255,136,.15);border-color:var(--green);color:var(--green)}
+.selcheck{width:22px;height:22px;border-radius:7px;border:2px solid rgba(255,255,255,.25);
+  flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:13px;
+  font-weight:700;color:#0a0e1a}
+.selcheck.on{background:var(--green);border-color:var(--green)}
+.ccard.selpick{border-color:var(--green);background:rgba(0,255,136,.05)}
+.selbar{position:fixed;bottom:57px;left:50%;transform:translateX(-50%);width:100%;max-width:480px;
+  background:#141b2b;border-top:1px solid var(--border);display:none;align-items:center;
+  gap:10px;padding:10px 14px;z-index:60;box-sizing:border-box}
+.selbar.on{display:flex}
+.selcount{font-size:12px;color:var(--muted);flex:1}
+.selact{background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:10px;
+  color:var(--text);font-size:17px;padding:8px 12px;cursor:pointer;
+  -webkit-tap-highlight-color:transparent}
+.selact:disabled{opacity:.35}
+.selact.danger{border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.1)}
+
 /* OVERLAY / MODAL */
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);z-index:100;
   display:none;align-items:flex-end;justify-content:center}
@@ -240,7 +261,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
 <div class="page active" id="page-contacts">
   <div class="topbar">
     <h1>👥 Contatos</h1>
-    <span style="font-size:11px;color:var(--muted)" id="contactCount"></span>
+    <span style="font-size:11px;color:var(--muted);flex:1" id="contactCount"></span>
+    <button class="selbtn" id="selToggle" onclick="toggleSelMode()" title="Selecionar contatos">✓</button>
   </div>
   <div class="search-wrap">
     <span class="si">🔍</span>
@@ -256,6 +278,14 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-
   <div class="clist" id="contactList">
     <div class="empty"><div class="ei">⏳</div><p>Carregando…</p></div>
   </div>
+</div>
+
+<!-- BARRA DE AÇÕES EM LOTE -->
+<div class="selbar" id="selBar">
+  <div class="selcount" id="selCount">0 selecionados</div>
+  <button class="selact" id="selMergeBtn" onclick="openBatchMerge()" title="Mesclar pessoas">🔀</button>
+  <button class="selact" id="selCompBtn" onclick="openBulkCompany()" title="Atribuir empresa">🏢</button>
+  <button class="selact danger" id="selDelBtn" onclick="bulkDelete()" title="Apagar">🗑</button>
 </div>
 
 <!-- PAGE: PENDING -->
@@ -473,6 +503,46 @@ Desconhecido: nunca nununu" style="min-height:100px;font-family:monospace;font-s
 </div>
 
 
+<!-- MODAL: MESCLAR PESSOAS EM LOTE -->
+<div class="overlay" id="batchMergeModal">
+  <div class="modal">
+    <div class="mhandle"></div>
+    <div class="mhead">
+      <span class="mtitle">🔀 Mesclar pessoas</span>
+      <button class="btn-x" onclick="closeModal('batchMergeModal')">✕</button>
+    </div>
+    <div class="mbody">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">
+        Escolha o contato principal (o que fica). Os demais são mesclados nele:
+        encontros são transferidos e campos vazios são preenchidos com os dados deles.
+      </p>
+      <div class="merge-pick" id="batchMergeList"></div>
+      <button class="btn-save" id="btnConfirmBatchMerge" onclick="confirmBatchMerge()" style="margin-top:12px" disabled>🔀 Confirmar mesclagem</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: EMPRESA EM LOTE -->
+<div class="overlay" id="bulkCompanyModal">
+  <div class="modal">
+    <div class="mhandle"></div>
+    <div class="mhead">
+      <span class="mtitle">🏢 Atribuir empresa</span>
+      <button class="btn-x" onclick="closeModal('bulkCompanyModal')">✕</button>
+    </div>
+    <div class="mbody">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">
+        A empresa abaixo será aplicada a todos os contatos selecionados.
+      </p>
+      <div class="field">
+        <label>Empresa</label>
+        <input type="text" id="bulkCompanyInput" placeholder="Nome da empresa…">
+      </div>
+      <button class="btn-save" onclick="confirmBulkCompany()">🏢 Aplicar</button>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL: CROP DE FOTO -->
 <div class="overlay" id="cropModal">
   <div class="modal" style="max-width:360px">
@@ -570,7 +640,8 @@ function showPage(id){
   document.querySelectorAll(".bnav-btn").forEach(function(b){ b.classList.remove("active"); });
   document.getElementById("page-"+id).classList.add("active");
   document.getElementById("nav-"+id).classList.add("active");
-  document.getElementById("fab").style.display = id==="contacts" ? "flex" : "none";
+  document.getElementById("fab").style.display = (id==="contacts" && !_selMode) ? "flex" : "none";
+  if(id!=="contacts" && _selMode) toggleSelMode();
   if(id==="history") renderHistory();
   if(id==="pending") renderPending();
   if(id==="import") renderStats();
@@ -642,7 +713,10 @@ function renderContactList(list){
     var tags = tagsArr(c).slice(0,3);
     var badge = c.status==="Pendente" ? '<span class="cbadge">⚠ Pendente</span>' : "";
     var tagsHtml = tags.map(function(t){ return '<span class="ctag">'+esc(t)+'</span>'; }).join("");
-    return '<div class="ccard" onclick="openDetail(\''+c.id+'\')">'+
+    var isSel=_sel.has(c.id);
+    var clickFn=_selMode ? 'toggleSel(\''+c.id+'\')' : 'openDetail(\''+c.id+'\')';
+    return '<div class="ccard'+(_selMode&&isSel?" selpick":"")+'" onclick="'+clickFn+'">'+
+      (_selMode ? '<div class="selcheck'+(isSel?" on":"")+'">'+(isSel?"✓":"")+'</div>' : "")+
       avHtml(c,48)+
       '<div class="cinfo">'+
         '<div class="cname">'+esc(c.name||"Desconhecido")+'</div>'+
@@ -1140,6 +1214,158 @@ async function confirmMerge(){
     closeModal("mergeModal");
     toast("✅ Mesclado com "+target.name,"ok");
   }catch(e){ toast("Erro ao mesclar: "+e.message,"err"); }
+}
+
+// ─── SELEÇÃO EM LOTE ─────────────────────────────────────────
+var _selMode=false, _sel=new Set(), _batchKeepId=null;
+
+function toggleSelMode(){
+  _selMode=!_selMode; _sel.clear(); _batchKeepId=null;
+  var b=document.getElementById("selToggle");
+  b.classList.toggle("on",_selMode);
+  b.textContent=_selMode?"✕":"✓";
+  document.querySelector("#page-contacts .topbar h1").textContent=_selMode?"Selecionar":"👥 Contatos";
+  document.getElementById("selBar").classList.toggle("on",_selMode);
+  document.getElementById("fab").style.display=(document.getElementById("page-contacts").classList.contains("active")&&!_selMode)?"flex":"none";
+  filterContacts(); updateSelBar();
+}
+function toggleSel(id){
+  if(_sel.has(id)) _sel.delete(id); else _sel.add(id);
+  filterContacts(); updateSelBar();
+}
+function updateSelBar(){
+  document.getElementById("selCount").textContent=_sel.size+" selecionado"+(_sel.size===1?"":"s");
+  document.getElementById("selMergeBtn").disabled=_sel.size<2;
+  document.getElementById("selCompBtn").disabled=_sel.size===0;
+  document.getElementById("selDelBtn").disabled=_sel.size===0;
+}
+function selIds(){ return Array.from(_sel); }
+
+// MESCLAR PESSOAS EM LOTE
+function openBatchMerge(){
+  if(_sel.size<2) return;
+  _batchKeepId=null;
+  renderBatchMergeList();
+  document.getElementById("batchMergeModal").classList.add("open");
+}
+function renderBatchMergeList(){
+  var list=contacts.filter(function(c){ return _sel.has(c.id); });
+  document.getElementById("batchMergeList").innerHTML=list.map(function(c){
+    var sel=c.id===_batchKeepId;
+    return '<div class="merge-item'+(sel?" sel":"")+'" onclick="batchKeep(\''+c.id+'\')">'+
+      avHtml(c,36)+
+      '<div style="flex:1"><div style="font-size:13px;font-weight:600">'+esc(c.name||"Desconhecido")+'</div>'+
+      '<div style="font-size:11px;color:var(--muted)">'+esc([c.role,c.company].filter(Boolean).join(" · ")||"—")+'</div></div>'+
+      (sel?'<span style="color:var(--green);font-size:12px">✓ principal</span>':'')+
+    '</div>';
+  }).join("");
+  var btn=document.getElementById("btnConfirmBatchMerge");
+  btn.disabled=!_batchKeepId;
+  if(_batchKeepId){
+    var k=contacts.find(function(c){return c.id===_batchKeepId;});
+    btn.textContent="🔀 Mesclar "+(_sel.size-1)+" em "+(k.name||"Desconhecido");
+  } else btn.textContent="Selecione o contato principal";
+}
+function batchKeep(id){
+  _batchKeepId=id;
+  renderBatchMergeList();
+}
+async function confirmBatchMerge(){
+  var keep=contacts.find(function(c){return c.id===_batchKeepId;});
+  if(!keep) return;
+  var others=selIds().filter(function(id){return id!==keep.id;});
+  var upd={};
+  for(var i=0;i<others.length;i++){
+    var s=contacts.find(function(c){return c.id===others[i];});
+    if(!s) continue;
+    ["nickname","company","role","relation","relation_context","contact_whatsapp",
+     "contact_email","contact_phone","contact_linkedin"].forEach(function(k){
+      if(s[k]&&!keep[k]&&upd[k]===undefined) upd[k]=s[k];
+    });
+    if(!keep.photo_url&&!upd.photo_url&&s.photo_url) upd.photo_url=s.photo_url;
+    if(!keep.face_embedding&&!upd.face_embedding&&s.face_embedding) upd.face_embedding=s.face_embedding;
+    if(s.notes&&(!keep.notes||keep.notes.indexOf(s.notes)<0)) upd.notes=(upd.notes||keep.notes||"")+((upd.notes||keep.notes)?"\n":"")+s.notes;
+    if(s.last_seen_date&&(!keep.last_seen_date||new Date(s.last_seen_date)>new Date(keep.last_seen_date))){
+      upd.last_seen_date=s.last_seen_date; upd.last_seen_context=s.last_seen_context;
+    }
+    var tgs=Array.from(new Set(tagsArr(keep).concat(upd.tags?String(upd.tags).split(","):"",tagsArr(s)).filter(Boolean)));
+    if(tgs.length) upd.tags=tgs.join(", ");
+  }
+  try{
+    var encs=encounters.filter(function(e){return others.indexOf(e.person_id)>=0;});
+    await Promise.all(encs.map(function(e){
+      return fetch(PROXY+"?id="+e.id+"&entity=FaceContextEncounter",{
+        method:"PUT",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({person_id:keep.id,person_name:keep.name})
+      });
+    }));
+    if(Object.keys(upd).length){
+      await fetch(PROXY+"?id="+keep.id+"&entity=FaceContextPerson",{
+        method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(upd)
+      });
+    }
+    await Promise.all(others.map(function(id){
+      return fetch(PROXY+"?id="+id+"&entity=FaceContextPerson",{method:"DELETE"});
+    }));
+    encounters.forEach(function(e){
+      if(others.indexOf(e.person_id)>=0){e.person_id=keep.id;e.person_name=keep.name;}
+    });
+    Object.assign(keep,upd);
+    contacts=contacts.filter(function(c){return others.indexOf(c.id)<0;});
+    closeModal("batchMergeModal");
+    toggleSelMode();
+    renderContacts(); updatePendBadge();
+    toast("✅ Mesclados em "+(keep.name||"Desconhecido"),"ok");
+  }catch(e){ toast("Erro ao mesclar: "+e.message,"err"); }
+}
+
+// EMPRESA EM LOTE
+function openBulkCompany(){
+  if(!_sel.size) return;
+  document.getElementById("bulkCompanyInput").value="";
+  document.getElementById("bulkCompanyModal").classList.add("open");
+}
+async function confirmBulkCompany(){
+  var v=document.getElementById("bulkCompanyInput").value.trim();
+  if(!v){ toast("Digite o nome da empresa","err"); return; }
+  var ids=selIds();
+  try{
+    await Promise.all(ids.map(function(id){
+      return fetch(PROXY+"?id="+id+"&entity=FaceContextPerson",{
+        method:"PUT",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({company:v})
+      });
+    }));
+    ids.forEach(function(id){
+      var c=contacts.find(function(x){return x.id===id;});
+      if(c) c.company=v;
+    });
+    closeModal("bulkCompanyModal");
+    toggleSelMode();
+    renderContacts();
+    toast("🏢 "+ids.length+" contato(s) → "+v,"ok");
+  }catch(e){ toast("Erro: "+e.message,"err"); }
+}
+
+// APAGAR EM LOTE
+async function bulkDelete(){
+  if(!_sel.size) return;
+  if(!confirm("Apagar "+_sel.size+" contato(s) e seus encontros? Não dá pra desfazer.")) return;
+  var ids=selIds();
+  try{
+    var encs=encounters.filter(function(e){return ids.indexOf(e.person_id)>=0;});
+    await Promise.all(encs.map(function(e){
+      return fetch(PROXY+"?id="+e.id+"&entity=FaceContextEncounter",{method:"DELETE"});
+    }));
+    await Promise.all(ids.map(function(id){
+      return fetch(PROXY+"?id="+id+"&entity=FaceContextPerson",{method:"DELETE"});
+    }));
+    contacts=contacts.filter(function(c){return ids.indexOf(c.id)<0;});
+    encounters=encounters.filter(function(e){return ids.indexOf(e.person_id)<0;});
+    toggleSelMode();
+    renderContacts(); updatePendBadge();
+    toast("🗑 "+ids.length+" contato(s) apagado(s)","ok");
+  }catch(e){ toast("Erro ao apagar: "+e.message,"err"); }
 }
 
 // ─── HISTORY PAGE ────────────────────────────────────────────
