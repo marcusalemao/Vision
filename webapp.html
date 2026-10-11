@@ -604,6 +604,13 @@ Desconhecido: nunca nununu" style="min-height:100px;font-family:monospace;font-s
 <script>
 // ─── CONFIG ─────────────────────────────────────────────────
 var PROXY = "https://base44.app/api/apps/6a11083db49430b410a8c066/functions/fcProxy";
+// Device token (11/10/2026): the backend (fcProxy) only accepts requests carrying x-vc-token.
+// Asked once per device, kept in localStorage, never in the code. Add ?resettoken=1 to the URL to change it.
+function vcToken(){var k='vc_device_token',v='';try{if(/[?&]resettoken=1\b/.test(location.search))localStorage.removeItem(k);v=localStorage.getItem(k)||'';}catch(e){}
+if(!v){v=(prompt('VisualContext — cole o token do aparelho (VC_DEVICE_TOKEN):')||'').trim();try{if(v)localStorage.setItem(k,v);}catch(e){}}return v;}
+var _vcFetch0=window.fetch.bind(window);
+window.fetch=function(u,o){if(typeof u==='string'&&u.indexOf(PROXY)===0){o=o||{};var h={};Object.keys(o.headers||{}).forEach(function(k){h[k]=o.headers[k];});
+var t=vcToken();if(t)h['x-vc-token']=t;o.headers=h;return _vcFetch0(u,o).then(function(r){if(r.status===401){try{localStorage.removeItem('vc_device_token');}catch(e){}}return r;});}return _vcFetch0(u,o);};
 
 // ─── STATE ──────────────────────────────────────────────────
 var contacts = [], encounters = [];
